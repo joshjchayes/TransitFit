@@ -5,8 +5,8 @@ Tests for TransitFit
 
 import numpy as np
 import batman
-from .likelihood import LikelihoodCalculator
-from .priorinfo import PriorInfo
+from ._likelihood import LikelihoodCalculator
+from .priorinfo import PriorInfo, setup_priors
 from .retriever import Retriever
 
 def run_all_tests():
@@ -27,8 +27,8 @@ def make_dummy_lightcurve(error_size=0.01):
     params.inc = 87.                      #orbital inclination (in degrees)
     params.ecc = 0.                       #eccentricity
     params.w = 90.                        #longitude of periastron (in degrees)
-    params.limb_dark = "nonlinear"        #limb darkening model
-    params.u = [0.5, 0.1, 0.1, -0.1]      #limb darkening coefficients [u1, u2, u3, u4]
+    params.limb_dark = "quadratic"        #limb darkening model
+    params.u = [0.1, 0.3]      #limb darkening coefficients [u1, u2, u3, u4]
 
     times = np.linspace(-0.025, 0.025, 1000)  #times at which to calculate light curve
     model = batman.TransitModel(params, times)    #initializes model
@@ -81,7 +81,6 @@ def test_LikelihoodCalculator():
     l2 = calculator.find_likelihood(0, 1.1, 0.13, 12., 89, 0, 90, 'nonlinear', [0.5, 0.1, 0.1, -0.1])
     print('Likelihood of non-exact parameters: {}'.format(round(l2, 3)))
 
-
 def test_PriorInfo():
     '''
     Tests that the PriorInfo can be made
@@ -97,8 +96,16 @@ def test_Retriever(error_size=0.001):
     times, data, errors, params = make_dummy_lightcurve(error_size)
 
     retriever = Retriever()
-    prior = PriorInfo([0.8, 1.2], [5, 20], t0=[-5, 5])
+
+
+    prior = setup_priors(1, 1, 8, 87, 0.1, t0=0)
+
+    prior.add_uniform_fit_param('P', 1, 0.9, 1.1)
+    prior.add_uniform_fit_param('rp', 0.08, 0.05, 0.15, 0)
+    prior.add_uniform_fit_param('t0', 0, -0.2, 0.2, 0)
+    prior.add_uniform_fit_param('a', 13, 10, 25)
+    prior.add_uniform_fit_param('inc', 87, 85, 90)
 
     result = retriever.run_dynesty(times, data, errors, prior)
 
-    return result
+    return result, prior

@@ -5,70 +5,145 @@ Object to handle and deal with prior info for retrieval
 '''
 
 import numpy as np
+from ._params import _Param, _UniformParam
+
+_prior_info_defaults = {'P':1, 'a':10, 'inc':90, 'rp':0.05, 't0':0, 'ecc':0,
+                        'w':90, 'limb_dark':'quadratic',
+                        'limb_dark_params':[0.1, 0.3], 'num_light_curves':1}
+
+
+def setup_priors(P, a, inc, rp, t0, ecc=0, w=90, limb_dark='quadratic',
+                 limb_dark_params=[0.1, 0.3], num_light_curves=1):
+    '''
+    Creates a PriorInfo object with some default inputs
+
+    num_light_curves : int
+        The number of light curves which will be fitted using the priors.
+        Required to ensure that the rp and t0 priors are the right shapes
+    '''
+    default_priors = {}
+
+    default_priors['num_light_curves'] = num_light_curves
+    default_priors['P'] = P
+    default_priors['a'] = a
+    default_priors['inc'] = inc
+    default_priors['rp'] = rp
+    default_priors['t0'] = t0
+    default_priors['ecc'] = ecc
+    default_priors['w'] = w
+
+    if  (limb_dark == "uniform" and len(limb_dark_params) != 0) or \
+        (limb_dark == "linear" and len(limb_dark_params) != 1) or \
+        (limb_dark == "quadratic" and len(limb_dark_params) != 2) or \
+        (limb_dark == "logarithmic" and len(limb_dark_params) != 2) or \
+        (limb_dark == "exponential" and len(limb_dark_params) != 2) or \
+        (limb_dark == "squareroot" and len(limb_dark_params) != 2) or \
+        (limb_dark == "power2" and len(limb_dark_params) != 2) or \
+        (limb_dark == "nonlinear" and len(limb_dark_params) != 4):
+        raise Exception("Incorrect number of coefficients for " + limb_dark + \
+         " limb darkening; u should have the form:\n \
+         u = [] for uniform LD\n \
+         u = [u1] for linear LD\n \
+         u = [u1, u2] for quadratic, logarithmic, exponential, squareroot, and power2 LD\n \
+         u = [u1, u2, u3, u4] for nonlinear LD, or\n \
+         u = [u1, ..., un] for custom LD")
+
+    default_priors['limb_dark'] = limb_dark
+    default_priors['limb_dark_params'] = limb_dark_params
+
+    return PriorInfo(default_priors)
 
 class PriorInfo:
-    def __init__(self, P=[0.01, 1000], a=[0.01, 500], inc=[85,90], t0=[-100,100],
-                 rp=[0.01,0.6]):
+    def __init__(self, default_dict):
         '''
-        This is an object to handle priors.
+        Contains all the info to be used in fitting, both the variable and
+        fixed parameters.
 
-        The parameters we are fitting are
-        P - period
-        a - semi-major axis (in stellar radii)
-        inc - inclination (in degrees)
-        t0 - time of inferior conjunction
-        rp - planet radius (in stellar radii)
+        Generally it is inadvisable to directly initialise this object,
+        and you should call the factory function setup_priors() as this does
+        a lot of the formatting of inputs for you.
         '''
+        self.fitting_params = []
+        self._light_curve_number = []
         self.priors = {}
-        self.set_priors(P, a, inc, t0, rp)
 
-    def set_priors(self, P=None, a=None, inc=None, t0=None, rp=None):
+        for key in default_dict.keys():
+            if key in ['rp', 't0']:
+                self.priors[key] = [_Param(default_dict[key]) for i in range(default_dict['num_light_curves'])]
+            elif key == 'num_light_curves':
+                self.priors[key] = default_dict[key]
+            else:
+                self.priors[key] = _Param(default_dict[key])
+
+
+    def add_uniform_fit_param(self, name, best, low_lim, high_lim, light_curve_num=None):
         '''
-        Sets the priors to the vaules specified
+        Adds a new parameter which will be fitted uniformly in the range given
+        by low_lim and high_lim
 
-        If provided, each prior should be a 2-tuple or list of 2 numbers,
-        given in the order [lower, upper]
+        If light_curve is given, it should refer to the value of the first
+        index in he data given to the retriever. This allows you to specify
+        radius and t0 fitting for individual light curves whilst using info
+        from all of them to fit the wavelength and epoch invariant parameters
+
         '''
-        if P is not None:
-            self._verify_prior_format(P, 'P')
-            self.priors['P'] = P
-        if a is not None:
-            self._verify_prior_format(a, 'a')
-            self.priors['a'] = a
-        if inc is not None:
-            self._verify_prior_format(inc, 'inc')
-            self.priors['inc'] = inc
-        if t0 is not None:
-            self._verify_prior_format(t0, 't0')
-            self.priors['t0'] = t0
-        if rp is not None:
-            self._verify_prior_format(rp, 'rp')
-            self.priors['rp'] = rp
+        if name in ['rp', 't0']:
+            if light_curve_num is None:
+                raise ValueError('light_curve_number must be provided for parameter {}'.format(name))
+            self.priors[name][light_curve_num] = _UniformParam(best, low_lim, high_lim)
+
+        #elif:
+
+        else:
+            self.priors[name] = _UniformParam(best, low_lim, high_lim)
+
+        self.fitting_params.append(name)
+        self._light_curve_number.append(light_curve_num)
 
 
-    def _verify_prior_format(self, prior, prior_name):
+
+    def _from_unit_interval(self, i, u):
         '''
-        Checks that a value provided for a prior is either a tuple or list of
-        the form [lower, upper].
-
-        Also verifies that values are physically allowed
+        Gets parameter self.fitting_params[i] from a number between 0 and 1
         '''
-        if not len(prior) == 2:
-            raise ValueError("You must supply both the lower and upper bound for {}".format(prior_name))
-        if not prior[0] < prior[1]:
-            raise ValueError("Lower bound {} >= upper bound {} for {}".format(prior[0], prior[1], prior_name))
+        name = self.fitting_params[i]
+        light_curve_number = self._light_curve_number[i]
+        if name in ['rp','t0']:
+            return self.priors[name][light_curve_number].from_unit_interval(u)
+        return self.priors[name].from_unit_interval(u)
 
-        if prior[0] <= 0 and not prior_name=='t0':
-            raise ValueError("Lower bound cannot be <0 for {}".format(prior_name))
-
-        if prior_name == 'inc':
-            if prior[0] > 90 or prior[1]>90:
-                raise ValueError('Inclination cannot be >90 degrees')
-
-    def _value_from_unit_interval(self, x, param):
+    def _interpret_param_array(self, array):
         '''
-        when given a value x in range (0,1], will convert to a value to be used
-        by Batman
+        Interprets the parameter cube generated by dynesty and returns
+        the parameters in a format usable by the LikelihoodCalculator
         '''
+        if not len(array) == len(self.fitting_params):
+            raise ValueError('Param array is the wrong length {} for the number of parameters being fitted {}!'.format(len(array), len(self.fitting_params)))
 
-        return x * (self.priors[param][1] - self.priors[param][0]) + self.priors[param][0]
+        result = {}
+        result['rp'] = []
+        result['t0'] = []
+
+        for i, key in enumerate(self.fitting_params):
+            if key in ['rp','t0']:
+                result[key].append(array[i])
+            else:
+                result[key] = array[i]
+
+        for key in self.priors:
+            if not key == 'num_light_curves':
+                if key not in result:
+                    result[key] = self.priors[key].default_value
+                elif key in ['rp', 't0']:
+                    if len(result[key]) == 0:
+                        print(key)
+                        result[key] = self.priors[key].default_value
+
+        return result
+
+
+    def _interpret_results_array(self, array):
+        '''
+        Interprets the final results (best params) so that we can quickly plot
+        '''
+        pass
