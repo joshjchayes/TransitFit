@@ -72,11 +72,15 @@ To run retrieval, set up a ``Retriever`` object::
 
   retriever = transitfit.Retriever()
 
-You also need to have your light curves. These need to be laid out as 3 (M,N) arrays, one for each of the time series, flux from the star (normalised), and the uncertainty on the flux. In the shape, M is the number of light curves you want to run retrieval on simultaneously. Note that these must all be for the same planet!!
+You also need to have your light curves. These need to be laid out as 3 (M,N) arrays, one for each of the time series, flux from the star (normalised), and the uncertainty on the flux. In the shape, M is the number of light curves you want to run retrieval on simultaneously. Note that these must all be for the same planet!! You can also use::
+
+  times, flux, errors = transitfit.read_data_file('/path/to/file') 
+
+to read in a single light curve!
 
 Now we can use the ``PriorInfo`` and ``Retriever`` together to get some results::
 
-  results = retriever.run_dynesty(times, depths, errors, prior_info)
+  results = retriever.run_dynesty(times, flux, errors, prior_info)
 
 
 
