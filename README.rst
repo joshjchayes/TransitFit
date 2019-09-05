@@ -1,5 +1,5 @@
 ================
-** TransitFit **
+TransitFit
 ================
 
 **Author** - Joshua Hayes (joshjchayes@gmail.com)
