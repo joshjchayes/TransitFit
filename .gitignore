@@ -39,3 +39,6 @@ Thumbs.db
 
 # Josh Local Ignores #
 ######################
+*.egg-info/*
+build/*
+dist/*
