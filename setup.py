@@ -9,8 +9,8 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="transitfit-joshjchayes",
-    version="0.0.1",
+    name="transitfit",
+    version="0.3",
     author="Joshua Hayes",
     author_email="joshjchayes@gmail.com",
     description="A package to fit exoplanet transit light curves",
@@ -25,4 +25,5 @@ setuptools.setup(
         "Development Status :: 3 - Alpha"
     ],
     python_requires='>=3.6',
+    install_requires=['batman', 'dynesty','numpy','matplotlib', 'pandas', ]
 )

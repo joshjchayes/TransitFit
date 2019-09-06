@@ -80,7 +80,6 @@ def read_priors_file(path):
 
     # Work out how mnay light curves are being used.
     num_light_curves = int(np.nanmax(table[:, -1]) + 1)
-    print(num_light_curves)
 
     #######################################################
     # Set up the default dict to initialise the PriorInfo #

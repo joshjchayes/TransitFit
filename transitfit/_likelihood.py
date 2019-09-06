@@ -17,20 +17,24 @@ class LikelihoodCalculator:
         continually update to calculate the model transit curve.
 
         '''
+        # We need to check that
+
+        if len(np.shape(times[0])) == 0:
+            # Reshape to add extra dimension
+            times = [times]
+            depths = [depths]
+            errors = [errors]
+
+        '''
         if not times.shape == depths.shape == errors.shape:
             raise ValueError('Shape of times ({}), depths({}), and errors({}) do not match'.format(times.shape, depths.shape, errors.shape))
 
         if times.ndim > 2:
             raise ValueError('Too many dimensions for arrays, must be 1 or 2, you gave {}'.format(times.ndim))
+        '''
 
-        if times.ndim == 1:
-            # Reshape to add extra dimension.
-            n = times.shape[0]
-            times = times.reshape(1, n)
-            depths = depths.reshape(1, n)
-            errors = errors.reshape(1, n)
 
-        self.num_light_curves = times.shape[0]
+        self.num_light_curves = len(times)
 
         self.times = times
         self.depths = depths
@@ -47,8 +51,17 @@ class LikelihoodCalculator:
         rp and t0 should be array_like with shape (M,) if times, depths and
         errors all have shape (M,N)
         '''
-        t0 = self._validate_variant_parameter(t0)
-        rp = self._validate_variant_parameter(rp)
+        try:
+            t0 = self._validate_variant_parameter(t0)
+        except:
+            print('Invalid t0')
+            raise
+        try:
+            rp = self._validate_variant_parameter(rp)
+        except:
+            print('Invalid rp')
+            raise
+
 
         all_chi2 = []
 
@@ -104,6 +117,7 @@ class LikelihoodCalculator:
         p = np.asarray(p)
 
         if not p.shape[0] == self.num_light_curves:
+            print(p)
             raise ValueError('Incorrect number {} of parameters provided for fitting {} lightcuves.'.format(p.shape[0], self.num_light_curves))
 
         return p
