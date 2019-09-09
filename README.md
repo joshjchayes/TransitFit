@@ -14,6 +14,8 @@ TransitFit is a package designed to use nested sampling to run retrieval on exop
 
 [Running Retrieval](#retrieval)
 
+[Single line running](#single_line)
+
 
 <a name="requirements"></a>
 ## Requirements
@@ -80,3 +82,18 @@ Now we can use the ``PriorInfo`` and ``Retriever`` together to get some results
 ```python
 results = retriever.run_dynesty(times, flux, errors, prior_info)
 ```
+
+<a name="single_line"></a>
+## Single line running
+If you have a bunch of data files and a prior.csv file set up, ``TransitFit`` provides a helpful wrapper function ``run_retrieval_from_paths()`` which does all of the above for you. All you have to do is pass it a list of paths to your data and the path to the priors file:
+
+```python
+import transitfit
+
+data_file_paths = ['/data/path/1', 
+                   '/data/path/2',
+                   '/data/path/3'...]
+                   
+results = transitfit.run_retrieval_from_paths(data_file_paths, '/path/to/prior/file')
+```
+
