@@ -258,19 +258,17 @@ def read_input_file(path):
     info = pd.read_csv(path).values
 
     # Work out how many epochs and filters we have
-    n_epochs = info[:,1].max()
-    n_filters = info[:,2].max()
+    n_epochs = info[:,1].max() + 1
+    n_filters = info[:,2].max() + 1
 
     # Initialise a blank array
-    paths_array = np.array([[None for i in range(n_filters)] for j in range(num_epochs)])
+    paths_array = np.array([[None for i in range(n_epochs)] for j in range(n_filters)], object)
 
     for row in info:
         p, i, j = row
-        paths_array[i,j] = p
+        paths_array[j,i] = p
 
     return read_data_file_array(paths_array)
-
-
 
 
 def save_results(results, priorinfo, filepath='outputs.csv'):

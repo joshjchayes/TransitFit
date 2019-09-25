@@ -30,7 +30,7 @@ def quadratic(times, u1, u2, u3):
 
     detrend_values = u1 * times^2 + u2 * times + u3
     '''
-    return u1 * t**2 + u2 * t + u3
+    return u1 * times**2 + u2 * times + u3
 
 def sinusoidal(times, u1, u2, u3):
     '''
@@ -39,4 +39,4 @@ def sinusoidal(times, u1, u2, u3):
     detrend_values = u1 * sin(u2 * times + u3)
 
     '''
-    return u1 * np.sin(u2 * t + u3)
+    return u1 * np.sin(u2 * times + u3)

@@ -60,7 +60,7 @@ def plot_best(times, flux, uncertainty, priorinfo, results, input_file=None,
                 # Plot the raw data
                 if priorinfo.detrend:
                     # TODO: account for detrending.
-                    d = [priorinfo.priors[d][fi, ei] for d in priorinfo.detrending_coeffs]
+                    d = [best_dict[d][fi, ei] for d in priorinfo.detrending_coeffs]
 
                     dF = priorinfo.detrending_function(times[fi, ei], *d)
 
