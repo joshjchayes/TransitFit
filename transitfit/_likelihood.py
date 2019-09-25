@@ -1,10 +1,14 @@
 '''
 Module to calculate the likelihood of a set of parameters
 
+
+This is a WIP to couple the rp and t0 for same wavelength and epoch
+respectively
 '''
 
 import numpy as np
 import batman
+from copy import deepcopy
 
 
 class LikelihoodCalculator:
@@ -16,94 +20,105 @@ class LikelihoodCalculator:
         self.batman_params is a batman.TransitParams object which we
         continually update to calculate the model transit curve.
 
+        each of times, depths, errors needs to be an MxN array where M is the
+        number of different wavelengths being used, and N is is time (each
+        transit). This allows us to couple light curves together to help
+        work out rp and t0 in a coupled manner.
+
+        If no light curve exists for a point in the array, the entry should be
+        None
         '''
-        # We need to check that
+        times = np.array(times, dtype=object)
+        depths = np.array(depths, dtype=object)
+        errors = np.array(errors, dtype=object)
 
-        if len(np.shape(times[0])) == 0:
-            # Reshape to add extra dimension
-            times = [times]
-            depths = [depths]
-            errors = [errors]
+        self.num_wavelengths = times.shape[0]
+        self.num_times = times.shape[1]
 
-        '''
-        if not times.shape == depths.shape == errors.shape:
-            raise ValueError('Shape of times ({}), depths({}), and errors({}) do not match'.format(times.shape, depths.shape, errors.shape))
-
-        if times.ndim > 2:
-            raise ValueError('Too many dimensions for arrays, must be 1 or 2, you gave {}'.format(times.ndim))
-        '''
-
-
-        self.num_light_curves = len(times)
+        self.num_light_curves = len(np.where(times == None)[0])
 
         self.times = times
         self.depths = depths
         self.errors = errors
 
         # We need to make a separate TransitParams for each light curve.
-        self.batman_params = [batman.TransitParams() for i in range(self.num_light_curves)]
+        # Initialse it:
+        self.batman_params = np.array([[None for i in range(self.num_times)] for j in range(self.num_wavelengths)])
 
-    def find_likelihood(self, t0, per, rp, a, inc, ecc, w, limb_dark, u):
+        for i in range(self.num_wavelengths):
+            for j in range(self.num_times):
+                if self.times[i][j] is not None:
+                    self.batman_params[i][j] = batman.TransitParams()
+
+    def find_likelihood(self, t0, per, rp, a, inc, ecc, w, limb_dark, u,
+                        detrend_function=None, d=None):
         '''
         Calculates the likelihood of a set of parameters matching the given
         model
 
-        rp and t0 should be array_like with shape (M,) if times, depths and
-        errors all have shape (M,N)
-        '''
-        try:
-            t0 = self._validate_variant_parameter(t0)
-        except:
-            print('Invalid t0')
-            raise
-        try:
-            rp = self._validate_variant_parameter(rp)
-        except:
-            print('Invalid rp')
-            raise
+        t0 should be array with length self.num_times
 
+        rp should be array with lengths self.num_wavelengths
+        '''
+        if not len(t0) == self.num_times:
+            raise ValueError('You supplied {} t0 values, not {} as expected'.format(len(t0), self.num_times))
+
+        if not len(rp) == self.num_wavelengths:
+            raise ValueError('You supplied {} rp values, not {} as expected'.format(len(rp), self.num_wavelengths))
 
         all_chi2 = []
+        for i in range(self.num_wavelengths):
+            for j in range(self.num_times):
+                if self.batman_params[i,j] is not None:
+                    # Update the parameters to the ones we are interested in
+                    self.update_params(i, j, t0[j], per, rp[i], a, inc, ecc, w, limb_dark, u[i])
 
-        for i in range(self.num_light_curves):
-            # Update the parameters to the ones we are interested in
-            self.update_params(i, t0[i], per, rp[i], a, inc, ecc, w, limb_dark, u)
+                    # Calculate the transits and the chi2 values
+                    model = batman.TransitModel(self.batman_params[i,j], self.times[i][j])
+                    model_depths = model.light_curve(self.batman_params[i,j])
 
-            # Calculate the transits and the chi2 values
-            model = batman.TransitModel(self.batman_params[i], self.times[i])
-            model_depths = model.light_curve(self.batman_params[i])
-
-            # Work out the chi2 of the fit
-            # Assuming that the data is rescaled to a baseline flux of 1.
-            all_chi2.append(sum((model_depths - self.depths[i])**2 / self.errors[i]**2))
+                    comparison_depths = deepcopy(self.depths[i][j])
+                    #print(comparison_depths.shape)
+                    # If detrending is happening, it does on here!
+                    if detrend_function is not None:
+                        if d is None:
+                            raise TypeError('Detrend function given but d is None!')
+                        #print(d[:,i,j])
+                        comparison_depths -= detrend_function(self.times[i][j], *d[:,i,j])
+                        #print(np.mean(comparison_depths))
+                    # Work out the chi2 of the fit
+                    # Assuming that the data is rescaled to a baseline flux of 1.
+                    chi2 = sum((model_depths - comparison_depths)**2 / self.errors[i][j]**2)
+                    #print(chi2)
+                    all_chi2.append(chi2)
 
         # The likelihood is just -1*chi2
         return - sum(all_chi2)
 
-    def update_params(self, light_curve_number, t0=None, per=None, rp=None,
+    def update_params(self, wavelength_index, time_index, t0=None, per=None, rp=None,
                       a=None, inc=None, ecc=None, w=None, limb_dark=None,
                       u=None):
         '''
         Updates self.params with values given
         '''
         if t0 is not None:
-            self.batman_params[light_curve_number].t0 = t0
+            self.batman_params[wavelength_index, time_index].t0 = t0
         if per is not None:
-            self.batman_params[light_curve_number].per = per
+            self.batman_params[wavelength_index, time_index].per = per
         if rp is not None:
-            self.batman_params[light_curve_number].rp = rp
+            self.batman_params[wavelength_index, time_index].rp = rp
         if a is not None:
-            self.batman_params[light_curve_number].a = a
+            self.batman_params[wavelength_index, time_index].a = a
         if inc is not None:
-            self.batman_params[light_curve_number].inc = inc
+            self.batman_params[wavelength_index, time_index].inc = inc
         if ecc is not None:
-            self.batman_params[light_curve_number].ecc = ecc
+            self.batman_params[wavelength_index, time_index].ecc = ecc
         if w is not None:
-            self.batman_params[light_curve_number].w = w
+            self.batman_params[wavelength_index, time_index].w = w
         if limb_dark is not None:
-            self.batman_params[light_curve_number].limb_dark = limb_dark
+            self.batman_params[wavelength_index, time_index].limb_dark = limb_dark
         if u is not None:
-            self.batman_params[light_curve_number].u = u
+            self.batman_params[wavelength_index, time_index].u = u
 
     def _validate_variant_parameter(self, p):
         '''

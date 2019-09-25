@@ -8,6 +8,7 @@ import batman
 from ._likelihood import LikelihoodCalculator
 from .priorinfo import PriorInfo, setup_priors
 from .retriever import Retriever
+from ._likelihood2 import LikelihoodCalculator as Likelihood2
 
 def run_all_tests():
     '''
@@ -109,3 +110,28 @@ def test_Retriever(error_size=0.001):
     result = retriever.run_dynesty(times, data, errors, prior)
 
     return result, prior
+
+def test_LikelihoodCalculator2():
+    times = np.array([[None for i in range(2)] for j in range(3)], object)
+    depths = np.array([[None for i in range(2)] for j in range(3)], object)
+    errors = np.array([[None for i in range(2)] for j in range(3)], object)
+
+    x = make_dummy_lightcurve()
+
+    for i in [(0,1), (1,1), (2,0)]:
+        times[i] = x[0]
+        depths[i] = x[1]
+        errors[i] = x[2]
+
+    calc = Likelihood2(times, depths, errors)
+
+    l = calc.find_likelihood([0,0],1,[0.1,0.1,0.1], 15, 87, 0, 90, "nonlinear", [0.5, 0.1, 0.1, -0.1] )
+    return calc, l
+
+
+
+def test_pipeline():
+    '''
+    Tests the full pipeline on 
+
+    '''

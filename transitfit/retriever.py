@@ -1,13 +1,19 @@
 '''
 TransitFit is a module to fit transit light curves using BATMAN
+
+This is an update to Retriever which couples the rp and t0 for
+same wavelength and epoch respectively
 '''
-
-
 import numpy as np
 from ._likelihood import LikelihoodCalculator
+from ._utils import validate_data_format
+from .io import save_results
+from .plotting import plot_best
 from dynesty import NestedSampler
+import dynesty.utils
 import matplotlib.pyplot as plt
 import batman
+import csv
 
 class Retriever:
     def __init__(self):
@@ -19,7 +25,8 @@ class Retriever:
         pass
 
     def run_dynesty(self, times, depths, errors, priorinfo,
-                    maxiter=None, maxcall=None, nlive=100, plot_best=True,
+                    limb_dark='quadratic', maxiter=None, maxcall=None,
+                    nlive=300, plot=True, savefname='outputs.csv',
                     **dynesty_kwargs):
         '''
         Runs a dynesty retrieval on the given data set
@@ -36,14 +43,8 @@ class Retriever:
         priorinfo : PriorInfo
             The priors for fitting. This basically sets the intervals over
             which each parameter is fitted.
-        eccentricity : float, optional
-            Eccentricity of the orbit. Default is 0.
-        w : float, optional
-            longitude of periastron (in degrees). Default is 90
         limb_dark : str, optional
             The limb darkening model to use. Default is 'quadratic'
-        limb_dark_params : array_like, optional
-            The constants for the limb darkening model. Default is [0.1, 0.3].
         maxiter : int or None, optional
             The maximum number of iterations to run. If None, will
             continue until stopping criterion is reached. Default is None.
@@ -53,7 +54,7 @@ class Retriever:
         nlive : int, optional
             The number of live points in the nested retrieval. Default is 100
         plot_best : bool, optional
-            If True, will plot the data and the best fir model on a Figure.
+            If True, will plot the data and the best fit model on a Figure.
             Default is True
         **dynesty_kwargs : optional
             Additional kwargs to pass to dynesty.NestedSampler
@@ -61,9 +62,14 @@ class Retriever:
         Returns
         -------
         results
+            The dynesty results dictionary
+        best : dict
+            A dictionary containing the best values for each parameter.
         '''
         # number of dimensions being fitted.
         ndims = len(priorinfo.fitting_params)
+
+        times, depths, errors = validate_data_format(times, depths, errors)
 
         # Make an object to calculate all the likelihoods
         likelihood_calc = LikelihoodCalculator(times, depths, errors)
@@ -85,6 +91,21 @@ class Retriever:
 
             params = priorinfo._interpret_param_array(cube)
 
+            # Get the limb darkening details and coefficient values
+            limb_dark = priorinfo.limb_dark
+            u = [params[key] for key in priorinfo.limb_dark_coeffs]
+
+
+            if priorinfo.detrend:
+                # Do the detrending things
+                detr_func = priorinfo.detrending_function
+                d = np.array([params[key] for key in priorinfo.detrending_coeffs])
+
+            else:
+                # Don't detrend
+                detr_func = None
+                d = None
+
 
             ln_likelihood = likelihood_calc.find_likelihood(params['t0'],
                                                             params['P'],
@@ -93,8 +114,10 @@ class Retriever:
                                                             params['inc'],
                                                             params['ecc'],
                                                             params['w'],
-                                                            params['limb_dark'],
-                                                            params['limb_dark_params'])
+                                                            limb_dark,
+                                                            np.array(u).T,
+                                                            detr_func,
+                                                            d)
 
             return ln_likelihood
 
@@ -106,25 +129,22 @@ class Retriever:
         sampler.run_nested(maxiter=maxiter, maxcall=maxcall)
 
         results = sampler.results
+
+        # Work out some weights so that we can calculate errors
+        normalized_weights = np.exp(results.logwt - results.logwt.max())/np.sum(np.exp(results.logwt - results.logwt.max()))
+        results.weights = normalized_weights
+
+
+
         # Save to outputs?
+        try:
+            save_results(results, priorinfo, savefname)
+            best_results = results.samples[np.argmax(results.logl)]
+        except Exception as e:
+            print(e)
+            print('Exception raised whilst saving results. I have just returned the results dictionary')
 
-        best_results = results.samples[np.argmax(results.logl)]
+        if plot:
+            plot_best(times, depths, errors, priorinfo, results)
 
-        '''
-        if plot_best:
-            print('Plotting best fit curve')
-            likelihood_calc.update_params(best_results[3], best_results[0],
-                                          best_results[4], best_results[1],
-                                          best_results[2], eccentricity,
-                                          w, limb_dark, limb_dark_params)
-            model = batman.TransitModel(likelihood_calc.batman_params, times)
-            light_curve = model.light_curve(likelihood_calc.batman_params)
-
-            fig, ax = plt.subplots(1,1)
-            ax.errorbar(times, depths, errors, alpha=0.8, fmt='xk', zorder=0,
-            markersize=0.5)
-            ax.plot(times, light_curve, linewidth=3)
-
-            plt.show()
-        '''
         return results

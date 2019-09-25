@@ -23,8 +23,6 @@ class _UniformParam(_Param):
 
         super().__init__(best, low_lim, high_lim)
 
-
-
     def from_unit_interval(self, u):
         '''
         Function to convert value u in range (0,1], will convert to a value to
