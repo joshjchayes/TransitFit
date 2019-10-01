@@ -51,7 +51,8 @@ class LikelihoodCalculator:
                     self.batman_params[i][j] = batman.TransitParams()
 
     def find_likelihood(self, t0, per, rp, a, inc, ecc, w, limb_dark, u,
-                        detrend_function=None, d=None):
+                        norm, detrend_function=None, d=None):
+                        #TODO: add in normalisation
         '''
         Calculates the likelihood of a set of parameters matching the given
         model
@@ -84,11 +85,11 @@ class LikelihoodCalculator:
                         if d is None:
                             raise TypeError('Detrend function given but d is None!')
                         #print(d[:,i,j])
-                        comparison_depths -= detrend_function(self.times[i][j], *d[:,i,j])
+                        comparison_depths -= detrend_function(self.times[i][j], *d[:,i,j]) * norm[i, j]
                         #print(np.mean(comparison_depths))
                     # Work out the chi2 of the fit
                     # Assuming that the data is rescaled to a baseline flux of 1.
-                    chi2 = sum((model_depths - comparison_depths)**2 / self.errors[i][j]**2)
+                    chi2 = sum((model_depths - comparison_depths)**2 / (self.errors[i][j] * norm[i, j])**2)
                     #print(chi2)
                     all_chi2.append(chi2)
 

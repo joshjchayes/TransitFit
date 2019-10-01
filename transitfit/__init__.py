@@ -7,6 +7,7 @@ name = 'transitfit'
 
 
 from .retriever import Retriever
-from .priorinfo import PriorInfo, setup_priors
+from .priorinfo import PriorInfo
 from .io import read_data_file, read_priors_file, read_data_file_array, read_input_file
 from ._pipeline import run_retrieval_from_paths
+from ._utils import calculate_logg

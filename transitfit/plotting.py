@@ -8,6 +8,7 @@ Plotting module for TransitFit
 import numpy as np
 import matplotlib.pyplot as plt
 import batman
+import os
 
 def plot_best(times, flux, uncertainty, priorinfo, results, input_file=None,
               **subplots_kwargs):
@@ -84,4 +85,6 @@ def plot_best(times, flux, uncertainty, priorinfo, results, input_file=None,
                 ax.set_title('Filter {}, Epoch {}'.format(fi, ei))
 
                 # Save the figures
+                # Make the plots folder
+                os.makedirs('plots', exist_ok=True)
                 fig.savefig('plots/f{}_e{}.pdf'.format(fi, ei))

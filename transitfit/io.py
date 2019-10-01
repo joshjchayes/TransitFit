@@ -37,7 +37,8 @@ def read_data_file(path, skiprows=0, delimiter=None):
     Reads a file in, assuming that it is either a:
         .csv
         .txt
-    with columns in the order time, depth, errors
+    with columns in the order time, depth, errors. Note that TransitFit assumes
+    BJD times.
 
     Parameters
     ----------
@@ -270,6 +271,45 @@ def read_input_file(path):
 
     return read_data_file_array(paths_array)
 
+def read_filter_info(path):
+    '''
+    Reads in information on the filters from .csv file and puts them in a
+    format which can be passed to the ``filters`` argument in
+    PriorInfo.fit_limb_darkening.
+
+    Parameters
+    ----------
+    path : str
+        Path to the .csv file containing the information on the filters. This
+        file should have three columns:
+
+        -----------------------------------------
+        |   filter_idx  |   low_wl  |   high_wl |
+        -----------------------------------------
+
+        The filter indices should refer to the indices used in the priors file.
+        All wavelengths should be in nm.
+
+    Returns
+    -------
+    filter_info : np.array, shape (n_filters, 2)
+        The filter information pass to PriorInfo.fit_limb_darkening.
+
+    '''
+
+    info = pd.read_csv(path).values
+
+    # How many filters are there?
+    n_filters = int(info[:,0].max() + 1)
+
+    # Make a blank array to populate with the filter limits
+    filter_info = np.zeros((n_filters, 2))
+
+    # Now populate!
+    for i in range(n_filters):
+        filter_info[i] = info[i, 1:]
+
+    return filter_info
 
 def save_results(results, priorinfo, filepath='outputs.csv'):
     '''
@@ -296,8 +336,8 @@ def save_results(results, priorinfo, filepath='outputs.csv'):
     # Put the output into a dictionary that's nice to deal with
     out_dict = {}
     write_dict = []
-    #out_dict['rp'] = np.zeros(priorinfo.num_wavelengths)
-    #out_dict['t0'] = np.zeros(priorinfo.num_times)
+
+    # TODO: add in single/all modes for limb darkening parameters
 
     for i, param in enumerate(priorinfo.fitting_params):
         value = best[i]

@@ -21,7 +21,6 @@ class Retriever:
         The basic retriever object for TransitFit. This does all of the
         heavy lifting of running retrieval through the run_dynesty() function
         '''
-        # The keys which are used for each of the parameters, in order.
         pass
 
     def run_dynesty(self, times, depths, errors, priorinfo,
@@ -34,7 +33,7 @@ class Retriever:
         Parameters
         ----------
         times : array_like
-            The times of the transit data
+            The times of the transit data. Should be in BJD.
         depths : array_like
             The flux measurements taken of the target star, normalised to a
             baseline of 1.
@@ -100,7 +99,6 @@ class Retriever:
                 # Do the detrending things
                 detr_func = priorinfo.detrending_function
                 d = np.array([params[key] for key in priorinfo.detrending_coeffs])
-
             else:
                 # Don't detrend
                 detr_func = None
@@ -116,10 +114,13 @@ class Retriever:
                                                             params['w'],
                                                             limb_dark,
                                                             np.array(u).T,
+                                                            params['norm'],
                                                             detr_func,
                                                             d)
-
-            return ln_likelihood
+            if priorinfo.fit_ld:
+                return ln_likelihood + priorinfo.ld_param_handler.lnlike(np.array(u).T, limb_dark)
+            else:
+                return ln_likelihood
 
         # Set up and run the sampler here!!
         sampler = NestedSampler(dynesty_lnlike, dynesty_transform_prior,
@@ -134,8 +135,6 @@ class Retriever:
         normalized_weights = np.exp(results.logwt - results.logwt.max())/np.sum(np.exp(results.logwt - results.logwt.max()))
         results.weights = normalized_weights
 
-
-
         # Save to outputs?
         try:
             save_results(results, priorinfo, savefname)
@@ -145,6 +144,10 @@ class Retriever:
             print('Exception raised whilst saving results. I have just returned the results dictionary')
 
         if plot:
-            plot_best(times, depths, errors, priorinfo, results)
+            try:
+                plot_best(times, depths, errors, priorinfo, results)
+            except:
+                # Try plotting from files rather than results objects
+                print('Plotting error')
 
         return results

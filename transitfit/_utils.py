@@ -63,3 +63,23 @@ def validate_data_format(a1, a2, a3):
                 raise ValueError('There is an issue with the number of data points you gave for index ({}, {}) in your input arrays. Check that all each of these are the same length and then try again.'.format(i, j))
 
     return np_arrays['a1'], np_arrays['a2'], np_arrays['a3']
+
+
+def calculate_logg(host_mass, host_radius):
+    '''
+    Calculates log10(g) for a host in units usable by TransitFit. g is in
+
+
+    Parameters
+    ----------
+    host_mass : float
+        The host mass in solar masses
+    host_radius : float
+        The host radius in solar radii
+    '''
+
+    m_sun = 1.989e30
+    r_sun = 6.957e8
+    G = 6.674e-11
+
+    return np.log10((host_mass * m_sun * G)/((host_radius * r_sun) ** 2) * 100)
