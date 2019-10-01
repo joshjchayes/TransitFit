@@ -25,6 +25,8 @@ Along with an installation of Python 3 (with the standard Conda distribution pac
 
 - [batman](https://www.cfa.harvard.edu/~lkreidberg/batman/index.html)
 
+- [Limb darkening toolkit (ldtk)](https://github.com/hpparvi/ldtk)
+
 <a name="priors"></a>
 ## Setting Priors
 
