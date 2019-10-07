@@ -338,6 +338,19 @@ def save_results(results, priorinfo, filepath='outputs.csv'):
     write_dict = []
 
     # TODO: add in single/all modes for limb darkening parameters
+    if priorinfo.ld_fit_method == 'single':
+        # We've only fitted one wavelengths' LD coeffs:
+        # Estimate the rest of the limb darkening values and write.
+
+        # Get the fitted values in a usable format
+        best_single_ld = np.zeros(len(priorinfo.limb_dark_coeffs))
+        for u, ui in enumerate(priorinfo.limb_dark_coeffs):
+            x = np.where(priorinfo.fitting_params == u)[0]
+            best_single_ld[u] = best[x]
+
+        # Now do the estimation
+        best_ld_params = priorinfo.ld_param_handler.estimate_values(best_single_ld)
+        # TODO errors
 
     for i, param in enumerate(priorinfo.fitting_params):
         value = best[i]
@@ -345,12 +358,16 @@ def save_results(results, priorinfo, filepath='outputs.csv'):
         upper = np.percentile(resampled[:,i], 84)
         median = np.median(resampled[:, i])
 
-        if param in ['rp'] + priorinfo.limb_dark_coeffs:
+        if param in ['rp']:
             param = param +'_{}'.format(int(priorinfo._filter_idx[i]))
         elif param in ['t0']:
             param = param +'_{}'.format(int(priorinfo._epoch_idx[i]))
         elif param in priorinfo.detrending_coeffs:
             param = param + '_f{}_e{}'.format(int(priorinfo._filter_idx[i]), int(priorinfo._epoch_idx[i]))
+        elif param in priorinfo.limb_dark_coeffs and priorinfo.ld_fit_method == 'all':
+            # All the LD coeffs are fitted separately and will write out
+            param = param +'_{}'.format(int(priorinfo._filter_idx[i]))
+
         out_dict[param] = value
 
         write_dict.append({'Parameter': param, 'Best value':value,

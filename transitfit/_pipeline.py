@@ -114,8 +114,7 @@ def run_retrieval_from_paths(input_csv_path, prior_path, filter_info_path=None,
 
     if normalise:
         print('Initialising normalisation...')
-        priors.fit_normalisation(times, best=(high_norm+low_norm)/2,
-                                 low=low_norm, high=high_norm)
+        priors.fit_normalisation(depths, default_low=low_norm)
 
     print('Beginning retrieval of {} parameters'.format(len(priors.fitting_params)))
     retriever = Retriever()

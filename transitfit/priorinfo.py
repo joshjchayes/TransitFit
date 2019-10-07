@@ -66,6 +66,8 @@ class PriorInfo:
                 self.priors[key] = [_Param(default_dict[key]) for i in range(self.num_times)]
             elif key in ['num_times', 'num_wavelengths', 'limb_dark']:
                 pass
+            elif key in ['norm']:
+                self.priors[key] = np.array([[_Param(default_dict[key]) for i in range(self.num_times)] for j in range(self.num_wavelengths)], object)
             else:
                 self.priors[key] = _Param(default_dict[key])
 
@@ -75,6 +77,7 @@ class PriorInfo:
 
         # Initialise normalisation things
         self.normalise=False
+        self.priors['norm'] = np
 
     def add_uniform_fit_param(self, name, best, low_lim, high_lim, epoch_idx=None, filter_idx=None):
         '''
@@ -261,7 +264,11 @@ class PriorInfo:
                 for k in range(self.num_times):
                     if data_array[j, k] is not None:
                         # A light curve exists
-                        self.add_uniform_fit_param(key, 0, -100, 100, filter_idx=j, epoch_idx=k)
+                        if not (method == 'sinusoidal' and di == 2):
+                            self.add_uniform_fit_param(key, 0, -1000, 1000, filter_idx=j, epoch_idx=k)
+                        else:
+                             # Limit 0 < d2 <= 2pi for sinusoidal
+                             self.add_uniform_fit_param(key, 0, 0, 2*np.pi, filter_idx=j, epoch_idx=k)
 
     def fit_limb_darkening(self, host_T, host_logg, host_z, filters,
                            ld_model='quadratic', fit_method='single',
@@ -340,20 +347,22 @@ class PriorInfo:
                 # Stop if we are only fitting the first one
                 break
 
-    def fit_normalisation(self, data_array, best=1, low=0.1, high=15):
+    def fit_normalisation(self, flux_array, default_low=0.1):
         '''
         When run, the Retriever will fit normalisation of the data as a
         free parameter.
 
         Parameters
         ----------
-        data_array : np.array
-            One of the times, flux or uncertainty arrays to be used in fitting.
-            This is required to ensure that we only normalise light curves which
-            actually exist!
-        best : float, optional
-            The default best guess for a normalisation constant. Default is 1.
-        low : float, optional
+        flux_array : np.array
+            The array of fluxes to be used in fitting. This serves two purposes
+            First, to ensure that we only normalise light curves which
+            actually exist! Second, we can use the value of fluxes to
+            estimate a normalisation constant (c_n) range for each light curve.
+            We use
+                ``1/f_median -1 <= c_n <= 1/f_median + 1``
+            as the default range, where f_median is the median flux value.
+        default_low : float, optional
             The lowest value to consider as a multiplicative normalisation
             constant. Default is 0.1.
         high : float, optional
@@ -366,6 +375,14 @@ class PriorInfo:
         # like detrending, we have to normalise each light curve separately
         for j in range(self.num_wavelengths):
             for k in range(self.num_times):
-                if data_array[j, k] is not None:
+                if flux_array[j, k] is not None:
                     # A light curve exists
-                    self.add_uniform_fit_param('norm', best, low, high, filter_idx=j, epoch_idx=k)
+                    med = np.median(flux_array[j, k])
+                    if med - 1 <=0:
+                        low = default_low
+                    else:
+                        low = med - 1
+
+                    high = med + 1
+
+                    self.add_uniform_fit_param('norm', med, low, high, filter_idx=j, epoch_idx=k)

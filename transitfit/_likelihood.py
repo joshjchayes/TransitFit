@@ -67,6 +67,8 @@ class LikelihoodCalculator:
         if not len(rp) == self.num_wavelengths:
             raise ValueError('You supplied {} rp values, not {} as expected'.format(len(rp), self.num_wavelengths))
 
+        #print('----')
+
         all_chi2 = []
         for i in range(self.num_wavelengths):
             for j in range(self.num_times):
@@ -80,19 +82,36 @@ class LikelihoodCalculator:
 
                     comparison_depths = deepcopy(self.depths[i][j])
                     #print(comparison_depths.shape)
+                    comparison_depths *= norm[i, j]
+                    #print('norm:', norm[i, j])
+                    #print('comparison_depths mean:', np.mean(comparison_depths))
+
                     # If detrending is happening, it does on here!
                     if detrend_function is not None:
                         if d is None:
                             raise TypeError('Detrend function given but d is None!')
                         #print(d[:,i,j])
-                        comparison_depths -= detrend_function(self.times[i][j], *d[:,i,j]) * norm[i, j]
-                        #print(np.mean(comparison_depths))
+
+                        # Because we are taking times in BJD, the detrend
+                        # function results are MASSIVE. We will detrend using
+                        # only the decimal part of the times as this
+                        # significantly reduces the range of each of the
+                        # detrending coefficients
+                        subtract_val = np.floor(self.times[i][j][0])
+
+                        detrend_values = detrend_function(self.times[i][j] - subtract_val, *d[:,i,j])
+
+                        #print('Detrending coeffs:', *d[:, i, j])
+                        #print('mean detrend value', detrend_values.mean())
+
+                        comparison_depths -= detrend_values
+                        #print('Mean depths:', np.mean(comparison_depths))
                     # Work out the chi2 of the fit
                     # Assuming that the data is rescaled to a baseline flux of 1.
                     chi2 = sum((model_depths - comparison_depths)**2 / (self.errors[i][j] * norm[i, j])**2)
                     #print(chi2)
                     all_chi2.append(chi2)
-
+        #print('chi2: ', all_chi2)
         # The likelihood is just -1*chi2
         return - sum(all_chi2)
 
