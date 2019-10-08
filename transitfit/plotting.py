@@ -55,22 +55,24 @@ def plot_best(times, flux, uncertainty, priorinfo, results, input_file=None,
 
                 m = batman.TransitModel(params, times[fi, ei])
 
+
                 best_curve = m.light_curve(params)
+
+                norm = best_dict['norm'][fi, ie]
 
 
                 # Plot the raw data
                 if priorinfo.detrend:
-                    # TODO: account for detrending.
                     d = [best_dict[d][fi, ei] for d in priorinfo.detrending_coeffs]
 
-                    dF = priorinfo.detrending_function(times[fi, ei], *d)
+                    dF = priorinfo.detrending_function(times[fi, ei]-np.floor(times[fi, ei][0]), *d)
 
-                    ax.errorbar(times[fi, ei], flux[fi, ei] - dF,
-                                uncertainty[fi, ei], zorder=1, fmt='bx',
+                    ax.errorbar(times[fi, ei], norm * flux[fi, ei] - dF,
+                                norm * uncertainty[fi, ei], zorder=1, fmt='bx',
                                 alpha=0.8)
                 else:
-                    ax.errorbar(times[fi, ei], flux[fi, ei],
-                                uncertainty[fi, ei], zorder=1, fmt='bx',
+                    ax.errorbar(times[fi, ei], norm * flux[fi, ei],
+                                norm * uncertainty[fi, ei], zorder=1, fmt='bx',
                                 alpha=0.8)
 
 
