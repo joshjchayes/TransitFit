@@ -146,8 +146,10 @@ class Retriever:
         if plot:
             try:
                 plot_best(times, depths, errors, priorinfo, results)
-            except:
-                # Try plotting from files rather than results objects
-                print('Plotting error')
+            except Exception as e:
+                # TODO: Try plotting from files rather than results objects
+                print('Plotting error: I have failed to plot anything due to the following error:')
+                print(e)
+
 
         return results
