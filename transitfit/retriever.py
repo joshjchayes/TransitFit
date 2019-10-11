@@ -6,7 +6,7 @@ same wavelength and epoch respectively
 '''
 import numpy as np
 from ._likelihood import LikelihoodCalculator
-from ._utils import validate_data_format
+from ._utils import validate_data_format, get_normalised_weights, get_covariance_matrix
 from .io import save_results
 from .plotting import plot_best
 from dynesty import NestedSampler
@@ -71,7 +71,7 @@ class Retriever:
         times, depths, errors = validate_data_format(times, depths, errors)
 
         # Make an object to calculate all the likelihoods
-        likelihood_calc = LikelihoodCalculator(times, depths, errors)
+        likelihood_calc = LikelihoodCalculator(times, depths, errors, priorinfo)
 
         def dynesty_transform_prior(cube):
             '''
@@ -115,9 +115,10 @@ class Retriever:
                                                             limb_dark,
                                                             np.array(u).T,
                                                             params['norm'],
+                                                            params['shift'],
                                                             detr_func,
                                                             d)
-            if priorinfo.fit_ld:
+            if priorinfo.fit_ld and not priorinfo.ld_fit_method == 'independent':
                 return ln_likelihood + priorinfo.ld_param_handler.lnlike(np.array(u).T, limb_dark)
             else:
                 return ln_likelihood
@@ -131,14 +132,28 @@ class Retriever:
 
         results = sampler.results
 
-        # Work out some weights so that we can calculate errors
-        normalized_weights = np.exp(results.logwt - results.logwt.max())/np.sum(np.exp(results.logwt - results.logwt.max()))
-        results.weights = normalized_weights
+        # Get some normalised weights
+        results.weights = get_normalised_weights(results)
+
+        # Calculate a covariance matrix for these results to get uncertainties
+        cov = get_covariance_matrix(results)
+
+        # Get the uncertainties from the diagonal of the covariance matrix
+        diagonal = np.diag(cov)
+
+        uncertainties = np.sqrt(diagonal)
+
+        print(uncertainties)
+
+        # Add the covariance matrix and uncertainties to the results object
+        results.cov = cov
+        results.uncertainties = uncertainties
+
+
 
         # Save to outputs?
         try:
             save_results(results, priorinfo, savefname)
-            best_results = results.samples[np.argmax(results.logl)]
         except Exception as e:
             print(e)
             print('Exception raised whilst saving results. I have just returned the results dictionary')

@@ -149,12 +149,12 @@ def read_priors_file(path, limb_dark='quadratic'):
     limb_dark_params['u4'] = False
 
     if not limb_dark == 'uniform':
-        limb_dark_params['u1'] = np.any(table[0] == 'u1')
+        limb_dark_params['u1'] = True
         if not limb_dark == 'linear':
-            limb_dark_params['u2'] = np.any(table[0] == 'u2')
+            limb_dark_params['u2'] = True
             if limb_dark == 'nonlinear':
-                limb_dark_params['u3'] = np.any(table[0] == 'u3')
-                limb_dark_params['u4'] = np.any(table[0] == 'u4')
+                limb_dark_params['u3'] = True
+                limb_dark_params['u4'] = True
 
     #######################################################
     # Set up the default dict to initialise the PriorInfo #
@@ -163,14 +163,23 @@ def read_priors_file(path, limb_dark='quadratic'):
 
     default_prior_dict['num_times'] = num_times
     default_prior_dict['num_wavelengths'] = num_wavelengths
+    default_prior_dict['limb_dark'] = limb_dark
 
     # Initialse any variables which vary with epoch or wavelength
     default_prior_dict['rp'] = np.full(num_wavelengths, np.nan)
     default_prior_dict['t0'] = np.full(num_times, np.nan)
 
-    for key in limb_dark_params:
-        if limb_dark_params[key]:
-            default_prior_dict[key] = np.full(num_wavelengths, np.nan)
+    # We need to add in the default values for LD coeffs
+    if limb_dark == 'linear':
+        default_prior_dict['u1'] = np.full(num_wavelengths, 0.3)
+    elif limb_dark in ['quadratic', 'logarithmic', 'exponential','squareroot', 'power2']:
+        default_prior_dict['u1'] = np.full(num_wavelengths, 0.1)
+        default_prior_dict['u2'] = np.full(num_wavelengths, 0.3)
+    elif limb_dark == 'nonlinear':
+        default_prior_dict['u1'] = np.full(num_wavelengths, 0.5)
+        default_prior_dict['u2'] = np.full(num_wavelengths, 0.1)
+        default_prior_dict['u3'] = np.full(num_wavelengths, 0.1)
+        default_prior_dict['u4'] = np.full(num_wavelengths, -0.1)
 
     # Now make the default values for the fitting parameters
     for row in table:
@@ -184,6 +193,8 @@ def read_priors_file(path, limb_dark='quadratic'):
                 default_prior_dict[key][int(filt)] = best
         else:
             default_prior_dict[key] = best
+
+
 
     # Now we set the fixed values from defaults
     for key in _prior_info_defaults:
@@ -199,12 +210,6 @@ def read_priors_file(path, limb_dark='quadratic'):
         bad_indices = np.where(np.isnan(default_prior_dict['t0']))[0]
         bad_string = str(bad_indices)[1:-1]
         raise ValueError('Light curve(s) {} are missing t0 values'.format(bad_string))
-    for key in limb_dark_params:
-        if limb_dark_params[key]:
-            if np.isnan(default_prior_dict[key]).any():
-                bad_indices = np.where(np.isnan(default_prior_dict[key]))[0]
-                bad_string = str(bad_indices)[1:-1]
-                raise ValueError('Light curve(s) {} are missing {}} values'.format(bad_string, key))
 
     # MAKE DEFAULT PriorInfo #
     prior_info = PriorInfo(default_prior_dict, warn=False)
@@ -331,7 +336,7 @@ def save_results(results, priorinfo, filepath='outputs.csv'):
 
     best = results.samples[np.argmax(results.logl)]
 
-    resampled = dynesty.utils.resample_equal(results.samples, results.weights)
+    #resampled = dynesty.utils.resample_equal(results.samples, results.weights)
 
     # Put the output into a dictionary that's nice to deal with
     out_dict = {}
@@ -354,9 +359,11 @@ def save_results(results, priorinfo, filepath='outputs.csv'):
 
     for i, param in enumerate(priorinfo.fitting_params):
         value = best[i]
-        lower = np.percentile(resampled[:,i], 16)
-        upper = np.percentile(resampled[:,i], 84)
-        median = np.median(resampled[:, i])
+        #lower = np.percentile(resampled[:,i], 16)
+        #upper = np.percentile(resampled[:,i], 84)
+        #median = np.median(resampled[:, i])
+
+        unc = results.uncertainties[i]
 
         if param in ['rp']:
             param = param +'_{}'.format(int(priorinfo._filter_idx[i]))
@@ -370,14 +377,35 @@ def save_results(results, priorinfo, filepath='outputs.csv'):
 
         out_dict[param] = value
 
+        #write_dict.append({'Parameter': param, 'Best value':value,
+        #                   'Lower error' : median - lower ,
+        #                   'Upper error' : upper - median,
+        #                   'Median' : median})
         write_dict.append({'Parameter': param, 'Best value':value,
-                           'Lower error' : median - lower ,
-                           'Upper error' : upper - median,
-                           'Median' : median})
+                           'Uncertainty' : unc})
+
 
     # Now output to a .csv
     with open(filepath, 'w') as f:
-        columns = ['Parameter', 'Best value', 'Lower error', 'Upper error', 'Median']
+        #columns = ['Parameter', 'Best value', 'Lower error', 'Upper error', 'Median']
+        columns = ['Parameter', 'Best value', 'Uncertainty']
         writer = csv.DictWriter(f, columns)
         writer.writeheader()
         writer.writerows(write_dict)
+
+
+def print_results(results, priorinfo):
+    '''
+    Prints the results nicely to terminal
+
+    Parameters
+    ----------
+    results : dynesty.results.Results
+        The Dynesty results object, but must also have weights, cov and
+        uncertainties as entries.
+    priorinfo : transitfit.priorinfo.PriorInfo
+        The PriorInfo object
+    '''
+
+    # We need to print out the results. Loop over each fitted
+    pass

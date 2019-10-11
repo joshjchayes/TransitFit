@@ -58,20 +58,24 @@ def plot_best(times, flux, uncertainty, priorinfo, results, input_file=None,
 
                 best_curve = m.light_curve(params)
 
-                norm = best_dict['norm'][fi, ie]
+                norm = best_dict['norm'][fi, ei]
+                shift = best_dict['shift'][fi, ei]
+                print(norm)
 
 
                 # Plot the raw data
                 if priorinfo.detrend:
                     d = [best_dict[d][fi, ei] for d in priorinfo.detrending_coeffs]
 
+                    print(d)
+
                     dF = priorinfo.detrending_function(times[fi, ei]-np.floor(times[fi, ei][0]), *d)
 
-                    ax.errorbar(times[fi, ei], norm * flux[fi, ei] - dF,
+                    ax.errorbar(times[fi, ei], norm * (flux[fi, ei] + shift - dF),
                                 norm * uncertainty[fi, ei], zorder=1, fmt='bx',
                                 alpha=0.8)
                 else:
-                    ax.errorbar(times[fi, ei], norm * flux[fi, ei],
+                    ax.errorbar(times[fi, ei], norm * (flux[fi, ei] + shift),
                                 norm * uncertainty[fi, ei], zorder=1, fmt='bx',
                                 alpha=0.8)
 

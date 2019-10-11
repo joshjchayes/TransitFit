@@ -44,6 +44,8 @@ class PriorInfo:
         # Sort out the limb darkening coefficients - what is allowed?
         if self.limb_dark == 'uniform':
             self.limb_dark_coeffs = []
+        if self.limb_dark == 'linear':
+            self.limb_dark_coeffs = ['u1']
         elif self.limb_dark in ['quadratic', 'logarithmic', 'exponential','squareroot', 'power2']:
             self.limb_dark_coeffs = ['u1', 'u2']
         elif self.limb_dark == 'nonlinear':
@@ -77,7 +79,8 @@ class PriorInfo:
 
         # Initialise normalisation things
         self.normalise=False
-        self.priors['norm'] = np
+        self.priors['norm'] = np.ones((self.num_wavelengths, self.num_times))
+        self.priors['shift'] = np.ones((self.num_wavelengths, self.num_times))
 
     def add_uniform_fit_param(self, name, best, low_lim, high_lim, epoch_idx=None, filter_idx=None):
         '''
@@ -159,6 +162,7 @@ class PriorInfo:
         result['t0'] = np.zeros(self.num_times)
 
         result['norm'] = np.ones((self.num_wavelengths, self.num_times))
+        result['shift'] = np.ones((self.num_wavelengths, self.num_times))
 
         for u in self.limb_dark_coeffs:
             result[u] = np.zeros(self.num_wavelengths)
@@ -179,7 +183,7 @@ class PriorInfo:
             elif key in ['t0']:
                 result[key][eidx] = array[i]
 
-            elif key in self.detrending_coeffs + ['norm']:
+            elif key in self.detrending_coeffs + ['norm', 'shift']:
                 result[key][fidx, eidx] = array[i]
 
             else:
@@ -265,46 +269,56 @@ class PriorInfo:
                     if data_array[j, k] is not None:
                         # A light curve exists
                         if not (method == 'sinusoidal' and di == 2):
-                            self.add_uniform_fit_param(key, 0, -1000, 1000, filter_idx=j, epoch_idx=k)
+                            self.add_uniform_fit_param(key, 0, -5, 5, filter_idx=j, epoch_idx=k)
                         else:
                              # Limit 0 < d2 <= 2pi for sinusoidal
                              self.add_uniform_fit_param(key, 0, 0, 2*np.pi, filter_idx=j, epoch_idx=k)
 
-    def fit_limb_darkening(self, host_T, host_logg, host_z, filters,
-                           ld_model='quadratic', fit_method='single',
+    def fit_limb_darkening(self, fit_method='independent', host_T=None, host_logg=None,
+                           host_z=None, filters=None, ld_model='quadratic',
                            n_samples=20000, do_mc=False, allowed_variance=5):
         '''
-        Initialises fitting of limb darkening parameters using the limb
-        darkening toolkit (ldtk) to couple parameters across wavebands.
+        Initialises fitting of limb darkening parameters, either independently
+        or coupled across wavebands.
 
         Parameters
         ----------
-        host_T : tuple
+        fit_method : str, optional
+            Determines the mode of fitting of LD parameters. The available
+            modes are:
+                - 'coupled' : all limb darkening parameters are fitted
+                  independently, but are coupled to a wavelength dependent
+                  model based on the host parameters
+                - 'single' : LD parameters are still tied to a model, but only
+                  the first filter is actively fitted. The remaining filters
+                  are estimated based off the ratios given by ldtk for a host
+                  with the given parameters. This mode is useful for a large
+                  number of filters, as 'coupled' or 'independent' fitting will
+                  lead to much higher computation times.
+                - 'independent' : Each LD coefficient is fitted separately for
+                  each filter, with no coupling to the ldtk models.
+            The default is 'independent'.
+        host_T : tuple or None, optional
             The effective temperature of the host star, in Kelvin, given as a
-            (value, uncertainty) pair.
-        host_logg : tuple
+            (value, uncertainty) pair. Must be provided if fit_method is
+            'coupled' or 'single'. Default is None.
+        host_logg : tuple or None, optionalor None, optional
             The log_10 of the surface gravity of the host star, with gravity
             measured in cm/s2. Should be given as a (value, uncertainty) pair.
-        host_z : tuple
+            Must be provided if fit_method is 'coupled' or 'single'. Default is
+            None.
+        host_z : tuple or None, optional
             The metalicity of the host, given as a (value, uncertainty) pair.
-        filters : array_like
+            Must be provided if fit_method is 'coupled' or 'single'. Default is
+            None.
+        filters : array_like or None, optional
             The set of filters, given in [low, high] limits for the wavelengths
             with the wavelengths given in nanometers. The ordering of the
             filters should correspond to the filter_idx parameter used
-            elsewhere.
+            elsewhere. Must be provided if fit_method is 'coupled' or 'single'.
+            Default is None.
         ld_model : str, optional
             The model of limb darkening to use. Default is 'quadratic'
-        fit_method : str, optional
-            Determines if fitting uses only a single waveband, or if all
-            wavebands are considered.
-            If 'single' is used, only the first filter is fitted, and the
-            rest are extrapolated using the ratios between the 'most likely'
-            values given by ldtk for a host with the given parameters.
-            If 'all' is used, then the ld parameters for each waveband are all
-            treated as independent free parameters and are fitted separately.
-            Whilst 'all' is arguably preferrable, it will significantly
-            increase the run time when a large number of filters are used.
-            Default is 'single'.
         n_samples : int, optional
             The number of limb darkening profiles to create. Passed to
             ldtk.LDPSetCreator.create_profiles(). Default is 20000.
@@ -317,7 +331,7 @@ class PriorInfo:
         '''
 
         # Sanity checks
-        if fit_method not in ['single', 'all']:
+        if fit_method not in ['coupled', 'single', 'independent']:
             raise ValueError('Unrecognised fit method {}'.format(fit_method))
 
         if not len(filters) == self.num_wavelengths:
@@ -327,25 +341,38 @@ class PriorInfo:
         self.fit_ld = True
         self.ld_fit_method = fit_method
 
-        # Create the LDParamHandler
-        self.ld_param_handler = LDParamHandler(host_T, host_logg, host_z,
-                                               filters, ld_model, n_samples,
-                                               do_mc)
+        if fit_method == 'independent':
+            # We fit each LD parameter independently without any coupling
+            for i in range(self.num_wavelengths):
+                for ldi, name in enumerate(self.limb_dark_coeffs):
+                    self.add_uniform_fit_param(name, 0, -1, 1, filter_idx=i)
 
-        # Work out how many parameters we need to fit for and initialise the
-        # fitting for them.
-        for i in range(self.num_wavelengths):
-            for ldi, name in enumerate(self.limb_dark_coeffs):
-                best = self.ld_param_handler.coeffs[ld_model][0][i][ldi]
-                err = self.ld_param_handler.coeffs[ld_model][1][i][ldi]
-                low = best - allowed_variance * err
-                high = best + allowed_variance * err
-                # allow each parameter to vary by up to 5 sigma
+        else:
+            # We need to couple LD params across wavelengths
 
-                self.add_uniform_fit_param(name, best, low, high, filter_idx=i)
-            if self.ld_fit_method == 'single':
-                # Stop if we are only fitting the first one
-                break
+            # Check required parameters are given.
+            #if
+
+
+            # Create the LDParamHandler
+            self.ld_param_handler = LDParamHandler(host_T, host_logg, host_z,
+                                                   filters, ld_model, n_samples,
+                                                   do_mc)
+
+            # Work out how many parameters we need to fit for and initialise the
+            # fitting for them.
+            for i in range(self.num_wavelengths):
+                for ldi, name in enumerate(self.limb_dark_coeffs):
+                    best = self.ld_param_handler.coeffs[ld_model][0][i][ldi]
+                    err = self.ld_param_handler.coeffs[ld_model][1][i][ldi]
+                    low = best - allowed_variance * err
+                    high = best + allowed_variance * err
+                    # allow each parameter to vary by up to 5 sigma
+
+                    self.add_uniform_fit_param(name, best, low, high, filter_idx=i)
+                if self.ld_fit_method == 'single':
+                    # Stop if we are only fitting the first one
+                    break
 
     def fit_normalisation(self, flux_array, default_low=0.1):
         '''
@@ -377,12 +404,20 @@ class PriorInfo:
             for k in range(self.num_times):
                 if flux_array[j, k] is not None:
                     # A light curve exists
-                    med = np.median(flux_array[j, k])
-                    if med - 1 <=0:
-                        low = default_low
+                    # First we set up the scaling factor
+                    med_fact = 1/np.median(flux_array[j, k])
+                    if med_fact - 2 <=0:
+                        low_fact = default_low
                     else:
-                        low = med - 1
+                        low_fact = med_fact - 2
 
-                    high = med + 1
+                    high_fact = med_fact + 2
 
-                    self.add_uniform_fit_param('norm', med, low, high, filter_idx=j, epoch_idx=k)
+                    print('The automatically detected limits for normalisation constants are:')
+                    print('Low      Median      High')
+                    print(round(low_fact,2), round(med_fact,2),  round(high_fact,2))
+
+                    self.add_uniform_fit_param('norm', med_fact, low_fact, high_fact, filter_idx=j, epoch_idx=k)
+
+                    # Now we fit the shift
+                    self.add_uniform_fit_param('shift', 0, -10, 10, filter_idx=j, epoch_idx=k)

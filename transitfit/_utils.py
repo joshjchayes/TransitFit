@@ -83,3 +83,42 @@ def calculate_logg(host_mass, host_radius):
     G = 6.674e-11
 
     return np.log10((host_mass * m_sun * G)/((host_radius * r_sun) ** 2) * 100)
+
+
+def get_normalised_weights(results):
+    '''
+    Obtains normalised weights for the Dynesty results
+
+    Parameters
+    ----------
+    results : dynesty.results.Results
+        The Dynesty results object
+
+    Returns
+    -------
+    weights : np.array, shape (n_iterations,)
+        The normalised weights for each sample set
+    '''
+
+    return np.exp(results.logwt - results.logwt.max())/np.sum(np.exp(results.logwt - results.logwt.max()))
+
+
+def get_covariance_matrix(results):
+    '''
+    Gets a covariance matrix from Dynesty results
+
+    Parameters
+    ----------
+    results : dynesty.results.Results
+        The Dynesty results object, but must also have weights as an entry
+
+    Returns
+    -------
+    cov : np.array, shape (ndims, ndims)
+        The covariance matrix for the results object.
+    '''
+
+    # Calculate a covariance matrix using numpy
+    cov = np.cov(results.samples, rowvar=False, aweights=results.weights)
+
+    return cov

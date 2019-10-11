@@ -12,7 +12,7 @@ from copy import deepcopy
 
 
 class LikelihoodCalculator:
-    def __init__(self, times, depths, errors):
+    def __init__(self, times, depths, errors, priorinfo):
         '''
         This class can be used to quickly calculate the likelihood of a set
         of parameters to fit a given data set.
@@ -50,16 +50,47 @@ class LikelihoodCalculator:
                 if self.times[i][j] is not None:
                     self.batman_params[i][j] = batman.TransitParams()
 
+        # Need to make a sepeate model for each one too.
+        # Initialse it:
+        self.batman_models = np.array([[None for i in range(self.num_times)] for j in range(self.num_wavelengths)])
+
+
+
+        for i in range(self.num_wavelengths):
+            for j in range(self.num_times):
+                if self.times[i][j] is not None:
+
+                    # Make some realistic parameters to setup the models with
+                    default_params = batman.TransitParams()
+                    default_params.t0 = priorinfo.priors['t0'][j].default_value
+                    default_params.per = priorinfo.priors['P'].default_value
+                    default_params.rp = priorinfo.priors['rp'][i].default_value
+                    default_params.a = priorinfo.priors['a'].default_value
+                    default_params.inc = priorinfo.priors['inc'].default_value
+                    default_params.ecc = priorinfo.priors['ecc'].default_value
+                    default_params.w = priorinfo.priors['w'].default_value
+                    default_params.limb_dark = priorinfo.limb_dark
+                    u = [priorinfo.priors[uX][i].default_value for uX in priorinfo.limb_dark_coeffs]
+                    default_params.u = u
+
+                    # Now make the models
+                    self.batman_models[i][j] = batman.TransitModel(default_params, self.times[i][j])
+
+
     def find_likelihood(self, t0, per, rp, a, inc, ecc, w, limb_dark, u,
-                        norm, detrend_function=None, d=None):
-                        #TODO: add in normalisation
+                        norm, shift, detrend_function=None, d=None):
         '''
-        Calculates the likelihood of a set of parameters matching the given
+        Calculates the ln likelihood of a set of parameters matching the given
         model
 
         t0 should be array with length self.num_times
 
         rp should be array with lengths self.num_wavelengths
+
+        Returns
+        -------
+        lnlike : float
+            The ln likelihood of the parameter set
         '''
         if not len(t0) == self.num_times:
             raise ValueError('You supplied {} t0 values, not {} as expected'.format(len(t0), self.num_times))
@@ -70,6 +101,7 @@ class LikelihoodCalculator:
         #print('----')
 
         all_chi2 = []
+        n_data_points = 0
         for i in range(self.num_wavelengths):
             for j in range(self.num_times):
                 if self.batman_params[i,j] is not None:
@@ -77,16 +109,17 @@ class LikelihoodCalculator:
                     self.update_params(i, j, t0[j], per, rp[i], a, inc, ecc, w, limb_dark, u[i])
 
                     # Calculate the transits and the chi2 values
-                    model = batman.TransitModel(self.batman_params[i,j], self.times[i][j])
+                    #model = batman.TransitModel(self.batman_params[i,j], self.times[i][j])
+                    model = self.batman_models[i, j]
                     model_depths = model.light_curve(self.batman_params[i,j])
 
                     comparison_depths = deepcopy(self.depths[i][j])
                     #print(comparison_depths.shape)
-                    comparison_depths *= norm[i, j]
+
                     #print('norm:', norm[i, j])
                     #print('comparison_depths mean:', np.mean(comparison_depths))
 
-                    # If detrending is happening, it does on here!
+                    # If detrending is happening, it goes on here!
                     if detrend_function is not None:
                         if d is None:
                             raise TypeError('Detrend function given but d is None!')
@@ -98,21 +131,26 @@ class LikelihoodCalculator:
                         # significantly reduces the range of each of the
                         # detrending coefficients
                         subtract_val = np.floor(self.times[i][j][0])
-
                         detrend_values = detrend_function(self.times[i][j] - subtract_val, *d[:,i,j])
+                        #detrend_values = detrend_function(self.times[i][j], *d[:,i,j])
 
                         #print('Detrending coeffs:', *d[:, i, j])
                         #print('mean detrend value', detrend_values.mean())
 
                         comparison_depths -= detrend_values
-                        #print('Mean depths:', np.mean(comparison_depths))
+                        #print('Mean depths (detrended):', np.mean(comparison_depths))
+
+                    comparison_depths += shift[i, j]
+                    comparison_depths *= norm[i, j]
+
                     # Work out the chi2 of the fit
                     # Assuming that the data is rescaled to a baseline flux of 1.
                     chi2 = sum((model_depths - comparison_depths)**2 / (self.errors[i][j] * norm[i, j])**2)
                     #print(chi2)
                     all_chi2.append(chi2)
-        #print('chi2: ', all_chi2)
-        # The likelihood is just -1*chi2
+                    n_data_points += len(comparison_depths)
+        #print('Reduced chi2: ', sum(all_chi2)/n_data_points)
+        # The ln likelihood is just -1*chi2
         return - sum(all_chi2)
 
     def update_params(self, wavelength_index, time_index, t0=None, per=None, rp=None,

@@ -91,9 +91,13 @@ def run_retrieval_from_paths(input_csv_path, prior_path, filter_info_path=None,
     print('Loading light curve data...')
     times, depths, errors = read_input_file(input_csv_path)
 
+
     # Read in the priors
     print('Loading priors from {}'.format(prior_path))
     priors = read_priors_file(prior_path, ld_model)
+    print(ld_model)
+    print(priors.limb_dark)
+    print(priors.limb_dark_coeffs)
 
     # Set up all the optional fitting modes (limb darkening, detrending,
     # normalisation...)
@@ -104,9 +108,11 @@ def run_retrieval_from_paths(input_csv_path, prior_path, filter_info_path=None,
         filters = read_filter_info(filter_info_path)
 
         print('Initialising limb darkening fitting...')
-        priors.fit_limb_darkening(host_T, host_logg, host_z, filters, ld_model,
-                                  ld_fit_method, n_ld_samples, do_ld_mc,
+        priors.fit_limb_darkening(ld_fit_method, host_T, host_logg, host_z, filters, ld_model,
+                                  n_ld_samples, do_ld_mc,
                                   allowed_ld_variance)
+
+
 
     if detrending is not None:
         print('Initialising detrending')
@@ -116,6 +122,7 @@ def run_retrieval_from_paths(input_csv_path, prior_path, filter_info_path=None,
         print('Initialising normalisation...')
         priors.fit_normalisation(depths, default_low=low_norm)
 
+    print('The parameters we are retrieving are: {}'.format(priors.fitting_params))
     print('Beginning retrieval of {} parameters'.format(len(priors.fitting_params)))
     retriever = Retriever()
     return retriever.run_dynesty(times, depths, errors, priors, nlive=nlive)
