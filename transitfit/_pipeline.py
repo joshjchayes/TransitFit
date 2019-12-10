@@ -13,8 +13,9 @@ def run_retrieval_from_paths(input_csv_path, prior_path, filter_info_path=None,
                              host_T=None, host_logg=None, host_z=None,
                              ld_fit_method='single', ld_model='quadratic',
                              n_ld_samples=20000, do_ld_mc=False,
-                             allowed_ld_variance=5, detrending=None, nlive=300,
-                             normalise=True, low_norm=0.1, high_norm=15):
+                             allowed_ld_variance=5, detrending='nth order',
+                             detrending_order=1, detrending_function=None,
+                             nlive=300, normalise=True, low_norm=0.1, high_norm=15):
     '''
     Runs a full retrieval when given data_paths and prior_path
 
@@ -69,19 +70,33 @@ def run_retrieval_from_paths(input_csv_path, prior_path, filter_info_path=None,
         vary by. Default is 5.
     detrending : str or None, optional
         If not None, detrending will be performed. Accepted detrending models
-        are 'linear', 'quadratic', 'sinusoidal'. Default is None.
+        are 'nth order' and 'custom'. 'nth order' must have a detrending_order
+        value supplied and will detrend whilst obeying a flux conservation
+        law. If 'custom', then detrending_function must be provided. Default
+        is 'nth order'.
+    detrending_order : int, optional
+        The order of detrending function to apply if detrending is 'nth order'.
+        The default is 1, corresponding to linear detrending.
+    detrending_funcs : None or function, optional
+        The detrending function. If provided and detrending is 'custom', will
+        apply this as the detrending function. We assume that the first
+        argument is times, and that all others are single valued -
+        TransitFit cannot fit list/array variables. Default is None
     nlive : int, optional
         The number of live points to use in the nested sampling retrieval.
     normalise : bool, optional
         If True, will assume that the light curves have not been normalised and
-        will fit normalisation constants within the retrieval. Default is
+        will fit normalisation constants within the retrieval. The range to
+        fit normalisation constants c_n are automatically detected using
+            ``1/f_median - 1 <= c_n <= 1/f_median + 1``
+        as the default range, where f_median is the median flux value for a
+        given light curve. ``low_norm`` can be used to adjust the default
+        minimum value in the case that ``1/f_median - 1  < 0``. Default is
         True.
     low_norm : float, optional
         The lowest value to consider as a multiplicative normalisation
         constant. Default is 0.1.
-    high_norm : float, optional
-        The highest value to consider as a multiplicative normalisation
-        constant. Default is 15.
+
 
     Returns
     -------
@@ -91,20 +106,21 @@ def run_retrieval_from_paths(input_csv_path, prior_path, filter_info_path=None,
     print('Loading light curve data...')
     times, depths, errors = read_input_file(input_csv_path)
 
+    num_epochs = times.shape[1]
+    num_filters = times.shape[0]
 
     # Read in the priors
-    print('Loading priors from {}'.format(prior_path))
-    priors = read_priors_file(prior_path, ld_model)
-    print(ld_model)
-    print(priors.limb_dark)
-    print(priors.limb_dark_coeffs)
+    print('Loading priors from {}...'.format(prior_path))
+    priors = read_priors_file(prior_path, num_epochs, num_filters, ld_model)
+
+
 
     # Set up all the optional fitting modes (limb darkening, detrending,
     # normalisation...)
     if filter_info_path is not None:
         if host_T is None or host_z is None or host_logg is None:
             raise ValueError('Filter info path was provided but I am missing infomration on the host!')
-        print('Loading filter info from {}'.format(filter_info_path))
+        print('Loading filter info from {}...'.format(filter_info_path))
         filters = read_filter_info(filter_info_path)
 
         print('Initialising limb darkening fitting...')
@@ -116,7 +132,7 @@ def run_retrieval_from_paths(input_csv_path, prior_path, filter_info_path=None,
 
     if detrending is not None:
         print('Initialising detrending')
-        priors.add_detrending(times, detrending)
+        priors.add_detrending(times, detrending, order=detrending_order, function=detrending_function)
 
     if normalise:
         print('Initialising normalisation...')

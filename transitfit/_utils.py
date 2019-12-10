@@ -67,8 +67,8 @@ def validate_data_format(a1, a2, a3):
 
 def calculate_logg(host_mass, host_radius):
     '''
-    Calculates log10(g) for a host in units usable by TransitFit. g is in
-
+    Calculates log10(g) for a host in units usable by TransitFit.
+    g is in cm s^-2
 
     Parameters
     ----------

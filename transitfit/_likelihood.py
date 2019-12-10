@@ -54,15 +54,13 @@ class LikelihoodCalculator:
         # Initialse it:
         self.batman_models = np.array([[None for i in range(self.num_times)] for j in range(self.num_wavelengths)])
 
-
-
         for i in range(self.num_wavelengths):
             for j in range(self.num_times):
                 if self.times[i][j] is not None:
 
                     # Make some realistic parameters to setup the models with
                     default_params = batman.TransitParams()
-                    default_params.t0 = priorinfo.priors['t0'][j].default_value
+                    default_params.t0 = priorinfo.priors['t0'].default_value
                     default_params.per = priorinfo.priors['P'].default_value
                     default_params.rp = priorinfo.priors['rp'][i].default_value
                     default_params.a = priorinfo.priors['a'].default_value
@@ -78,12 +76,10 @@ class LikelihoodCalculator:
 
 
     def find_likelihood(self, t0, per, rp, a, inc, ecc, w, limb_dark, u,
-                        norm, shift, detrend_function=None, d=None):
+                        norm, detrend_function=None, d=None):
         '''
         Calculates the ln likelihood of a set of parameters matching the given
         model
-
-        t0 should be array with length self.num_times
 
         rp should be array with lengths self.num_wavelengths
 
@@ -92,8 +88,6 @@ class LikelihoodCalculator:
         lnlike : float
             The ln likelihood of the parameter set
         '''
-        if not len(t0) == self.num_times:
-            raise ValueError('You supplied {} t0 values, not {} as expected'.format(len(t0), self.num_times))
 
         if not len(rp) == self.num_wavelengths:
             raise ValueError('You supplied {} rp values, not {} as expected'.format(len(rp), self.num_wavelengths))
@@ -106,7 +100,7 @@ class LikelihoodCalculator:
             for j in range(self.num_times):
                 if self.batman_params[i,j] is not None:
                     # Update the parameters to the ones we are interested in
-                    self.update_params(i, j, t0[j], per, rp[i], a, inc, ecc, w, limb_dark, u[i])
+                    self.update_params(i, j, t0, per, rp[i], a, inc, ecc, w, limb_dark, u[i])
 
                     # Calculate the transits and the chi2 values
                     #model = batman.TransitModel(self.batman_params[i,j], self.times[i][j])
@@ -140,7 +134,6 @@ class LikelihoodCalculator:
                         comparison_depths -= detrend_values
                         #print('Mean depths (detrended):', np.mean(comparison_depths))
 
-                    comparison_depths += shift[i, j]
                     comparison_depths *= norm[i, j]
 
                     # Work out the chi2 of the fit

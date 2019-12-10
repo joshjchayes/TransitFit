@@ -7,7 +7,7 @@ same wavelength and epoch respectively
 import numpy as np
 from ._likelihood import LikelihoodCalculator
 from ._utils import validate_data_format, get_normalised_weights, get_covariance_matrix
-from .io import save_results
+from .io import save_results, print_results
 from .plotting import plot_best
 from dynesty import NestedSampler
 import dynesty.utils
@@ -70,6 +70,12 @@ class Retriever:
 
         times, depths, errors = validate_data_format(times, depths, errors)
 
+        n_dof = 0.
+        for row in times:
+            for c in row:
+                if c is not None:
+                    n_dof += len(c)
+
         # Make an object to calculate all the likelihoods
         likelihood_calc = LikelihoodCalculator(times, depths, errors, priorinfo)
 
@@ -115,7 +121,6 @@ class Retriever:
                                                             limb_dark,
                                                             np.array(u).T,
                                                             params['norm'],
-                                                            params['shift'],
                                                             detr_func,
                                                             d)
             if priorinfo.fit_ld and not priorinfo.ld_fit_method == 'independent':
@@ -143,13 +148,12 @@ class Retriever:
 
         uncertainties = np.sqrt(diagonal)
 
-        print(uncertainties)
-
         # Add the covariance matrix and uncertainties to the results object
         results.cov = cov
         results.uncertainties = uncertainties
 
-
+        # Print the Results
+        print_results(results, priorinfo, n_dof)
 
         # Save to outputs?
         try:

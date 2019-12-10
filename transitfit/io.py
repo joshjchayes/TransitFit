@@ -94,7 +94,7 @@ def read_data_file_array(data_paths, skiprows=0):
 
     return times, depths, errors
 
-def read_priors_file(path, limb_dark='quadratic'):
+def read_priors_file(path, num_epochs, num_filters, limb_dark='quadratic'):
     '''
     If given a csv file containing priors, will produce a PriorInfo object
     based off the given values
@@ -115,6 +115,10 @@ def read_priors_file(path, limb_dark='quadratic'):
         If you want to fix a parameter at a given value, leave low_lim and
         high_lim blank. Just provide best, along with epoch and filter if
         required
+    num_epochs : int
+        The number of observation epochs which exist in the data
+    num_filters : int
+        The number of different filters which are used in the observations
 
     limb_dark : str, optional
         The model of limb darkening you want to use. Accepted are
@@ -136,8 +140,8 @@ def read_priors_file(path, limb_dark='quadratic'):
     table = pd.read_csv(path).values
 
     # Work out how mnay light curves are being used.
-    num_times = sum(table[:, 0] == 't0')
-    num_wavelengths = sum(table[:, 0] == 'rp')
+    num_times = num_epochs
+    num_wavelengths = num_filters
 
     # check the limb darkening coefficients and if they are fitting
     # First, A small dict to check if each LD param is being fitted.
@@ -167,7 +171,6 @@ def read_priors_file(path, limb_dark='quadratic'):
 
     # Initialse any variables which vary with epoch or wavelength
     default_prior_dict['rp'] = np.full(num_wavelengths, np.nan)
-    default_prior_dict['t0'] = np.full(num_times, np.nan)
 
     # We need to add in the default values for LD coeffs
     if limb_dark == 'linear':
@@ -186,15 +189,13 @@ def read_priors_file(path, limb_dark='quadratic'):
         key, best, low, high, epoch, filt = row
         if key == 'rp':
             default_prior_dict[key][int(filt)] = best
-        elif key == 't0':
-            default_prior_dict[key][int(epoch)] = best
+        #elif key == 't0':
+        #    default_prior_dict[key][int(epoch)] = best
         elif key in ['u1','u2','u3','u4']:
             if limb_dark_params[key]:
                 default_prior_dict[key][int(filt)] = best
         else:
             default_prior_dict[key] = best
-
-
 
     # Now we set the fixed values from defaults
     for key in _prior_info_defaults:
@@ -206,10 +207,6 @@ def read_priors_file(path, limb_dark='quadratic'):
         bad_indices = np.where(np.isnan(default_prior_dict['rp']))[0]
         bad_string = str(bad_indices)[1:-1]
         raise ValueError('Light curve(s) {} are missing rp values'.format(bad_string))
-    if np.isnan(default_prior_dict['t0']).any():
-        bad_indices = np.where(np.isnan(default_prior_dict['t0']))[0]
-        bad_string = str(bad_indices)[1:-1]
-        raise ValueError('Light curve(s) {} are missing t0 values'.format(bad_string))
 
     # MAKE DEFAULT PriorInfo #
     prior_info = PriorInfo(default_prior_dict, warn=False)
@@ -224,9 +221,6 @@ def read_priors_file(path, limb_dark='quadratic'):
         if np.isfinite(low) and np.isfinite(high):
             if key in ['rp']:
                 prior_info.add_uniform_fit_param(key, best, low, high, filter_idx=int(filt))
-
-            elif key in ['t0']:
-                prior_info.add_uniform_fit_param(key, best, low, high, epoch_idx=int(epoch))
 
             elif key in ['u1','u2','u3','u4']:
                 prior_info.add_uniform_fit_param(key, best, low, high, filter_idx=int(filt))
@@ -367,8 +361,8 @@ def save_results(results, priorinfo, filepath='outputs.csv'):
 
         if param in ['rp']:
             param = param +'_{}'.format(int(priorinfo._filter_idx[i]))
-        elif param in ['t0']:
-            param = param +'_{}'.format(int(priorinfo._epoch_idx[i]))
+        #elif param in ['t0']:
+        #    param = param +'_{}'.format(int(priorinfo._epoch_idx[i]))
         elif param in priorinfo.detrending_coeffs:
             param = param + '_f{}_e{}'.format(int(priorinfo._filter_idx[i]), int(priorinfo._epoch_idx[i]))
         elif param in priorinfo.limb_dark_coeffs and priorinfo.ld_fit_method == 'all':
@@ -377,10 +371,6 @@ def save_results(results, priorinfo, filepath='outputs.csv'):
 
         out_dict[param] = value
 
-        #write_dict.append({'Parameter': param, 'Best value':value,
-        #                   'Lower error' : median - lower ,
-        #                   'Upper error' : upper - median,
-        #                   'Median' : median})
         write_dict.append({'Parameter': param, 'Best value':value,
                            'Uncertainty' : unc})
 
@@ -394,7 +384,7 @@ def save_results(results, priorinfo, filepath='outputs.csv'):
         writer.writerows(write_dict)
 
 
-def print_results(results, priorinfo):
+def print_results(results, priorinfo, n_dof):
     '''
     Prints the results nicely to terminal
 
@@ -406,6 +396,29 @@ def print_results(results, priorinfo):
     priorinfo : transitfit.priorinfo.PriorInfo
         The PriorInfo object
     '''
+    best = results.samples[np.argmax(results.logl)]
+
+    print('\nBest fit results:')
 
     # We need to print out the results. Loop over each fitted
-    pass
+    for i, param in enumerate(priorinfo.fitting_params):
+        value = round(best[i], 6)
+        unc = round(results.uncertainties[i], 6)
+
+        if param in ['rp']:
+            param = param +'_{}:\t'.format(int(priorinfo._filter_idx[i]))
+        #elif param in ['t0']:
+        #    param = param +'_{}'.format(int(priorinfo._epoch_idx[i]))
+        elif param in priorinfo.detrending_coeffs:
+            param = param + '_f{}e{}:'.format(int(priorinfo._filter_idx[i]), int(priorinfo._epoch_idx[i]))
+        elif param in priorinfo.limb_dark_coeffs and priorinfo.ld_fit_method == 'all':
+            # All the LD coeffs are fitted separately and will write out
+            param = param +'_{}:\t'.format(int(priorinfo._filter_idx[i]))
+        else:
+            param += ':\t'
+        print('{}\t {} ± {}'.format(param, value, unc))
+
+    best_chi2 = - results.logl.max()
+
+    print('chi2:\t\t {}'.format(round(best_chi2, 5)))
+    print('red chi2:\t {}'.format(round(best_chi2/n_dof, 5)))

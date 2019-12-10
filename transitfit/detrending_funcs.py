@@ -6,37 +6,31 @@ Some detrending functions for use with LightCurve
 
 import numpy as np
 
-def linear(times, u1):
-    '''
-    A linear detrend. Generates detrending values at the given times using
 
-        detrend_value = u1 * times
+class NthOrderDetrendingFunction:
+    def __init__(self, order):
+        '''
+        Arbitrary order detrending function which conserves flux
+        '''
+        order = int(order)
+        if not order > 0:
+            raise ValueError('Order must be greater than 0')
 
-    Parameters
-    ----------
-    times : array_like
-        The times to generate detrending values for
-    u1 : float
-        First coefficient
-    u2 : float
-        Second coefficient
-    '''
+        self.order = order
 
-    return u1 * times
 
-def quadratic(times, u1, u2):
-    '''
-    Quadratic detrend
+    def __call__(self, times, *args):
+        '''
+        Returns detrending values for the times
+        '''
+        if not len(args) == self.order:
+            raise ValueError('Number of arguments {} supplied does not match the order {} of the detrending function.'.format(len(args), self.order))
 
-    detrend_values = u1 * times^2 + u2 * times
-    '''
-    return u1 * times**2 + u2 * times
+        vals = np.zeros(len(times))
+        for i in range(0, self.order):
+            vals += args[i] * (times ** (i+1) - sum(times ** (i+1))/len(times))
 
-def sinusoidal(times, u1, u2, u3):
-    '''
-    Sinusoidal detrend
+        return vals
 
-    detrend_values = u1 * sin(u2 * times + u3) + u4
-
-    '''
-    return u1 * np.sin(u2 * times + u3)
+linear = NthOrderDetrendingFunction(1)
+quadratic = NthOrderDetrendingFunction(2)

@@ -43,7 +43,7 @@ def plot_best(times, flux, uncertainty, priorinfo, results, input_file=None,
 
                 # First we set up the parameters
                 params = batman.TransitParams()
-                params.t0 = best_dict['t0'][ei]
+                params.t0 = best_dict['t0']
                 params.per = best_dict['P']
                 params.rp = best_dict['rp'][fi]
                 params.a = best_dict['a']
@@ -53,40 +53,34 @@ def plot_best(times, flux, uncertainty, priorinfo, results, input_file=None,
                 params.limb_dark = priorinfo.limb_dark
                 params.u = np.array([best_dict[key] for key in priorinfo.limb_dark_coeffs]).T[fi]
 
-                m = batman.TransitModel(params, times[fi, ei])
+                plot_times = np.linspace(times[fi, ei].min(), times[fi,ei].max(), 1000 )
+
+                m = batman.TransitModel(params, plot_times)
 
 
                 best_curve = m.light_curve(params)
 
                 norm = best_dict['norm'][fi, ei]
-                shift = best_dict['shift'][fi, ei]
-                print(norm)
-
 
                 # Plot the raw data
                 if priorinfo.detrend:
                     d = [best_dict[d][fi, ei] for d in priorinfo.detrending_coeffs]
 
-                    print(d)
-
                     dF = priorinfo.detrending_function(times[fi, ei]-np.floor(times[fi, ei][0]), *d)
 
-                    ax.errorbar(times[fi, ei], norm * (flux[fi, ei] + shift - dF),
+                    ax.errorbar(times[fi, ei], norm * (flux[fi, ei] - dF),
                                 norm * uncertainty[fi, ei], zorder=1, fmt='bx',
                                 alpha=0.8)
                 else:
-                    ax.errorbar(times[fi, ei], norm * (flux[fi, ei] + shift),
+                    ax.errorbar(times[fi, ei], norm * (flux[fi, ei]),
                                 norm * uncertainty[fi, ei], zorder=1, fmt='bx',
                                 alpha=0.8)
 
-
-
-
                 # Plot the curve
-                ax.plot(times[fi,ei], best_curve, linewidth=2)
+                ax.plot(plot_times, best_curve, linewidth=2)
 
                 # Add labels
-                ax.set_xlabel('Time')
+                ax.set_xlabel('Time (BJD)')
                 ax.set_ylabel('Normalised flux')
                 ax.set_title('Filter {}, Epoch {}'.format(fi, ei))
 
