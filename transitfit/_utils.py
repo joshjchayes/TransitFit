@@ -65,6 +65,29 @@ def validate_data_format(a1, a2, a3):
     return np_arrays['a1'], np_arrays['a2'], np_arrays['a3']
 
 
+def validate_variable_key(key):
+    '''
+    Checks that a key is valid for use with PriorInfo, and corrects when it
+    is obvious what is meant. Raises KeyError if unable to correct.
+
+    '''
+    if key.lower() in ['p','period']:
+        return 'P'
+    if key.lower() in ['rp','r_p','radius','planet_radius', 'planet radius']:
+        return 'rp'
+    if key.lower() in ['a', 'semimajor axis', 'semimajor_axis']:
+        return 'a'
+    if key.lower() in ['inc','inclination']:
+        return 'inc'
+    if key.lower() in ['t0', 't_0']:
+        return 't0'
+    if key.lower() in ['ecc','e','eccentricity']:
+        return 'ecc'
+    if key.lower() in ['w', 'periastron', 'longitude_of_periastron', 'longitude of periastron']:
+        return 'w'
+
+    raise KeyError('Unable to recognise variable name {}'.format(key))
+
 def calculate_logg(host_mass, host_radius):
     '''
     Calculates log10(g) for a host in units usable by TransitFit.

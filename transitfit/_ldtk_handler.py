@@ -1,19 +1,18 @@
 '''
-Class to handle limb darkening parameters
+Class to handle limb darkening parameters through PyLDTK
 
 '''
 
 import numpy as np
 from ldtk import LDPSetCreator, BoxcarFilter
 
-_implemented_ld_models = ['linear', 'quadratic', 'nonlinear']
+_implemented_ld_models = ['linear', 'quadratic', 'nonlinear', 'power2', 'squareroot']
 
-class LDParamHandler:
+class LDTKHandler:
     def __init__(self, host_T, host_logg, host_z, filters,
                  ld_model='quadratic', n_samples=20000, do_mc=False):
         '''
-        The LDParamEstimator provides an easy way to handle limb darkening
-        parameters within TransitFit.
+        The LDTKHandler provides an easy way to interface ldtk with TransitFit.
 
         Parameters
         ----------
@@ -32,7 +31,8 @@ class LDParamHandler:
             elsewhere.
         ld_method : str, optional
             The model of limb darkening to use. Allowed values are 'linear',
-            'quadratic', and 'nonlinear'. Default is 'quadratic'.
+            'quadratic', 'squareroot', 'power2', and 'nonlinear'. Default is
+            'quadratic'.
         n_samples : int, optional
             The number of limb darkening profiles to create. Passed to
             ldtk.LDPSetCreator.create_profiles(). Default is 20000.
@@ -116,6 +116,10 @@ class LDParamHandler:
             coeff, err = self.profile_set.coeffs_qd()
         elif ld_model == 'nonlinear':
             coeff, err = self.profile_set.coeffs_nl()
+        elif ld_model == 'power2':
+            coeff, err = self.profile_set.coeffs_p2()
+        elif ld_model == 'squareroot':
+            coeff, err = self.profile_set.coeffs_sq()
 
         else:
             raise ValueError('Unrecognised ld_model {}'.format(ld_model))
@@ -141,3 +145,9 @@ class LDParamHandler:
             return self.profile_set.lnlike_qd(coeffs)
         if ld_model == 'nonlinear':
             return self.profile_set.lnlike_nl(coeffs)
+        if ld_model == 'power2':
+            return self.profile_set.lnlike_p2(coeffs)
+        if ld_model == 'squareroot':
+            return self.profile_set.lnlike_sq(coeffs)
+
+        raise ValueError('Unrecognised ld_model {}'.format(ld_model))

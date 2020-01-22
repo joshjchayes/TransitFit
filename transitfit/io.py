@@ -6,9 +6,154 @@ Module to help make using csv files super easy as inputs
 
 import numpy as np
 import pandas as pd
-from .priorinfo import PriorInfo, _prior_info_defaults
+from .priorinfo import PriorInfo, _prior_info_defaults, setup_priors
 import dynesty
 import csv
+import os
+from ._utils import validate_variable_key
+
+def parse_filter_list(filter_list):
+    '''
+    Parses a list of filter information into a usable form for the `'filters'`
+    argument in PriorInfo.fit_limb_darkening.
+
+    Parameters
+    ----------
+    filter_list : array_like, shape (n_filters, 3)
+        The information on the filters. Each row should contain
+        [filter_index, low wavelength, high wavelength]
+        The filter indices should refer to the indices used in the priors file.
+        Wavelengths should be in nm.
+
+    Returns
+    -------
+    filter_info : np.array, shape (n_filters, 2)
+        The filter information pass to PriorInfo.fit_limb_darkening.
+    '''
+    filter_list = np.array(filter_list)
+
+    # How many filters are there?
+    n_filters = int(info[:,0].max() + 1)
+
+    # Make a blank array to populate with the filter limits
+    filter_info = np.zeros((n_filters, 2))
+
+    # Now populate!
+    for i in range(n_filters):
+        filter_info[i] = info[i, 1:]
+
+    return filter_info
+
+
+def parse_data_path_list(data_path_list):
+    '''
+    Parses a list of paths to data files and places them into an array which
+    can be passed to read_data_file_array
+
+    Parameters
+    ----------
+    data_path_list : array_like, shape (n_light_curves, 3)
+        The list of paths. Each row should contain
+        [data path, epoch index, filter index]
+
+    Returns
+    -------
+    data_path_array : array_like, shape (num_filters, num_epochs)
+        The paths inserted into an array where each column is a particular
+        filter and each row is a particular epoch of observation.
+    '''
+    data_path_list = np.array(data_path_list, dtype=object)
+
+    if data_path_list.ndim == 1:
+        data_path_list = np.array([data_path_list])
+
+    # Work out how many epochs and filters we have
+    n_epochs = data_path_list[:,1].max() + 1
+    n_filters = data_path_list[:,2].max() + 1
+
+    # Initialise a blank array, filling it with None.
+    data_path_array = np.array([[None for i in range(n_epochs)] for j in range(n_filters)], object)
+
+    # Populate the blank array
+    for row in data_path_list:
+        p, i, j = row
+        data_path_array[j,i] = p
+
+    return data_path_array
+
+
+def parse_priors_list(priors_list, ld_model, num_filters, num_epochs):
+    '''
+    Parses a list of priors to produce a PriorInfo with all fitting parameters
+    initialised.
+
+    Parameters
+    ----------
+    priors_list : array_like, shape(X, 5)
+        A list of prior information for each variable to be fitted. Can also
+        set fixed values by setting the low and high values to `None` or
+        `np.nan`. Each row should be of the form
+        [key, default value, low limit, high limit, filter index]
+    ld_model : str
+        The limb darkening model to use
+    num_filters : int
+        The number of different filters being used
+    num_epochs : int
+        The number of different epochs being used.
+
+    Returns
+    -------
+    prior_info : PriorInfo
+        The fully initialised PriorInfo which can then be used in fitting.
+    '''
+    priors_dict = {}
+
+    for row in priors_list:
+        # First check the key and correct if possible
+        row[0] = validate_variable_key(row[0])
+
+        # Now add to the priors_dict
+        priors_dict[row[0]] = row[1:]
+
+    ##############################
+    # Make the default PriorInfo #
+    ##############################
+
+    # Need to check if any variables are missing from the default prior
+    for key in _prior_info_defaults:
+        if key not in priors_dict:
+            # Has not been specified in the priors list
+            priors_dict[key] = [_prior_info_defaults[key]]
+
+    # Now make the basic PriorInfo
+    prior_info = setup_priors(priors_dict['P'][0],
+                              priors_dict['rp'][0],
+                              priors_dict['a'][0],
+                              priors_dict['inc'][0],
+                              priors_dict['t0'][0],
+                              priors_dict['ecc'][0],
+                              priors_dict['w'][0],
+                              ld_model, num_epochs, num_filters)
+
+    ##########################
+    # Initialise the fitting #
+    ##########################
+
+    for row in priors_list:
+        key, best, low, high, filt = row
+        # Check this has been given as a value to fit and not just specified
+        if low is None:
+            low = np.nan
+        if high is None:
+            high = np.nan
+        if np.isfinite(low) and np.isfinite(high):
+            if key in ['rp']:
+                prior_info.add_uniform_fit_param(key, best, low, high, filter_idx=int(filt))
+            else:
+                prior_info.add_uniform_fit_param(key, best, low, high)
+
+    return prior_info
+
 
 def _read_data_csv(path):
     '''
@@ -32,7 +177,8 @@ def _read_data_txt(path, skiprows=0):
 
     return times, depths, errors
 
-def read_data_file(path, skiprows=0, delimiter=None):
+
+def read_data_file(path, skiprows=0, delimiter=None, folder=None):
     '''
     Reads a file in, assuming that it is either a:
         .csv
@@ -48,6 +194,9 @@ def read_data_file(path, skiprows=0, delimiter=None):
         Number of rows to skip in reading txt file (to avoid headers)
     delimiter : str, optional
         The string used to separate values. The default is whitespace.
+    folder : str or None, optional
+        If not None, this folder will be prepended to all the paths. Default is
+        None.
 
     Returns
     -------
@@ -58,27 +207,30 @@ def read_data_file(path, skiprows=0, delimiter=None):
     error : np.array
         The uncertainty on the flux
     '''
-    if path[-4:] == '.csv':
-        return _read_data_csv(path)
-    if path[-4:] == '.txt':
-        return _read_data_txt(path, skiprows)
+    if folder is None:
+        folder = ''
 
-def read_data_file_array(data_paths, skiprows=0):
+    if path[-4:] == '.csv':
+        return _read_data_csv(os.path.join(folder, path))
+    if path[-4:] == '.txt':
+        return _read_data_txt(os.path.join(folder, path), skiprows)
+
+def read_data_path_array(data_path_array, skiprows=0):
     '''
     If passed an array of paths, will read in to produce times, flux and
     uncertainty arrays
     '''
-    data_paths = np.array(data_paths)
+    data_path_array = np.array(data_path_array)
 
-    num_wavelengths = data_paths.shape[0]
-    num_times = data_paths.shape[1]
+    num_wavelengths = data_path_array.shape[0]
+    num_times = data_path_array.shape[1]
 
     data = np.array([[None for i in range(num_times)] for j in range(num_wavelengths)], object)
 
     for i in range(num_wavelengths):
         for j in range(num_times):
-            if data_paths[i,j] is not None:
-                data[i,j] = read_data_file(data_paths[i,j])
+            if data_path_array[i,j] is not None:
+                data[i,j] = read_data_file(data_path_array[i,j])
 
 
     times = np.array([[None for i in range(num_times)] for j in range(num_wavelengths)], object)
@@ -105,9 +257,9 @@ def read_priors_file(path, num_epochs, num_filters, limb_dark='quadratic'):
         Path to .csv file containing the priors.
 
         Columns should me in the order
-        ------------------------------------------------------------------
-        |  key  |   best  |  low_lim  |   high_lim  |  epoch  |  filter  |
-        ------------------------------------------------------------------
+        --------------------------------------------------------
+        |  key  |   best  |  low_lim  |   high_lim  |  filter  |
+        --------------------------------------------------------
 
         If the parameter is invariant across an epoch or filter, leave the
         entry blank.
@@ -122,11 +274,8 @@ def read_priors_file(path, num_epochs, num_filters, limb_dark='quadratic'):
 
     limb_dark : str, optional
         The model of limb darkening you want to use. Accepted are
-            - uniform
             - linear
             - quadratic
-            - logarithmic
-            - exponential
             - squareroot
             - power2
             - nonlinear
@@ -137,103 +286,15 @@ def read_priors_file(path, num_epochs, num_filters, limb_dark='quadratic'):
     Detrending currently cannot be initialised in the prior file. It will be
     available as a kwarg in the pipeline function
     '''
-    table = pd.read_csv(path).values
+    priors_list = pd.read_csv(path).values
 
-    # Work out how mnay light curves are being used.
-    num_times = num_epochs
-    num_wavelengths = num_filters
+    return parse_priors_list(priors_list, limb_dark, num_filters, num_epochs)
 
-    # check the limb darkening coefficients and if they are fitting
-    # First, A small dict to check if each LD param is being fitted.
-    # This basically checks which parameters are required for the different models
-    limb_dark_params = {}
-    limb_dark_params['u1'] = False
-    limb_dark_params['u2'] = False
-    limb_dark_params['u3'] = False
-    limb_dark_params['u4'] = False
-
-    if not limb_dark == 'uniform':
-        limb_dark_params['u1'] = True
-        if not limb_dark == 'linear':
-            limb_dark_params['u2'] = True
-            if limb_dark == 'nonlinear':
-                limb_dark_params['u3'] = True
-                limb_dark_params['u4'] = True
-
-    #######################################################
-    # Set up the default dict to initialise the PriorInfo #
-    #######################################################
-    default_prior_dict = {}
-
-    default_prior_dict['num_times'] = num_times
-    default_prior_dict['num_wavelengths'] = num_wavelengths
-    default_prior_dict['limb_dark'] = limb_dark
-
-    # Initialse any variables which vary with epoch or wavelength
-    default_prior_dict['rp'] = np.full(num_wavelengths, np.nan)
-
-    # We need to add in the default values for LD coeffs
-    if limb_dark == 'linear':
-        default_prior_dict['u1'] = np.full(num_wavelengths, 0.3)
-    elif limb_dark in ['quadratic', 'logarithmic', 'exponential','squareroot', 'power2']:
-        default_prior_dict['u1'] = np.full(num_wavelengths, 0.1)
-        default_prior_dict['u2'] = np.full(num_wavelengths, 0.3)
-    elif limb_dark == 'nonlinear':
-        default_prior_dict['u1'] = np.full(num_wavelengths, 0.5)
-        default_prior_dict['u2'] = np.full(num_wavelengths, 0.1)
-        default_prior_dict['u3'] = np.full(num_wavelengths, 0.1)
-        default_prior_dict['u4'] = np.full(num_wavelengths, -0.1)
-
-    # Now make the default values for the fitting parameters
-    for row in table:
-        key, best, low, high, epoch, filt = row
-        if key == 'rp':
-            default_prior_dict[key][int(filt)] = best
-        #elif key == 't0':
-        #    default_prior_dict[key][int(epoch)] = best
-        elif key in ['u1','u2','u3','u4']:
-            if limb_dark_params[key]:
-                default_prior_dict[key][int(filt)] = best
-        else:
-            default_prior_dict[key] = best
-
-    # Now we set the fixed values from defaults
-    for key in _prior_info_defaults:
-        if key not in default_prior_dict:
-            default_prior_dict[key] = _prior_info_defaults[key]
-
-    # Check to see if there are any light curves which have not had 'rp' or 't0 defined'
-    if np.isnan(default_prior_dict['rp']).any():
-        bad_indices = np.where(np.isnan(default_prior_dict['rp']))[0]
-        bad_string = str(bad_indices)[1:-1]
-        raise ValueError('Light curve(s) {} are missing rp values'.format(bad_string))
-
-    # MAKE DEFAULT PriorInfo #
-    prior_info = PriorInfo(default_prior_dict, warn=False)
-
-    #################################
-    # Now add in the actual priors! #
-    #################################
-    for row in table:
-        key, best, low, high, epoch, filt = row
-
-        # This is a check to make sure we want to vary the parameter
-        if np.isfinite(low) and np.isfinite(high):
-            if key in ['rp']:
-                prior_info.add_uniform_fit_param(key, best, low, high, filter_idx=int(filt))
-
-            elif key in ['u1','u2','u3','u4']:
-                prior_info.add_uniform_fit_param(key, best, low, high, filter_idx=int(filt))
-
-            else:
-                prior_info.add_uniform_fit_param(key, best, low, high)
-
-    return prior_info
 
 def read_input_file(path):
     '''
     Reads in a file with listed inputs and produces data arrays for use in
-    retrieval. This can be used to
+    retrieval.
 
     Parameters
     ----------
@@ -257,18 +318,9 @@ def read_input_file(path):
     '''
     info = pd.read_csv(path).values
 
-    # Work out how many epochs and filters we have
-    n_epochs = info[:,1].max() + 1
-    n_filters = info[:,2].max() + 1
+    data_path_array = parse_data_path_list(info)
 
-    # Initialise a blank array
-    paths_array = np.array([[None for i in range(n_epochs)] for j in range(n_filters)], object)
-
-    for row in info:
-        p, i, j = row
-        paths_array[j,i] = p
-
-    return read_data_file_array(paths_array)
+    return read_data_path_array(data_path_array)
 
 def read_filter_info(path):
     '''
@@ -298,17 +350,8 @@ def read_filter_info(path):
 
     info = pd.read_csv(path).values
 
-    # How many filters are there?
-    n_filters = int(info[:,0].max() + 1)
+    return parse_filter_list(info)
 
-    # Make a blank array to populate with the filter limits
-    filter_info = np.zeros((n_filters, 2))
-
-    # Now populate!
-    for i in range(n_filters):
-        filter_info[i] = info[i, 1:]
-
-    return filter_info
 
 def save_results(results, priorinfo, filepath='outputs.csv'):
     '''
@@ -351,13 +394,19 @@ def save_results(results, priorinfo, filepath='outputs.csv'):
         best_ld_params = priorinfo.ld_param_handler.estimate_values(best_single_ld)
         # TODO errors
 
-    for i, param in enumerate(priorinfo.fitting_params):
-        value = best[i]
-        #lower = np.percentile(resampled[:,i], 16)
-        #upper = np.percentile(resampled[:,i], 84)
-        #median = np.median(resampled[:, i])
 
-        unc = results.uncertainties[i]
+    for i, param in enumerate(priorinfo.fitting_params):
+        if param in priorinfo.limb_dark_coeffs:
+            # We need to convert the LDCs
+            LDC_index = int(param[-1])
+            LDC_unit_vals = best[i - LDC_index : i + len(priorinfo.limb_dark_coeffs) - LDC_index]
+            LDC_unit_uncs = results.uncertainties[i - LDC_index : i + len(priorinfo.limb_dark_coeffs) - LDC_index]
+            value = round(priorinfo.ld_handler.convert_coefficients(*LDC_unit_vals)[LDC_index], 6)
+            unc = round(priorinfo.ld_handler.convert_coefficients(*LDC_unit_uncs)[LDC_index], 6)
+
+        else:
+            value = best[i]
+            unc = results.uncertainties[i]
 
         if param in ['rp']:
             param = param +'_{}'.format(int(priorinfo._filter_idx[i]))
@@ -365,9 +414,10 @@ def save_results(results, priorinfo, filepath='outputs.csv'):
         #    param = param +'_{}'.format(int(priorinfo._epoch_idx[i]))
         elif param in priorinfo.detrending_coeffs:
             param = param + '_f{}_e{}'.format(int(priorinfo._filter_idx[i]), int(priorinfo._epoch_idx[i]))
-        elif param in priorinfo.limb_dark_coeffs and priorinfo.ld_fit_method == 'all':
+        elif param in priorinfo.limb_dark_coeffs and priorinfo.ld_fit_method in ['independent', 'coupled']:
             # All the LD coeffs are fitted separately and will write out
             param = param +'_{}'.format(int(priorinfo._filter_idx[i]))
+
 
         out_dict[param] = value
 
@@ -402,8 +452,18 @@ def print_results(results, priorinfo, n_dof):
 
     # We need to print out the results. Loop over each fitted
     for i, param in enumerate(priorinfo.fitting_params):
-        value = round(best[i], 6)
-        unc = round(results.uncertainties[i], 6)
+
+        if param in priorinfo.limb_dark_coeffs:
+            # We need to convert the LDCs
+            LDC_index = int(param[-1])
+            LDC_unit_vals = best[i - LDC_index : i + len(priorinfo.limb_dark_coeffs) - LDC_index]
+            LDC_unit_uncs = results.uncertainties[i - LDC_index : i + len(priorinfo.limb_dark_coeffs) - LDC_index]
+            value = round(priorinfo.ld_handler.convert_coefficients(*LDC_unit_vals)[LDC_index], 6)
+            unc = round(priorinfo.ld_handler.convert_coefficients(*LDC_unit_uncs)[LDC_index], 6)
+
+        else:
+            value = round(best[i], 6)
+            unc = round(results.uncertainties[i], 6)
 
         if param in ['rp']:
             param = param +'_{}:\t'.format(int(priorinfo._filter_idx[i]))
@@ -411,7 +471,7 @@ def print_results(results, priorinfo, n_dof):
         #    param = param +'_{}'.format(int(priorinfo._epoch_idx[i]))
         elif param in priorinfo.detrending_coeffs:
             param = param + '_f{}e{}:'.format(int(priorinfo._filter_idx[i]), int(priorinfo._epoch_idx[i]))
-        elif param in priorinfo.limb_dark_coeffs and priorinfo.ld_fit_method == 'all':
+        elif param in priorinfo.limb_dark_coeffs and priorinfo.ld_fit_method in ['independent', 'coupled']:
             # All the LD coeffs are fitted separately and will write out
             param = param +'_{}:\t'.format(int(priorinfo._filter_idx[i]))
         else:

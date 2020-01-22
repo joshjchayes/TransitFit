@@ -8,13 +8,32 @@ import numpy as np
 from ._params import _Param, _UniformParam
 from .detrending_funcs import NthOrderDetrendingFunction
 from .detrender import DetrendingFunction
-from ._ld_param_handler import LDParamHandler
+from ._limb_darkening_handler import LimbDarkeningHandler
 
 _prior_info_defaults = {'P':1, 'a':10, 'inc':90, 'rp':0.05, 't0':0, 'ecc':0,
-                        'w':90, 'limb_dark':'quadratic', 'u1':0.1, 'u2':0.3,
-                        'u3':-0.1, 'u4':0, 'num_wavelengths':1,
+                        'w':90, 'limb_dark':'quadratic', 'q0':0.1, 'q1':0.3,
+                        'q2':-0.1, 'q3':0, 'num_wavelengths':1,
                         'num_times':1, 'norm' : 1}
 
+
+def setup_priors(P, rp, a, inc, t0, ecc, w, ld_model, num_times, num_wavelengths, norm=1):
+    '''
+    Initialises a PriorInfo object with default parameter values. Fitting
+    parameters can be added by
+    '''
+    default_dict = {'rp' : rp,
+                    'P' : P,
+                    'a' : a,
+                    'inc' : inc,
+                    't0' : t0,
+                    'ecc' : ecc,
+                    'w' : w,
+                    'num_times' : num_times,
+                    'num_wavelengths' : num_wavelengths,
+                    'norm' : norm,
+                    'limb_dark' : ld_model}
+
+    return PriorInfo(default_dict, warn=False)
 
 class PriorInfo:
     def __init__(self, default_dict, warn=True):
@@ -39,37 +58,14 @@ class PriorInfo:
         self.num_wavelengths = default_dict['num_wavelengths']
         self.limb_dark = default_dict['limb_dark']
 
-        # Sort out the limb darkening coefficients - what is allowed?
-        if self.limb_dark == 'uniform':
-            self.limb_dark_coeffs = []
-        if self.limb_dark == 'linear':
-            self.limb_dark_coeffs = ['u1']
-        elif self.limb_dark in ['quadratic', 'logarithmic', 'exponential','squareroot', 'power2']:
-            self.limb_dark_coeffs = ['u1', 'u2']
-        elif self.limb_dark == 'nonlinear':
-            self.limb_dark_coeffs = ['u1', 'u2', 'u3', 'u4']
-        else:
-            raise ValueError('Unrecognised limb darkening method {}'.format(self.limb_dark))
-
-        allowed_coeff_names = ['u1','u2','u3','u4']
-        for key in allowed_coeff_names:
-            if key not in self.limb_dark_coeffs:
-                default_dict.pop(key, None)
-
+        # Initialise limb darkening
+        self.ld_handler = LimbDarkeningHandler(self.limb_dark)
+        self.limb_dark_coeffs = self.ld_handler.get_required_coefficients()
         self.fit_ld = False
 
-        # Set up a dictionary containing the parameters
-        for key in default_dict.keys():
-            if key in ['rp'] + self.limb_dark_coeffs:
-                self.priors[key] = [_Param(default_dict[key]) for i in range(self.num_wavelengths)]
-            elif key =='t0':
-                self.priors[key] = [_Param(default_dict[key]) for i in range(self.num_times)]
-            elif key in ['num_times', 'num_wavelengths', 'limb_dark']:
-                pass
-            elif key in ['norm']:
-                self.priors[key] = np.array([[_Param(default_dict[key]) for i in range(self.num_times)] for j in range(self.num_wavelengths)], object)
-            else:
-                self.priors[key] = _Param(default_dict[key])
+        for ldc in self.limb_dark_coeffs:
+            # Set up the default values for the limb darkening coeffs
+            self.priors[ldc] = [_Param(_prior_info_defaults[ldc]) for i in range(self.num_wavelengths)]
 
         # Initialse a bit for the detrending
         self.detrend = False
@@ -78,6 +74,20 @@ class PriorInfo:
         # Initialise normalisation things
         self.normalise=False
         self.priors['norm'] = np.ones((self.num_wavelengths, self.num_times), object)
+
+        # Set up a dictionary containing the parameters with default values
+        for key in default_dict.keys():
+            if key in ['rp'] + self.limb_dark_coeffs:
+                self.priors[key] = [_Param(default_dict[key]) for i in range(self.num_wavelengths)]
+            #elif key =='t0':
+            #    self.priors[key] = [_Param(default_dict[key]) for i in range(self.num_times)]
+            elif key in ['num_times', 'num_wavelengths', 'limb_dark']:
+                pass
+            elif key in ['norm']:
+                self.priors[key] = np.array([[_Param(default_dict[key]) for i in range(self.num_times)] for j in range(self.num_wavelengths)], object)
+            else:
+                self.priors[key] = _Param(default_dict[key])
+
 
     def add_uniform_fit_param(self, name, best, low_lim, high_lim, epoch_idx=None, filter_idx=None):
         '''
@@ -123,18 +133,80 @@ class PriorInfo:
     def _from_unit_interval(self, i, u):
         '''
         Gets parameter self.fitting_params[i] from a number u between 0 and 1
+
+        DEPRECIATED as of v0.8
         '''
         name = self.fitting_params[i]
         fidx = self._filter_idx[i]
         eidx = self._epoch_idx[i]
 
-        if name in ['rp'] + self.limb_dark_coeffs:
+        if name in ['rp']:
             return self.priors[name][fidx].from_unit_interval(u)
 
         elif name in self.detrending_coeffs + ['norm']:
                 return self.priors[name][fidx, eidx].from_unit_interval(u)
 
+        elif name in self.limb_dark_coeffs:
+            # Here we handle the different types of limb darkening, and
+            # enforce a physically allowed set of limb darkening coefficients
+            # following Kipping 2013 https://arxiv.org/abs/1308.0009 for
+            # two-parameter limb darkening methods
+
+            # First up, convert the unit-interval fitted
+
+            if not self.ld_fit_method == 'independent':
+                # We are using PyLDTK to deal with likelihoods
+                return self.priors[name][fidx].from_unit_interval(u)
+
         return self.priors[name].from_unit_interval(u)
+
+    def _convert_unit_cube(self, cube):
+        '''
+        Function to convert the unit cube for dynesty into a set of physical
+        values
+        '''
+        new_cube = np.zeros(len(self.fitting_params))
+
+        skip_params = 0
+
+        for i, name in enumerate(self.fitting_params):
+            if skip_params > 0:
+                # Skip parameters due to LDC calculations
+                skip_params -= 1
+
+            else:
+                fidx = self._filter_idx[i]
+                eidx = self._epoch_idx[i]
+
+                if name in ['rp']:
+                    new_cube[i] = self.priors[name][fidx].from_unit_interval(cube[i])
+
+                elif name in self.detrending_coeffs + ['norm']:
+                    new_cube[i] = self.priors[name][fidx, eidx].from_unit_interval(cube[i])
+
+                elif name in self.limb_dark_coeffs:
+                    # Here we handle the different types of limb darkening, and
+                    # enforce a physically allowed set of limb darkening coefficients
+                    # following Kipping 2013 https://arxiv.org/abs/1308.0009 for
+                    # two-parameter limb darkening methods
+
+                    # A quick check to make sure that we are at the start of a
+                    # particular filter
+                    if not name[1] == '0':
+                        raise Exception('There\'s an error in the LCD conversions')
+
+                    # Get all [0,1] values of LDCs for this filter.
+                    LDCs = cube[i: i + len(self.limb_dark_coeffs)]
+
+                    new_cube[i:i + len(self.limb_dark_coeffs)] = self.ld_handler.convert_coefficients(*LDCs)
+
+                    # Skip the rest of the LDCs for the filter
+                    skip_params = len(self.limb_dark_coeffs) - 1
+
+                else:
+                    new_cube[i] = self.priors[name].from_unit_interval(cube[i])
+
+        return new_cube
 
     def _interpret_param_array(self, array):
         '''
@@ -181,14 +253,13 @@ class PriorInfo:
                 # We need to estimate the values of the remaining LD params
                 ld0_values = [result[u][0] for u in self.limb_dark_coeffs]
 
-                est_ld_values = self.ld_param_handler.estimate_values(ld0_values,
-                self.ld_param_handler.default_model)
+                est_ld_values = self.ld_handler.ldtk_estimate(ld0_values)
 
                 for i, u in enumerate(self.limb_dark_coeffs):
                     result[u] = est_ld_values[:, i]
 
         # Now we consider any parameters which aren't being fitted
-        # Note that we don't need to consider detrending  or normalisation
+        # Note that we don't need to consider detrending or normalisation
         # coeffs as they will ONLY be present at all if we are detrending or
         # normalising
         for key in self.priors:
@@ -350,9 +421,10 @@ class PriorInfo:
         else:
             raise ValueError('Unrecognised detrending method {}'.format(method))
 
-    def fit_limb_darkening(self, fit_method='independent', host_T=None, host_logg=None,
+    def fit_limb_darkening(self, fit_method='independent', low_lim=-5,
+                           high_lim=-5, host_T=None, host_logg=None,
                            host_z=None, filters=None, ld_model='quadratic',
-                           n_samples=20000, do_mc=False, allowed_variance=5):
+                           n_samples=20000, do_mc=False):
         '''
         Initialises fitting of limb darkening parameters, either independently
         or coupled across wavebands.
@@ -374,6 +446,16 @@ class PriorInfo:
                 - 'independent' : Each LD coefficient is fitted separately for
                   each filter, with no coupling to the ldtk models.
             The default is 'independent'.
+        low_lim : float, optional
+            The lower limit to use in conversion in the case where there are
+            open bounds on a coefficient (power2 and nonlinear models). Note
+            that in order to conserve sampling density in all regions for the
+            power2 model, you should set lower_lim=-high_lim. Default is -5
+        high_lim : float, optional
+            The upper limit to use in conversion in the case where there are
+            open bounds on a coefficient (power2 and nonlinear models). Note
+            that in order to conserve sampling density in all regions for the
+            power2 model, you should set lower_lim=-high_lim. Default is 5
         host_T : tuple or None, optional
             The effective temperature of the host star, in Kelvin, given as a
             (value, uncertainty) pair. Must be provided if fit_method is
@@ -401,52 +483,36 @@ class PriorInfo:
         do_mc : bool, optional
             If True, will use MCMC to estimate coefficient uncertainties more
             accurately. Default is False.
-        allowed_variance : float, optional
-            The number of standard deviations that each parameter is allowed to
-            vary by. Default is 5
         '''
 
         # Sanity checks
         if fit_method not in ['coupled', 'single', 'independent']:
             raise ValueError('Unrecognised fit method {}'.format(fit_method))
 
-        if not len(filters) == self.num_wavelengths:
-            raise ValueError('{} filters were given, but there are {} filters required!'.format(len(filters), self.num_wavelengths))
+        if not fit_method == 'independent':
+            if filters is None:
+                raise ValueError('Filters must be provided for coupled and single ld_fit_methods')
+            if not len(filters) == self.num_wavelengths:
+                raise ValueError('{} filters were given, but there are {} filters required!'.format(len(filters), self.num_wavelengths))
 
         # Some flags and useful info to store
         self.fit_ld = True
         self.ld_fit_method = fit_method
 
-        if fit_method == 'independent':
-            # We fit each LD parameter independently without any coupling
-            for i in range(self.num_wavelengths):
-                for ldi, name in enumerate(self.limb_dark_coeffs):
-                    self.add_uniform_fit_param(name, 0, -1, 1, filter_idx=i)
+        # First up, we need to initialise each LDC for fitting:
+        for i in range(self.num_wavelengths):
+            for ldc, name in enumerate(self.limb_dark_coeffs):
+                self.add_uniform_fit_param(name, 0.5, 0, 1, filter_idx=i)
 
-        else:
-            # We need to couple LD params across wavelengths
-
-            # Check required parameters are given.
-            #if
-            # Create the LDParamHandler
-            self.ld_param_handler = LDParamHandler(host_T, host_logg, host_z,
-                                                   filters, ld_model, n_samples,
-                                                   do_mc)
-
-            # Work out how many parameters we need to fit for and initialise the
-            # fitting for them.
-            for i in range(self.num_wavelengths):
-                for ldi, name in enumerate(self.limb_dark_coeffs):
-                    best = self.ld_param_handler.coeffs[ld_model][0][i][ldi]
-                    err = self.ld_param_handler.coeffs[ld_model][1][i][ldi]
-                    low = best - allowed_variance * err
-                    high = best + allowed_variance * err
-                    # allow each parameter to vary by up to 5 sigma
-
-                    self.add_uniform_fit_param(name, best, low, high, filter_idx=i)
+                # If we are in 'single' mode, we only need to fit for the first
+                # wavelength
                 if self.ld_fit_method == 'single':
-                    # Stop if we are only fitting the first one
                     break
+
+        if not fit_method == 'independent':
+            # Now if we are coupling across wavelength we must initialise PyLDTK
+            self.ld_handler.initialise_ldtk(host_T, host_logg, host_z, filters,
+                                            ld_model, n_samples, do_mc)
 
     def fit_normalisation(self, flux_array, default_low=0.1):
         '''

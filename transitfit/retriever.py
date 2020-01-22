@@ -25,7 +25,7 @@ class Retriever:
 
     def run_dynesty(self, times, depths, errors, priorinfo,
                     limb_dark='quadratic', maxiter=None, maxcall=None,
-                    nlive=300, plot=True, savefname='outputs.csv',
+                    nlive=300, plot=True, savefname='outputs.csv', dlogz=None,
                     **dynesty_kwargs):
         '''
         Runs a dynesty retrieval on the given data set
@@ -55,6 +55,13 @@ class Retriever:
         plot_best : bool, optional
             If True, will plot the data and the best fit model on a Figure.
             Default is True
+        dlogz : float, optional
+            Iteration will stop when the estimated contribution of the
+            remaining prior volume to the total evidence falls below this
+            threshold. Explicitly, the stopping criterion is
+            `ln(z + z_est) - ln(z) < dlogz`, where z is the current evidence
+            from all saved samples and z_est is the estimated contribution from
+            the remaining volume. The default is `1e-3 * (nlive - 1) + 0.01`.
         **dynesty_kwargs : optional
             Additional kwargs to pass to dynesty.NestedSampler
 
@@ -84,10 +91,8 @@ class Retriever:
             Convert the unit cube values to a parameter value using a uniform
             distribution bounded by the values given by the PriorInfo
             '''
-            new_cube = np.zeros(len(cube))
-            for i in range(len(cube)):
-                new_cube[i] = priorinfo._from_unit_interval(i, cube[i])
-            return new_cube
+            return priorinfo._convert_unit_cube(cube)
+
 
         def dynesty_lnlike(cube):
             '''
@@ -123,8 +128,9 @@ class Retriever:
                                                             params['norm'],
                                                             detr_func,
                                                             d)
+
             if priorinfo.fit_ld and not priorinfo.ld_fit_method == 'independent':
-                return ln_likelihood + priorinfo.ld_param_handler.lnlike(np.array(u).T, limb_dark)
+                return ln_likelihood + priorinfo.ld_handler.ldtk_lnlike(np.array(u).T, limb_dark)
             else:
                 return ln_likelihood
 
@@ -133,7 +139,7 @@ class Retriever:
                                 ndims, bound='multi', sample='rwalk',
                                 update_interval=float(ndims), nlive=nlive,
                                 **dynesty_kwargs)
-        sampler.run_nested(maxiter=maxiter, maxcall=maxcall)
+        sampler.run_nested(maxiter=maxiter, maxcall=maxcall, dlogz=dlogz)
 
         results = sampler.results
 

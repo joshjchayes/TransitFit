@@ -5,75 +5,127 @@ A function which will run everything when given a path to light curve and
 priors!
 '''
 
-from .io import read_data_file_array, read_priors_file, read_input_file, read_filter_info
+from .io import read_priors_file, read_input_file, read_filter_info, parse_data_path_list, read_data_path_array, parse_priors_list, parse_filter_list
 from .retriever import Retriever
 import numpy as np
 
-def run_retrieval_from_paths(input_csv_path, prior_path, filter_info_path=None,
-                             host_T=None, host_logg=None, host_z=None,
-                             ld_fit_method='single', ld_model='quadratic',
-                             n_ld_samples=20000, do_ld_mc=False,
-                             allowed_ld_variance=5, detrending='nth order',
-                             detrending_order=1, detrending_function=None,
-                             nlive=300, normalise=True, low_norm=0.1, high_norm=15):
+
+
+def run_retrieval(data_files, priors, ld_model='quadratic',
+                  ld_fit_method='independent', filter_info=None, host_T=None,
+                  host_logg=None, host_z=None, ldc_low_lim=-5, ldc_high_lim=-5,
+                  n_ld_samples=20000, do_ld_mc=False, detrending='nth order',
+                  detrending_order=1, detrending_function=None, nlive=300,
+                  normalise=True, low_norm=0.1, dlogz=None):
     '''
-    Runs a full retrieval when given data_paths and prior_path
+    Runs a full retrieval of posteriors using nested sampling on a transit
+    light curve or a set of transit light curves.
 
     Parameters
     ----------
-    input_csv_path : str
-        Path to the file which contains the paths to data files with associated
-        epoch and filter numbers. For info on format, see documentation for
-        transitfit.io.read_input_file
-    prior_path : str
-        Path to the prior .csv file. See TransitFit.io.read_priors_file for
-        more information on format.
-    filter_info_path : str or None, optional
-        Path to .csv containing information on the filters. See
-        TransitFit.io.read_filter_info for more information on format. If not
+    data_files : str or array_like, shape (n_light_curves, 3)
+        Either a path to a file which contains the paths to data files with
+        associated epoch and filter numbers, or a list of paths.
+        If a path to a .csv file is provided, columns should be in the order
+        -------------------------------
+        |  path  |  epoch  |  filter  |
+        -------------------------------
+        If a list in provided, each row should contain
+        [data path, epoch index, filter index]
+    priors : str or array_like, shape(X, 5)
+        Path to a .csv file containing prior information on each variable to be
+        fitted, or a list containing the same information. The columns for
+        either should be in the order
+        ---------------------------------------------------------------
+        | key | default value | low limit | high limit | filter index |
+        ---------------------------------------------------------------
+        If you want to fix a parameter at a given value, leave low_lim and
+        high_lim blank (if in a file) or set to `None` or `np.nan`. Just
+        provide best, along with epoch and filter if required.
+
+        The accepted keys are:
+            - 'P' : orbital period. Should be in the same time units as t0
+            - 'rp' : planet radius (filter specific). One should be provided
+                     for each filter being used
+            - 'a' : orbital radius in host radii
+            - 'inc' : orbital inclination in degrees
+            - 't0' : a t0 value for one of the light curves being used. This
+                     should be in the same time units as the period
+            - 'ecc' : the orbital eccentricity
+            - 'w' : the longitude of periastron (in degrees)
+    ld_model : str, optional
+        The limb darkening model to use. Allowed models are
+            - 'linear'
+            - 'quadratic'
+            - 'squareroot'
+            - 'power2'
+            - 'nonlinear'
+        With the exception of the non-linear model, all models are constrained
+        by the method in Kipping (2013), which can be found at
+        https://arxiv.org/abs/1308.0009. Default is 'quadratic'.
+    ld_fit_method : str, optional
+        Determines the mode of fitting of limb darkening parameters. The
+        available modes are:
+            - `'coupled'` : all limb darkening parameters are fitted
+              independently, but are coupled to a wavelength dependent
+              model based on the host parameters through `ldkt`
+            - `'single'` : LD parameters are still tied to a model, but only
+              the first filter is actively fitted. The remaining filters
+              are estimated based off the ratios given by ldtk for a host
+              with the given parameters. This mode is useful for a large
+              number of filters, as 'coupled' or 'independent' fitting will
+              lead to much higher computation times.
+            - `'independent'` : Each LD coefficient is fitted separately for
+              each filter, with no coupling to the ldtk models.
+        Default is `'independent'`
+    filter_info : str or array_like, shape (n_filters, 3) or None, optional
+        Path to a .csv file containing prior information on each variable to be
+        fitted, or a list containing the same information. The columns for
+        either should be in the order
+        -----------------------------------------
+        |   filter_idx  |   low_wl  |   high_wl |
+        -----------------------------------------
+        This is required if ld_fit_method is `'single'` or `'coupled'`. If not
         None and host_T, host_logg and host_z are not None, retrieval will
         include fitting realistic limb darkening parameters for the filters.
         Default is None.
     host_T : tuple or None, optional
-        The log_10 of the surface gravity of the host star, with gravity
-        measured in cm/s2. Should be given as a (value, uncertainty) pair.
-        Default is None.
+        The effective temperature of the host star, in Kelvin. Should be given
+        as a (value, uncertainty) pair. Required if ld_fit_method is `'single'`
+        or `'coupled'`. Default is None.
     host_logg : tuple or None, optional
         The log_10 of the surface gravity of the host star, with gravity
         measured in cm/s2. Should be given as a (value, uncertainty) pair.
-        Default is None.
+        Required if ld_fit_method is `'single'` or `'coupled'`. Default is None
     host_z : tuple or None, optional
         The metalicity of the host, given as a (value, uncertainty) pair.
-        Default is None.
-    ld_fit_method : str, optional
-        Determines if limb darkening parameter fitting uses only a single
-        waveband, or if all wavebands are considered.
-        If 'single' is used, only the first filter is fitted, and the
-        rest are extrapolated using the ratios between the 'most likely'
-        values given by LDTk for a host with the given parameters.
-        If 'all' is used, then the LD parameters for each waveband are all
-        treated as independent free parameters and are fitted separately.
-        Whilst 'all' is arguably preferrable, it will significantly
-        increase the run time when a large number of filters are used.
-        Default is 'single'.
-    ld_model : str, optional
-        The limb darkening model to use. Default is quadratic
+        Required if ld_fit_method is `'single'` or `'coupled'`. Default is None
+    ldc_low_lim : float, optional
+        The lower limit to use in conversion in the case where there are
+        open bounds on a limb darkening coefficient (power2 and nonlinear
+        models). Note that in order to conserve sampling density in all regions
+        for the power2 model, you should set lower_lim=-high_lim. Default is -5
+    ldc_high_lim : float, optional
+        The upper limit to use in conversion in the case where there are
+        open bounds on a limb darkening coefficient (power2 and nonlinear
+        models). Note that in order to conserve sampling density in all regions
+        for the power2 model, you should set lower_lim=-high_lim. Default is 5
     n_ld_samples : int, optional
-        The number of samples to take when calculating limb darkening
-        coefficients. Default is 20000,
+        Controls the number of samples taken by PyLDTk when calculating LDCs
+        when using 'coupled' or 'single' modes for limb darkening fitting.
+        Default is 20000
     do_ld_mc : bool, optional
         If True, will use MCMC sampling to more accurately estimate the
-        uncertainty on intial limb darkening parameters provided by LDTk.
+        uncertainty on intial limb darkening parameters provided by PyLDTk.
         Default is False.
-    allowed_ld_variance : float, optional
-        The number of standard deviations that each parameter is allowed to
-        vary by. Default is 5.
     detrending : str or None, optional
         If not None, detrending will be performed. Accepted detrending models
-        are 'nth order' and 'custom'. 'nth order' must have a detrending_order
-        value supplied and will detrend whilst obeying a flux conservation
-        law. If 'custom', then detrending_function must be provided. Default
-        is 'nth order'.
+        are
+            - 'nth order'
+            - 'custom'.
+        'nth order' must have a detrending_order value supplied and will
+        detrend whilst obeying a flux conservation law. If 'custom', then
+        detrending_function must be provided. Default is 'nth order'.
     detrending_order : int, optional
         The order of detrending function to apply if detrending is 'nth order'.
         The default is 1, corresponding to linear detrending.
@@ -96,7 +148,13 @@ def run_retrieval_from_paths(input_csv_path, prior_path, filter_info_path=None,
     low_norm : float, optional
         The lowest value to consider as a multiplicative normalisation
         constant. Default is 0.1.
-
+    dlogz : float, optional
+        Retrieval iteration will stop when the estimated contribution of the
+        remaining prior volume to the total evidence falls below this
+        threshold. Explicitly, the stopping criterion is
+        `ln(z + z_est) - ln(z) < dlogz`, where z is the current evidence
+        from all saved samples and z_est is the estimated contribution from
+        the remaining volume. The default is `1e-3 * (nlive - 1) + 0.01`.
 
     Returns
     -------
@@ -104,29 +162,47 @@ def run_retrieval_from_paths(input_csv_path, prior_path, filter_info_path=None,
         The results returned by Retriever.run_dynesty()
     '''
     print('Loading light curve data...')
-    times, depths, errors = read_input_file(input_csv_path)
+
+    if type(data_files) == str:
+        times, depths, errors = read_input_file(data_files)
+    else:
+        data_path_array = parse_data_path_list(data_files)
+        times, depths, errors = read_data_path_array(data_path_array)
 
     num_epochs = times.shape[1]
     num_filters = times.shape[0]
 
     # Read in the priors
-    print('Loading priors from {}...'.format(prior_path))
-    priors = read_priors_file(prior_path, num_epochs, num_filters, ld_model)
-
-
+    if type(priors) == str:
+        print('Loading priors from {}...'.format(priors))
+        priors = read_priors_file(priors, num_epochs, num_filters, ld_model)
+    else:
+        print('Initialising priors...')
+        priors = parse_priors_list(priors, ld_model, num_filters, num_epochs)
 
     # Set up all the optional fitting modes (limb darkening, detrending,
     # normalisation...)
-    if filter_info_path is not None:
+    if ld_fit_method == 'independent':
+        print('Initialising limb darkening fitting...')
+        priors.fit_limb_darkening(ld_fit_method, ldc_low_lim, ldc_high_lim, ld_model=ld_model)
+
+    elif ld_fit_method in ['coupled', 'single']:
+        if filter_info is None:
+            raise ValueError('filter_info must be provided for coupled and single ld_fit_methods')
         if host_T is None or host_z is None or host_logg is None:
-            raise ValueError('Filter info path was provided but I am missing infomration on the host!')
-        print('Loading filter info from {}...'.format(filter_info_path))
-        filters = read_filter_info(filter_info_path)
+            raise ValueError('Filter info was provided but I am missing information on the host!')
+
+        if type(filter_info) == str:
+            print('Loading filter info from {}...'.format(filter_info))
+            filters = read_filter_info(filter_info)
+        else:
+            print('Initialising filter infomation...')
+            filters = parse_filter_list(filter_info)
 
         print('Initialising limb darkening fitting...')
-        priors.fit_limb_darkening(ld_fit_method, host_T, host_logg, host_z, filters, ld_model,
-                                  n_ld_samples, do_ld_mc,
-                                  allowed_ld_variance)
+        priors.fit_limb_darkening(ld_fit_method, ldc_low_lim, ldc_high_lim, host_T,
+                                  host_logg, host_z, filters, ld_model,
+                                  n_ld_samples, do_ld_mc)
 
 
 
