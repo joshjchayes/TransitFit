@@ -51,7 +51,7 @@ class Retriever:
             The maximum number of likelihood calls in retrieval. If None, will
             continue until stopping criterion is reached. Default is None.
         nlive : int, optional
-            The number of live points in the nested retrieval. Default is 100
+            The number of live points in the nested retrieval. Default is 300
         plot_best : bool, optional
             If True, will plot the data and the best fit model on a Figure.
             Default is True

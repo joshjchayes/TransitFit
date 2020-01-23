@@ -217,4 +217,4 @@ def run_retrieval(data_files, priors, ld_model='quadratic',
     print('The parameters we are retrieving are: {}'.format(priors.fitting_params))
     print('Beginning retrieval of {} parameters'.format(len(priors.fitting_params)))
     retriever = Retriever()
-    return retriever.run_dynesty(times, depths, errors, priors, nlive=nlive)
+    return retriever.run_dynesty(times, depths, errors, priors, nlive=nlive, dlogz=dlogz)
