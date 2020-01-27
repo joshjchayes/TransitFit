@@ -11,7 +11,7 @@ import batman
 import os
 
 def plot_best(times, flux, uncertainty, priorinfo, results, input_file=None,
-              **subplots_kwargs):
+              folder_path='./plots', **subplots_kwargs):
     '''
     Once you have run retrieval, use this to plot things!
 
@@ -86,5 +86,5 @@ def plot_best(times, flux, uncertainty, priorinfo, results, input_file=None,
 
                 # Save the figures
                 # Make the plots folder
-                os.makedirs('plots', exist_ok=True)
-                fig.savefig('plots/f{}_e{}.pdf'.format(fi, ei))
+                os.makedirs(folder_path, exist_ok=True)
+                fig.savefig('{}/f{}_e{}.pdf'.format(folder_path, fi, ei))

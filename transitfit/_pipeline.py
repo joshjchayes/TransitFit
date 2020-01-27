@@ -16,7 +16,8 @@ def run_retrieval(data_files, priors, ld_model='quadratic',
                   host_logg=None, host_z=None, ldc_low_lim=-5, ldc_high_lim=-5,
                   n_ld_samples=20000, do_ld_mc=False, detrending='nth order',
                   detrending_order=1, detrending_function=None, nlive=300,
-                  normalise=True, low_norm=0.1, dlogz=None):
+                  normalise=True, low_norm=0.1, dlogz=None,
+                  output_path='./outputs.csv', plot_folder='./plots'):
     '''
     Runs a full retrieval of posteriors using nested sampling on a transit
     light curve or a set of transit light curves.
@@ -42,7 +43,6 @@ def run_retrieval(data_files, priors, ld_model='quadratic',
         If you want to fix a parameter at a given value, leave low_lim and
         high_lim blank (if in a file) or set to `None` or `np.nan`. Just
         provide best, along with epoch and filter if required.
-
         The accepted keys are:
             - 'P' : orbital period. Should be in the same time units as t0
             - 'rp' : planet radius (filter specific). One should be provided
@@ -52,7 +52,7 @@ def run_retrieval(data_files, priors, ld_model='quadratic',
             - 't0' : a t0 value for one of the light curves being used. This
                      should be in the same time units as the period
             - 'ecc' : the orbital eccentricity
-            - 'w' : the longitude of periastron (in degrees)
+            - 'w' : the longitude of periastron in degrees
     ld_model : str, optional
         The limb darkening model to use. Allowed models are
             - 'linear'
@@ -62,7 +62,9 @@ def run_retrieval(data_files, priors, ld_model='quadratic',
             - 'nonlinear'
         With the exception of the non-linear model, all models are constrained
         by the method in Kipping (2013), which can be found at
-        https://arxiv.org/abs/1308.0009. Default is 'quadratic'.
+        https://arxiv.org/abs/1308.0009. Use `ldc_low_lim` and `ldc_high_lim`
+        to control the behaviour of unconstrained coefficients.
+        Default is 'quadratic'.
     ld_fit_method : str, optional
         Determines the mode of fitting of limb darkening parameters. The
         available modes are:
@@ -155,6 +157,10 @@ def run_retrieval(data_files, priors, ld_model='quadratic',
         `ln(z + z_est) - ln(z) < dlogz`, where z is the current evidence
         from all saved samples and z_est is the estimated contribution from
         the remaining volume. The default is `1e-3 * (nlive - 1) + 0.01`.
+    output_path : str, optional
+        Path to save output csv to. Default is './outputs.csv'
+    plot_folder : str, optional
+        Path to folder to save plots to. Default is './plots'
 
     Returns
     -------
@@ -217,4 +223,6 @@ def run_retrieval(data_files, priors, ld_model='quadratic',
     print('The parameters we are retrieving are: {}'.format(priors.fitting_params))
     print('Beginning retrieval of {} parameters'.format(len(priors.fitting_params)))
     retriever = Retriever()
-    return retriever.run_dynesty(times, depths, errors, priors, nlive=nlive, dlogz=dlogz)
+    return retriever.run_dynesty(times, depths, errors, priors, nlive=nlive,
+                                 dlogz=dlogz, savefname=output_path,
+                                 plot_folder=plot_folder)

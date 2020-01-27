@@ -25,8 +25,8 @@ class Retriever:
 
     def run_dynesty(self, times, depths, errors, priorinfo,
                     limb_dark='quadratic', maxiter=None, maxcall=None,
-                    nlive=300, plot=True, savefname='outputs.csv', dlogz=None,
-                    **dynesty_kwargs):
+                    nlive=300, plot=True, dlogz=None, savefname='outputs.csv',
+                    plot_folder='./plots', **dynesty_kwargs):
         '''
         Runs a dynesty retrieval on the given data set
 
@@ -52,9 +52,6 @@ class Retriever:
             continue until stopping criterion is reached. Default is None.
         nlive : int, optional
             The number of live points in the nested retrieval. Default is 300
-        plot_best : bool, optional
-            If True, will plot the data and the best fit model on a Figure.
-            Default is True
         dlogz : float, optional
             Iteration will stop when the estimated contribution of the
             remaining prior volume to the total evidence falls below this
@@ -62,6 +59,11 @@ class Retriever:
             `ln(z + z_est) - ln(z) < dlogz`, where z is the current evidence
             from all saved samples and z_est is the estimated contribution from
             the remaining volume. The default is `1e-3 * (nlive - 1) + 0.01`.
+        plot_best : bool, optional
+            If True, will plot the data and the best fit model on a Figure.
+            Default is True
+        plot_folder : str, optional
+            Path to folder to save plots to. Default is './plots'
         **dynesty_kwargs : optional
             Additional kwargs to pass to dynesty.NestedSampler
 
@@ -170,7 +172,8 @@ class Retriever:
 
         if plot:
             try:
-                plot_best(times, depths, errors, priorinfo, results)
+                plot_best(times, depths, errors, priorinfo, results,
+                          folder_path=plot_folder)
             except Exception as e:
                 # TODO: Try plotting from files rather than results objects
                 print('Plotting error: I have failed to plot anything due to the following error:')
