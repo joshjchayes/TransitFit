@@ -7,22 +7,49 @@ Plotting module for TransitFit
 
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
+from matplotlib.ticker import MaxNLocator
+from matplotlib.colors import to_rgb
+from matplotlib import colors
 import batman
 import os
 
-def plot_best(times, flux, uncertainty, priorinfo, results, input_file=None,
-              folder_path='./plots', **subplots_kwargs):
+def plot_individual_lightcurves(times, flux, uncertainty, priorinfo, results,
+                                folder_path='./plots', figsize=(12,8),
+                                color='dimgrey', titles=None, add_titles=True,
+                                fnames=None):
     '''
     Once you have run retrieval, use this to plot things!
 
-    Will make a figure for each light curve, and save with filenames either
-    with epoch and filter number, or reflecting the original filenames of the
-    data if input_file is given and points to a file which can be read by
-    transitfit.io.read_input_file
+    Will make a figure for each light curve, and save with filenames reflecting
+    epoch and filter number
     '''
     # Get some numbers for loop purposes
     n_epochs = priorinfo.num_times
     n_filters = priorinfo.num_wavelengths
+
+    if titles is not None:
+        try:
+            titles = np.array(titles)
+            if not titles.shape == (n_filters, n_epochs):
+                print('Warning: titles shape is {}, not ({},{}). Reverting to default titles'.format(titles.shape, n_filters, n_epochs))
+                titles = None
+        except Exception as e:
+            print('Raised exception: {}'.format(e))
+            print('Reverting to default titles')
+            titles = None
+
+
+    if fnames is not None:
+        try:
+            fnames = np.array(fnames)
+            if not fnames.shape == (n_filters, n_epochs):
+                print('Warning: fnames shape is {}, not ({},{}). Reverting to default fnames'.format(fnames.shape, n_filters, n_epochs))
+                fnames = None
+        except Exception as e:
+            print('Raised exception: {}'.format(e))
+            print('Reverting to default fnames')
+            fnames = None
 
     # Get the best values
     best = results.samples[np.argmax(results.logl)]
@@ -35,8 +62,39 @@ def plot_best(times, flux, uncertainty, priorinfo, results, input_file=None,
             if times[fi, ei] is not None:
                 # We are plotting this!!
 
-                # Make the figure
-                fig, ax = plt.subplots(**subplots_kwargs)
+                # Set up the figure and the relevant axes
+                gs = gridspec.GridSpec(6, 7)
+                fig = plt.figure(figsize=figsize)
+
+                main_ax = fig.add_subplot(gs[:-2, :-1])
+                residual_ax = fig.add_subplot(gs[-2:, :-1], sharex=main_ax)
+                hist_ax = fig.add_subplot(gs[-2:,-1], sharey=residual_ax)
+
+                # Format the axes
+                main_ax.tick_params('both', which='both', direction='in',
+                                    labelbottom='off', top='on', right='on')
+
+
+                residual_ax.tick_params('both', which='both', direction='in',
+                                        top='on', right='on')
+
+
+                hist_ax.tick_params('both', which='both', direction='in',
+                                     labelleft='off', labelbottom='off',
+                                     right='on', top='on')
+
+                main_ax.set_ylabel('Normalised flux')
+                residual_ax.set_ylabel('Residual')
+                residual_ax.set_xlabel('Time (BJD)')
+
+                if add_titles:
+                    if titles is None:
+                        main_ax.set_title('Filter {}, Epoch {}'.format(fi, ei))
+                    else:
+                        main_ax.set_title(titles[fi, ei])
+
+                fig.tight_layout()
+                fig.subplots_adjust(hspace=0, wspace=0)
 
 
                 # Now make the best fit light curve
@@ -57,8 +115,10 @@ def plot_best(times, flux, uncertainty, priorinfo, results, input_file=None,
 
                 m = batman.TransitModel(params, plot_times)
 
-
                 best_curve = m.light_curve(params)
+
+                m_sample_times = batman.TransitModel(params, times[fi, ei])
+                time_wise_best_curve = m_sample_times.light_curve(params)
 
                 norm = best_dict['norm'][fi, ei]
 
@@ -68,23 +128,58 @@ def plot_best(times, flux, uncertainty, priorinfo, results, input_file=None,
 
                     dF = priorinfo.detrending_function(times[fi, ei]-np.floor(times[fi, ei][0]), *d)
 
-                    ax.errorbar(times[fi, ei], norm * (flux[fi, ei] - dF),
-                                norm * uncertainty[fi, ei], zorder=1, fmt='bx',
-                                alpha=0.8)
+                    plot_fluxes = norm * (flux[fi, ei] - dF)
                 else:
-                    ax.errorbar(times[fi, ei], norm * (flux[fi, ei]),
-                                norm * uncertainty[fi, ei], zorder=1, fmt='bx',
-                                alpha=0.8)
+                    plot_fluxes = norm * (flux[fi, ei])
+
+                main_ax.errorbar(times[fi, ei], plot_fluxes,
+                            norm * uncertainty[fi, ei], zorder=1,
+                            linestyle='', marker='x', color=color,
+                            elinewidth=0.8, alpha=0.6)
 
                 # Plot the curve
-                ax.plot(plot_times, best_curve, linewidth=2)
+                main_ax.plot(plot_times, best_curve, linewidth=2,
+                            color=color)
 
-                # Add labels
-                ax.set_xlabel('Time (BJD)')
-                ax.set_ylabel('Normalised flux')
-                ax.set_title('Filter {}, Epoch {}'.format(fi, ei))
+                # plot the residuals
+                residuals = plot_fluxes - time_wise_best_curve
+
+                residual_ax.errorbar(times[fi, ei], residuals,
+                            norm * uncertainty[fi, ei], linestyle='',
+                            color=color, marker='x', elinewidth=0.8, alpha=0.6)
+
+                residual_ax.axhline(0, linestyle='dashed', color='gray',
+                                    linewidth=1, zorder=1)
+
+                # Histogram the residuals
+                # Sort out colors:
+                rgba_color = colors.to_rgba(color)
+                facecolor = (rgba_color[0], rgba_color[1], rgba_color[2], 0.6)
+
+                hist_ax.hist(residuals, bins=30, orientation='horizontal',
+                             color=facecolor, edgecolor=rgba_color,
+                             histtype='stepfilled')
+                hist_ax.axhline(0, linestyle='dashed', color='gray',
+                                linewidth=1, zorder=1)
+
+                # Prune axes
+                main_ax.yaxis.set_major_locator(MaxNLocator(6, prune='lower'))
+                residual_ax.yaxis.set_major_locator(MaxNLocator(4, prune='upper'))
+                residual_ax.xaxis.set_major_locator(MaxNLocator(8, prune='upper'))
 
                 # Save the figures
                 # Make the plots folder
                 os.makedirs(folder_path, exist_ok=True)
-                fig.savefig('{}/f{}_e{}.pdf'.format(folder_path, fi, ei))
+
+                if fnames is None:
+                    fig.savefig('{}/f{}_e{}.pdf'.format(folder_path, fi, ei),
+                                bbox_inches='tight')
+                else:
+                    if fnames[fi,ei] is None:
+                        fig.savefig('{}/f{}_e{}.pdf'.format(folder_path, fi, ei),
+                                    bbox_inches='tight')
+                    else:
+                        if not fnames[fi,ei][-4:] == '.pdf':
+                            fnames[fi,ei] += '.pdf'
+                        fig.savefig(os.path.join(folder_path, fnames[fi,ei]),
+                                    bbox_inches='tight')

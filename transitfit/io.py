@@ -412,7 +412,7 @@ def save_results(results, priorinfo, filepath='outputs.csv'):
             param = param +'_{}'.format(int(priorinfo._filter_idx[i]))
         #elif param in ['t0']:
         #    param = param +'_{}'.format(int(priorinfo._epoch_idx[i]))
-        elif param in priorinfo.detrending_coeffs:
+        elif param in priorinfo.detrending_coeffs + ['norm']:
             param = param + '_f{}_e{}'.format(int(priorinfo._filter_idx[i]), int(priorinfo._epoch_idx[i]))
         elif param in priorinfo.limb_dark_coeffs and priorinfo.ld_fit_method in ['independent', 'coupled']:
             # All the LD coeffs are fitted separately and will write out
@@ -424,6 +424,8 @@ def save_results(results, priorinfo, filepath='outputs.csv'):
         write_dict.append({'Parameter': param, 'Best value':value,
                            'Uncertainty' : unc})
 
+
+    os.makedirs(os.path.dirname(filepath), exist_ok=True)
 
     # Now output to a .csv
     with open(filepath, 'w') as f:
@@ -469,7 +471,7 @@ def print_results(results, priorinfo, n_dof):
             param = param +'_{}:\t'.format(int(priorinfo._filter_idx[i]))
         #elif param in ['t0']:
         #    param = param +'_{}'.format(int(priorinfo._epoch_idx[i]))
-        elif param in priorinfo.detrending_coeffs:
+        elif param in priorinfo.detrending_coeffs + ['norm']:
             param = param + '_f{}e{}:'.format(int(priorinfo._filter_idx[i]), int(priorinfo._epoch_idx[i]))
         elif param in priorinfo.limb_dark_coeffs and priorinfo.ld_fit_method in ['independent', 'coupled']:
             # All the LD coeffs are fitted separately and will write out
@@ -482,3 +484,63 @@ def print_results(results, priorinfo, n_dof):
 
     print('chi2:\t\t {}'.format(round(best_chi2, 5)))
     print('red chi2:\t {}'.format(round(best_chi2/n_dof, 5)))
+
+
+def save_final_light_curves(times, flux, uncertainty, priorinfo, results,
+                            folder='./final_light_curves'):
+    '''
+    Applies detrending and normalisation to each light curve and saves to .csv
+
+    Parameters
+    ----------
+    results : dynesty.results.Results
+        The Dynesty results object, but must also have weights, cov and
+        uncertainties as entries.
+    priorinfo : transitfit.priorinfo.PriorInfo
+        The PriorInfo object
+    folder : str, optional
+        The folder to save the files to. Default is './final_light_curves'
+    '''
+    # Get some numbers for loop purposes
+    n_epochs = priorinfo.num_times
+    n_filters = priorinfo.num_wavelengths
+
+    # Get the best values
+    best = results.samples[np.argmax(results.logl)]
+    best_dict = priorinfo._interpret_param_array(best)
+
+    os.makedirs(folder, exist_ok=True)
+
+    # Loop over each light curve and apply detrending and normalisation
+    for fi in range(n_filters):
+        for ei in range(n_epochs):
+            if times[fi, ei] is not None:
+
+                norm = best_dict['norm'][fi, ei]
+
+                if priorinfo.detrend:
+                    d = [best_dict[d][fi, ei] for d in priorinfo.detrending_coeffs]
+
+                    dF = priorinfo.detrending_function(times[fi, ei]-np.floor(times[fi, ei][0]), *d)
+
+                    detrended_flux = norm * (flux[fi, ei] - dF)
+                else:
+                    # No detrending, just normalisation
+                    detrended_flux = norm * flux[fi, ei]
+
+                normalised_uncertainty = norm * uncertainty[fi, ei]
+
+
+                write_dict = []
+                for i, ti in enumerate(times[fi, ei]):
+                    #print(i)
+                    write_dict.append({'Time' : ti,
+                                       'Normalised flux' : detrended_flux[i],
+                                       'Uncertainty' : normalised_uncertainty[i]})
+
+                fname = 'f{}_e{}_detrended.csv'.format(fi, ei)
+                with open(os.path.join(folder, fname), 'w') as f:
+                    columns = ['Time', 'Normalised flux', 'Uncertainty']
+                    writer = csv.DictWriter(f, columns)
+                    writer.writeheader()
+                    writer.writerows(write_dict)

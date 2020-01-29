@@ -16,8 +16,12 @@ def run_retrieval(data_files, priors, ld_model='quadratic',
                   host_logg=None, host_z=None, ldc_low_lim=-5, ldc_high_lim=-5,
                   n_ld_samples=20000, do_ld_mc=False, detrending='nth order',
                   detrending_order=1, detrending_function=None, nlive=300,
-                  normalise=True, low_norm=0.1, dlogz=None,
-                  output_path='./outputs.csv', plot_folder='./plots'):
+                  normalise=True, low_norm=0.1, dlogz=None, maxiter=None,
+                  maxcall=None,  output_param_path='./outputs.csv',
+                  final_lightcurve_folder='./final_light_curves',
+                  plot_folder='./plots', plot_best=True, figsize=(12,8),
+                  plot_color='dimgrey', plot_titles=None, add_plot_titles=True,
+                  plot_fnames=None):
     '''
     Runs a full retrieval of posteriors using nested sampling on a transit
     light curve or a set of transit light curves.
@@ -157,10 +161,28 @@ def run_retrieval(data_files, priors, ld_model='quadratic',
         `ln(z + z_est) - ln(z) < dlogz`, where z is the current evidence
         from all saved samples and z_est is the estimated contribution from
         the remaining volume. The default is `1e-3 * (nlive - 1) + 0.01`.
-    output_path : str, optional
+    output_param_path : str, optional
         Path to save output csv to. Default is './outputs.csv'
+    final_lightcurve_folder : str, optional
+        The folder to save normalised and detrended light curves to. Default
+        is './final_light_curves'
     plot_folder : str, optional
         Path to folder to save plots to. Default is './plots'
+    plot_best : bool, optional
+        If True, will plot the data and the best fit model on a Figure.
+        Default is True.
+    figsize : tuple, optional
+        The fig size for each plotted figure. Default is (12, 8)
+    plot_color : matplotlib color, optional
+        The base color for plots. Default is 'dimgray'
+    plot_titles : None or array_like, shape (n_filters, n_epochs), optional
+        The titles to use for each plot. If None, will default to
+        'Filter X Epoch Y'. Default is None.
+    add_plot_titles : bool, optional
+        If True, will add titles to plots. Default is True.
+    plot_fnames : None or array_like, shape (n_filters, n_epochs), optional
+        The file names to use for each plot. If None, will default to
+        'fX_eY.pdf'. Default is None.
 
     Returns
     -------
@@ -223,6 +245,12 @@ def run_retrieval(data_files, priors, ld_model='quadratic',
     print('The parameters we are retrieving are: {}'.format(priors.fitting_params))
     print('Beginning retrieval of {} parameters'.format(len(priors.fitting_params)))
     retriever = Retriever()
-    return retriever.run_dynesty(times, depths, errors, priors, nlive=nlive,
-                                 dlogz=dlogz, savefname=output_path,
-                                 plot_folder=plot_folder)
+    return retriever.run_dynesty(times, depths, errors, priors,
+                                 maxiter=maxiter, maxcall=maxcall, nlive=nlive,
+                                 dlogz=dlogz, savefname=output_param_path,
+                                 plot=plot_best, plot_folder=plot_folder,
+                                 figsize=figsize, plot_color=plot_color,
+                                 output_folder=final_lightcurve_folder,
+                                 plot_titles=plot_titles,
+                                 add_plot_titles=add_plot_titles,
+                                 plot_fnames=plot_fnames)

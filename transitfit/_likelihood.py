@@ -140,6 +140,14 @@ class LikelihoodCalculator:
                     # Assuming that the data is rescaled to a baseline flux of 1.
                     chi2 = sum((model_depths - comparison_depths)**2 / (self.errors[i][j] * norm[i, j])**2)
                     #print(chi2)
+
+                    # Check to make sure that there is actually a transit in the model
+                    # otherwise we impose a large penalty to the chi2 value
+                    # This avoids a situation where the detrending values try
+                    # to completely flatten the light curves, which is wrong!
+                    if np.isclose(model_depths, 1).all():
+                        chi2 += 10000000
+
                     all_chi2.append(chi2)
                     n_data_points += len(comparison_depths)
         #print('Reduced chi2: ', sum(all_chi2)/n_data_points)

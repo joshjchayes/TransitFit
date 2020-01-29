@@ -7,8 +7,8 @@ same wavelength and epoch respectively
 import numpy as np
 from ._likelihood import LikelihoodCalculator
 from ._utils import validate_data_format, get_normalised_weights, get_covariance_matrix
-from .io import save_results, print_results
-from .plotting import plot_best
+from .io import save_results, print_results, save_final_light_curves
+from .plotting import plot_individual_lightcurves
 from dynesty import NestedSampler
 import dynesty.utils
 import matplotlib.pyplot as plt
@@ -24,9 +24,11 @@ class Retriever:
         pass
 
     def run_dynesty(self, times, depths, errors, priorinfo,
-                    limb_dark='quadratic', maxiter=None, maxcall=None,
+                    maxiter=None, maxcall=None,
                     nlive=300, plot=True, dlogz=None, savefname='outputs.csv',
-                    plot_folder='./plots', **dynesty_kwargs):
+                    output_folder='./final_light_curves', plot_folder='./plots',
+                    figsize=(12,8), plot_color='dimgrey', plot_titles=None,
+                    add_plot_titles=True, plot_fnames=None, **dynesty_kwargs):
         '''
         Runs a dynesty retrieval on the given data set
 
@@ -42,8 +44,6 @@ class Retriever:
         priorinfo : PriorInfo
             The priors for fitting. This basically sets the intervals over
             which each parameter is fitted.
-        limb_dark : str, optional
-            The limb darkening model to use. Default is 'quadratic'
         maxiter : int or None, optional
             The maximum number of iterations to run. If None, will
             continue until stopping criterion is reached. Default is None.
@@ -59,11 +59,25 @@ class Retriever:
             `ln(z + z_est) - ln(z) < dlogz`, where z is the current evidence
             from all saved samples and z_est is the estimated contribution from
             the remaining volume. The default is `1e-3 * (nlive - 1) + 0.01`.
-        plot_best : bool, optional
+        output_folder : str, optional
+            The folder to save the files to. Default is './final_light_curves'
+        plot : bool, optional
             If True, will plot the data and the best fit model on a Figure.
             Default is True
         plot_folder : str, optional
             Path to folder to save plots to. Default is './plots'
+        figsize : tuple, optional
+            The fig size for each plotted figure. Default is (12, 8)
+        plot_color : matplotlib color, optional
+            The base color for plots. Default is 'dimgray'
+        plot_titles : None or array_like, shape (n_filters, n_epochs), optional
+            The titles to use for each plot. If None, will default to
+            'Filter X Epoch Y'. Default is None.
+        add_plot_titles : bool, optional
+            If True, will add titles to plots. Default is True.
+        plot_fnames : None or array_like, shape (n_filters, n_epochs), optional
+            The file names to use for each plot. If None, will default to
+            'fX_eY.pdf'. Default is None.
         **dynesty_kwargs : optional
             Additional kwargs to pass to dynesty.NestedSampler
 
@@ -167,17 +181,27 @@ class Retriever:
         try:
             save_results(results, priorinfo, savefname)
         except Exception as e:
+            print('The following exception was raised  whilst saving parameter results. I have just returned the results dictionary')
             print(e)
-            print('Exception raised whilst saving results. I have just returned the results dictionary')
+
+        try:
+            save_final_light_curves(times, depths, errors, priorinfo,
+                                    results, output_folder)
+        except Exception as e:
+            print('The following exception was raised whilst saving final light curves. I have just returned the results dictionary')
+            print(e)
 
         if plot:
             try:
-                plot_best(times, depths, errors, priorinfo, results,
-                          folder_path=plot_folder)
+                plot_individual_lightcurves(times, depths, errors, priorinfo,
+                                            results, folder_path=plot_folder,
+                                            color=plot_color, titles=plot_titles, add_titles=add_plot_titles,
+                                            fnames=plot_fnames)
             except Exception as e:
                 # TODO: Try plotting from files rather than results objects
                 print('Plotting error: I have failed to plot anything due to the following error:')
                 print(e)
+                raise
 
 
         return results
