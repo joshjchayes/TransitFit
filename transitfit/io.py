@@ -33,14 +33,14 @@ def parse_filter_list(filter_list):
     filter_list = np.array(filter_list)
 
     # How many filters are there?
-    n_filters = int(info[:,0].max() + 1)
+    n_filters = int(filter_list[:,0].max() + 1)
 
     # Make a blank array to populate with the filter limits
     filter_info = np.zeros((n_filters, 2))
 
     # Now populate!
     for i in range(n_filters):
-        filter_info[i] = info[i, 1:]
+        filter_info[i] = filter_list[i, 1:]
 
     return filter_info
 
