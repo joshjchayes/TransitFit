@@ -424,7 +424,7 @@ class PriorInfo:
     def fit_limb_darkening(self, fit_method='independent', low_lim=-5,
                            high_lim=-5, host_T=None, host_logg=None,
                            host_z=None, filters=None, ld_model='quadratic',
-                           n_samples=20000, do_mc=False):
+                           n_samples=20000, do_mc=False, cache_path=None):
         '''
         Initialises fitting of limb darkening parameters, either independently
         or coupled across wavebands.
@@ -483,6 +483,9 @@ class PriorInfo:
         do_mc : bool, optional
             If True, will use MCMC to estimate coefficient uncertainties more
             accurately. Default is False.
+        cache_path : str, optional
+            This is the path to cache LDTK files to. If not specified, will
+            default to the LDTK default
         '''
 
         # Sanity checks
@@ -512,7 +515,8 @@ class PriorInfo:
         if not fit_method == 'independent':
             # Now if we are coupling across wavelength we must initialise PyLDTK
             self.ld_handler.initialise_ldtk(host_T, host_logg, host_z, filters,
-                                            ld_model, n_samples, do_mc)
+                                            ld_model, n_samples, do_mc,
+                                            cache_path)
 
     def fit_normalisation(self, flux_array, default_low=0.1):
         '''

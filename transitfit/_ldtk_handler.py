@@ -5,12 +5,14 @@ Class to handle limb darkening parameters through PyLDTK
 
 import numpy as np
 from ldtk import LDPSetCreator, BoxcarFilter
+import os
 
 _implemented_ld_models = ['linear', 'quadratic', 'nonlinear', 'power2', 'squareroot']
 
 class LDTKHandler:
     def __init__(self, host_T, host_logg, host_z, filters,
-                 ld_model='quadratic', n_samples=20000, do_mc=False):
+                 ld_model='quadratic', n_samples=20000, do_mc=False,
+                 cache_path=None):
         '''
         The LDTKHandler provides an easy way to interface ldtk with TransitFit.
 
@@ -39,6 +41,9 @@ class LDTKHandler:
         do_mc : bool, optional
             If True, will use MCMC to estimate coefficient uncertainties more
             accurately. Default is False.
+        cache_path : str, optional
+            This is the path to cache LDTK files to. If not specified, will
+            default to the LDTK default
         '''
 
         # Sanity checks
@@ -54,10 +59,12 @@ class LDTKHandler:
             ldtk_filters.append(BoxcarFilter('{}'.format(i), f[0], f[1]))
 
         # Make the set creator, downloading data files if required
+        if cache_path is not None:
+            os.makedirs(cache_path, exist_ok=True)
         print('Making LD parameter set creator.')
         print('This may take some time as we may need to download files...')
         set_creator = LDPSetCreator(teff=host_T, logg=host_logg, z=host_z,
-                                    filters=ldtk_filters)
+                                    filters=ldtk_filters, cache=cache_path)
 
         # Get the LD profiles from the set creator
         print('Obtaining LD profiles')

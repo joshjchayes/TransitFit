@@ -21,7 +21,7 @@ def run_retrieval(data_files, priors, ld_model='quadratic',
                   final_lightcurve_folder='./final_light_curves',
                   plot_folder='./plots', plot_best=True, figsize=(12,8),
                   plot_color='dimgrey', plot_titles=None, add_plot_titles=True,
-                  plot_fnames=None):
+                  plot_fnames=None, cache_path=None):
     '''
     Runs a full retrieval of posteriors using nested sampling on a transit
     light curve or a set of transit light curves.
@@ -183,6 +183,9 @@ def run_retrieval(data_files, priors, ld_model='quadratic',
     plot_fnames : None or array_like, shape (n_filters, n_epochs), optional
         The file names to use for each plot. If None, will default to
         'fX_eY.pdf'. Default is None.
+    cache_path : str, optional
+        This is the path to cache LDTK files to. If not specified, will
+        default to the LDTK default
 
     Returns
     -------
@@ -230,7 +233,7 @@ def run_retrieval(data_files, priors, ld_model='quadratic',
         print('Initialising limb darkening fitting...')
         priors.fit_limb_darkening(ld_fit_method, ldc_low_lim, ldc_high_lim, host_T,
                                   host_logg, host_z, filters, ld_model,
-                                  n_ld_samples, do_ld_mc)
+                                  n_ld_samples, do_ld_mc, cache_path)
 
 
 
