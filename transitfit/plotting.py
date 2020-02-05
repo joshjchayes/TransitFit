@@ -6,6 +6,9 @@ Plotting module for TransitFit
 '''
 
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')
+
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from matplotlib.ticker import MaxNLocator
@@ -183,3 +186,5 @@ def plot_individual_lightcurves(times, flux, uncertainty, priorinfo, results,
                             fnames[fi,ei] += '.pdf'
                         fig.savefig(os.path.join(folder_path, fnames[fi,ei]),
                                     bbox_inches='tight')
+
+                plt.close()
