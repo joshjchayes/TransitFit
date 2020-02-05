@@ -507,10 +507,10 @@ class PriorInfo:
             for ldc, name in enumerate(self.limb_dark_coeffs):
                 self.add_uniform_fit_param(name, 0.5, 0, 1, filter_idx=i)
 
-                # If we are in 'single' mode, we only need to fit for the first
-                # wavelength
-                if self.ld_fit_method == 'single':
-                    break
+            # If we are in 'single' mode, we only need to fit for the first
+            # wavelength
+            if self.ld_fit_method == 'single':
+                break
 
         if not fit_method == 'independent':
             # Now if we are coupling across wavelength we must initialise PyLDTK
