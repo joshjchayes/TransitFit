@@ -164,6 +164,11 @@ class PriorInfo:
         '''
         Function to convert the unit cube for dynesty into a set of physical
         values
+
+        Notes
+        -----
+        All conversion from unit q values to actual LD values is done here
+        using convert_qtoA. Does not need to be reproduced elsewhere 
         '''
         new_cube = np.zeros(len(self.fitting_params))
 
@@ -198,7 +203,7 @@ class PriorInfo:
                     # Get all [0,1] values of LDCs for this filter.
                     LDCs = cube[i: i + len(self.limb_dark_coeffs)]
 
-                    new_cube[i:i + len(self.limb_dark_coeffs)] = self.ld_handler.convert_coefficients(*LDCs)
+                    new_cube[i:i + len(self.limb_dark_coeffs)] = self.ld_handler.convert_qtoA(*LDCs)
 
                     # Skip the rest of the LDCs for the filter
                     skip_params = len(self.limb_dark_coeffs) - 1

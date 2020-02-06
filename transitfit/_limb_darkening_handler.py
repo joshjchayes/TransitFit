@@ -74,7 +74,7 @@ class LimbDarkeningHandler:
 
         raise ValueError('Unrecognised model {}'.format(model))
 
-    def convert_coefficients(self, *q, model=None):
+    def convert_qtoA(self, *q, model=None):
         '''
         Takes parameters q distributed between [0,1] and converts them into
         physical values for limb darkening coefficients.
@@ -83,6 +83,9 @@ class LimbDarkeningHandler:
         Kipping 2013 https://arxiv.org/abs/1308.0009 for two-parameter limb
         darkening methods
 
+        Notes
+        -----
+        This is the inverse of convert_Atoq
         '''
         if model is None:
             model = self.default_model
@@ -121,6 +124,59 @@ class LimbDarkeningHandler:
             D = q[3] * (self.high - self.low) + self.low
 
             return A, B, C, D
+
+        raise ValueError('Unrecognised model {}'.format(model))
+
+    def convert_Atoq(self, *A, model=None):
+        '''
+        Takes actual values of the LD coefficients and converts them to a
+        value q between [0,1].
+
+        Conversions for quadratic, square root, and logarithmic are from
+        Kipping 2013 https://arxiv.org/abs/1308.0009 for two-parameter limb
+        darkening methods
+
+        Notes
+        -----
+        This is the inverse of convert_qtoA
+        '''
+        if model is None:
+            model = self.default_model
+
+        if model == 'linear':
+            # coefficient is limited to 0<A<1 by Kipping criteria
+            return q[0]
+
+        if model == 'quadratic':
+            return (A[0] + A[1]) ** 2, A[0]/(2 * (A[0] + A[1]))
+
+        if model == 'squareroot':
+            return (A[0] + A[1]) ** 2, A[1]/(2 * (A[0] + A[1]))
+
+        if model == 'power2':
+            # This parameterisation has been derived for TransitFit and is
+            # explained in the paper
+            q1 = (A[0] - self.low)/(1 - self.low)
+
+            if A[0] < 0:
+                # negative quadrant
+                return u1, 1 - (A[1]/self.low)
+
+            else:
+                # positive quadrant
+                return u1, A[1]/self.high
+
+        if model == 'nonlinear':
+            # This is an 'outstanding and formidable problem' to apply the
+            # Kipping (2013) method to (see Kipping 2016) and as such, we can
+            # only fit for free parameters, without reparameterising to allow
+            # only physically valid combinations.
+            q0 = (A[0] - self.low) /  (self.high - self.low)
+            q1 = (A[1] - self.low) /  (self.high - self.low)
+            q2 = (A[2] - self.low) /  (self.high - self.low)
+            q3 = (A[3] - self.low) /  (self.high - self.low)
+
+            return q0, q1, q2, q3
 
         raise ValueError('Unrecognised model {}'.format(model))
 
@@ -170,7 +226,7 @@ class LimbDarkeningHandler:
     def ldtk_lnlike(self, coeffs, model=None):
         '''
         Uses LDTK to evaluate the log likelihood for a set of coefficients.
-        Note that coeffs should be the values returned by convert_coefficients
+        Note that coeffs should be the values returned by convert_qtoA
         and NOT the unit values.
 
         Parameters

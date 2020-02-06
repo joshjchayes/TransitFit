@@ -4,7 +4,7 @@ TransitFit package
 This package is designed to fit transit light curves using BATMAN
 '''
 name = 'transitfit'
-__version__ = '0.8.4'
+__version__ = '0.8.5'
 
 from .retriever import Retriever
 from .priorinfo import PriorInfo

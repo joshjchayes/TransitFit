@@ -92,8 +92,6 @@ class LikelihoodCalculator:
         if not len(rp) == self.num_wavelengths:
             raise ValueError('You supplied {} rp values, not {} as expected'.format(len(rp), self.num_wavelengths))
 
-        #print('----')
-
         all_chi2 = []
         n_data_points = 0
         for i in range(self.num_wavelengths):
@@ -103,21 +101,16 @@ class LikelihoodCalculator:
                     self.update_params(i, j, t0, per, rp[i], a, inc, ecc, w, limb_dark, u[i])
 
                     # Calculate the transits and the chi2 values
-                    #model = batman.TransitModel(self.batman_params[i,j], self.times[i][j])
                     model = self.batman_models[i, j]
                     model_depths = model.light_curve(self.batman_params[i,j])
 
                     comparison_depths = deepcopy(self.depths[i][j])
-                    #print(comparison_depths.shape)
 
-                    #print('norm:', norm[i, j])
-                    #print('comparison_depths mean:', np.mean(comparison_depths))
 
                     # If detrending is happening, it goes on here!
                     if detrend_function is not None:
                         if d is None:
                             raise TypeError('Detrend function given but d is None!')
-                        #print(d[:,i,j])
 
                         # Because we are taking times in BJD, the detrend
                         # function results are MASSIVE. We will detrend using
@@ -126,20 +119,15 @@ class LikelihoodCalculator:
                         # detrending coefficients
                         subtract_val = np.floor(self.times[i][j][0])
                         detrend_values = detrend_function(self.times[i][j] - subtract_val, *d[:,i,j])
-                        #detrend_values = detrend_function(self.times[i][j], *d[:,i,j])
-
-                        #print('Detrending coeffs:', *d[:, i, j])
-                        #print('mean detrend value', detrend_values.mean())
 
                         comparison_depths -= detrend_values
-                        #print('Mean depths (detrended):', np.mean(comparison_depths))
 
+                    # Normalise to a baseline of 1
                     comparison_depths *= norm[i, j]
 
                     # Work out the chi2 of the fit
                     # Assuming that the data is rescaled to a baseline flux of 1.
                     chi2 = sum((model_depths - comparison_depths)**2 / (self.errors[i][j] * norm[i, j])**2)
-                    #print(chi2)
 
                     # Check to make sure that there is actually a transit in the model
                     # otherwise we impose a large penalty to the chi2 value
@@ -150,7 +138,7 @@ class LikelihoodCalculator:
 
                     all_chi2.append(chi2)
                     n_data_points += len(comparison_depths)
-        #print('Reduced chi2: ', sum(all_chi2)/n_data_points)
+
         # The ln likelihood is just -1*chi2
         return - sum(all_chi2)
 

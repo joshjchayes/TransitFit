@@ -382,12 +382,11 @@ def save_results(results, priorinfo, filepath='outputs.csv'):
     for i, param in enumerate(priorinfo.fitting_params):
         if not (param in priorinfo.limb_dark_coeffs and priorinfo.ld_fit_method == 'single'):
             if param in priorinfo.limb_dark_coeffs:
-                # We need to convert the LDCs
                 LDC_index = int(param[-1])
-                LDC_unit_vals = best[i - LDC_index : i + len(priorinfo.limb_dark_coeffs) - LDC_index]
-                LDC_unit_uncs = results.uncertainties[i - LDC_index : i + len(priorinfo.limb_dark_coeffs) - LDC_index]
-                value = round(priorinfo.ld_handler.convert_coefficients(*LDC_unit_vals)[LDC_index], 6)
-                unc = round(priorinfo.ld_handler.convert_coefficients(*LDC_unit_uncs)[LDC_index], 6)
+                LDC_vals = best[i - LDC_index : i + len(priorinfo.limb_dark_coeffs) - LDC_index]
+                LDC_uncs = results.uncertainties[i - LDC_index : i + len(priorinfo.limb_dark_coeffs) - LDC_index]
+                value = LDC_vals[LDC_index]
+                unc = LDC_uncs[LDC_index]
 
             else:
                 value = best[i]
@@ -403,7 +402,6 @@ def save_results(results, priorinfo, filepath='outputs.csv'):
                 # All the LD coeffs are fitted separately and will write out
                 param = param +'_{}'.format(int(priorinfo._filter_idx[i]))
 
-
             out_dict[param] = value
 
             write_dict.append({'Parameter': param, 'Best value':value,
@@ -414,36 +412,23 @@ def save_results(results, priorinfo, filepath='outputs.csv'):
         # We've only fitted one wavelengths' LD coeffs:
         # Estimate the rest of the limb darkening values and write.
 
-        print(priorinfo.limb_dark_coeffs)
-        print(priorinfo.fitting_params)
-
         # Get the fitted values in a usable format
         best_single_ld = np.zeros(len(priorinfo.limb_dark_coeffs))
         single_uncertainty = np.zeros(len(priorinfo.limb_dark_coeffs))
+
         for i, ui in enumerate(priorinfo.limb_dark_coeffs):
-            print(i, ui)
             x = np.where(np.array(priorinfo.fitting_params) == ui)[0]
-            print(x)
             best_single_ld[i] = best[x]
             single_uncertainty = results.uncertainties[x]
 
         # Now do the estimation
         best_ld_params = priorinfo.ld_handler.ldtk_estimate(best_single_ld)
 
-        # TODO errors
         # We estimate the errors by using the ratios
         estim_errors = priorinfo.ld_handler.ldtk_estimate(single_uncertainty)
 
-
-        print(best_ld_params.shape)
-        print(estim_errors.shape)
-
-        print(best_ld_params)
-        print(estim_errors)
-
         # Loop through each filter and write out the values
         for i, fi in enumerate(best_ld_params):
-            print(fi)
             for j, qj in enumerate(priorinfo.limb_dark_coeffs):
                 param = qj + '_{}'.format(i)
                 value = fi[j]
@@ -482,31 +467,60 @@ def print_results(results, priorinfo, n_dof):
 
     # We need to print out the results. Loop over each fitted
     for i, param in enumerate(priorinfo.fitting_params):
+        if not (param in priorinfo.limb_dark_coeffs and priorinfo.ld_fit_method == 'single'):
+            if param in priorinfo.limb_dark_coeffs:
+                # We need to convert the LDCs
+                LDC_index = int(param[-1])
+                LDC_vals = best[i - LDC_index : i + len(priorinfo.limb_dark_coeffs) - LDC_index]
+                LDC_uncs = results.uncertainties[i - LDC_index : i + len(priorinfo.limb_dark_coeffs) - LDC_index]
+                value = LDC_vals[LDC_index]
+                unc = LDC_uncs[LDC_index]
 
-        if param in priorinfo.limb_dark_coeffs:
-            # We need to convert the LDCs
-            LDC_index = int(param[-1])
-            LDC_unit_vals = best[i - LDC_index : i + len(priorinfo.limb_dark_coeffs) - LDC_index]
-            LDC_unit_uncs = results.uncertainties[i - LDC_index : i + len(priorinfo.limb_dark_coeffs) - LDC_index]
-            value = round(priorinfo.ld_handler.convert_coefficients(*LDC_unit_vals)[LDC_index], 6)
-            unc = round(priorinfo.ld_handler.convert_coefficients(*LDC_unit_uncs)[LDC_index], 6)
+            else:
+                value = round(best[i], 6)
+                unc = round(results.uncertainties[i], 6)
 
-        else:
-            value = round(best[i], 6)
-            unc = round(results.uncertainties[i], 6)
+            if param in ['rp']:
+                param = param +'_{}:\t'.format(int(priorinfo._filter_idx[i]))
+            #elif param in ['t0']:
+            #    param = param +'_{}'.format(int(priorinfo._epoch_idx[i]))
+            elif param in priorinfo.detrending_coeffs + ['norm']:
+                param = param + '_f{}e{}:'.format(int(priorinfo._filter_idx[i]), int(priorinfo._epoch_idx[i]))
+            elif param in priorinfo.limb_dark_coeffs and priorinfo.ld_fit_method in ['independent', 'coupled']:
+                # All the LD coeffs are fitted separately and will write out
+                param = param +'_{}:\t'.format(int(priorinfo._filter_idx[i]))
+            else:
+                param += ':\t'
+            print('{}\t {} ± {}'.format(param, value, unc))
 
-        if param in ['rp']:
-            param = param +'_{}:\t'.format(int(priorinfo._filter_idx[i]))
-        #elif param in ['t0']:
-        #    param = param +'_{}'.format(int(priorinfo._epoch_idx[i]))
-        elif param in priorinfo.detrending_coeffs + ['norm']:
-            param = param + '_f{}e{}:'.format(int(priorinfo._filter_idx[i]), int(priorinfo._epoch_idx[i]))
-        elif param in priorinfo.limb_dark_coeffs and priorinfo.ld_fit_method in ['independent', 'coupled']:
-            # All the LD coeffs are fitted separately and will write out
-            param = param +'_{}:\t'.format(int(priorinfo._filter_idx[i]))
-        else:
-            param += ':\t'
-        print('{}\t {} ± {}'.format(param, value, unc))
+    # Deal with 'single' fitting LD param mode
+    if priorinfo.ld_fit_method == 'single':
+        # We've only fitted one wavelengths' LD coeffs:
+        # Estimate the rest of the limb darkening values and write.
+
+        # Get the fitted values in a usable format
+        best_single_ld = np.zeros(len(priorinfo.limb_dark_coeffs))
+        single_uncertainty = np.zeros(len(priorinfo.limb_dark_coeffs))
+
+        for i, ui in enumerate(priorinfo.limb_dark_coeffs):
+            x = np.where(np.array(priorinfo.fitting_params) == ui)[0]
+            best_single_ld[i] = best[x]
+            single_uncertainty = results.uncertainties[x]
+
+        # Now do the estimation
+        best_ld_params = priorinfo.ld_handler.ldtk_estimate(best_single_ld)
+
+        # We estimate the errors by using the ratios
+        estim_errors = priorinfo.ld_handler.ldtk_estimate(single_uncertainty)
+
+        # Loop through each filter and write out the values
+        for i, fi in enumerate(best_ld_params):
+            for j, qj in enumerate(priorinfo.limb_dark_coeffs):
+                param = qj + '_{}:\t'.format(i)
+                value = round(fi[j], 6)
+                unc = round(estim_errors[i, j], 6)
+
+                print('{}\t {} ± {}'.format(param, value, unc))
 
     best_chi2 = - results.logl.max()
 
