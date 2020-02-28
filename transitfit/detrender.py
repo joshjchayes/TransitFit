@@ -1,8 +1,7 @@
 '''
 detrender.py
 
-A quick experimental module to try and make an object which can do arbitrary
-detrending
+A module to deal with arbitrary detrending
 
 '''
 

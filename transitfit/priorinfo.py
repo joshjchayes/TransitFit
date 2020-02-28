@@ -12,11 +12,11 @@ from ._limb_darkening_handler import LimbDarkeningHandler
 
 _prior_info_defaults = {'P':1, 'a':10, 'inc':90, 'rp':0.05, 't0':0, 'ecc':0,
                         'w':90, 'limb_dark':'quadratic', 'q0':0.1, 'q1':0.3,
-                        'q2':-0.1, 'q3':0, 'num_wavelengths':1,
-                        'num_times':1, 'norm' : 1}
+                        'q2':-0.1, 'q3':0, 'n_telescopes':1,  'n_filters':1,
+                        'n_epochs':1, 'norm':1}
 
 
-def setup_priors(P, rp, a, inc, t0, ecc, w, ld_model, num_times, num_wavelengths, norm=1):
+def setup_priors(P, rp, a, inc, t0, ecc, w, ld_model, n_telescopes, n_filters, n_epochs, norm=1):
     '''
     Initialises a PriorInfo object with default parameter values. Fitting
     parameters can be added by
@@ -28,8 +28,9 @@ def setup_priors(P, rp, a, inc, t0, ecc, w, ld_model, num_times, num_wavelengths
                     't0' : t0,
                     'ecc' : ecc,
                     'w' : w,
-                    'num_times' : num_times,
-                    'num_wavelengths' : num_wavelengths,
+                    'n_telescopes' : n_telescopes,
+                    'n_epochs' : n_epochs,
+                    'n_filters' : n_filters,
                     'norm' : norm,
                     'limb_dark' : ld_model}
 
@@ -50,12 +51,19 @@ class PriorInfo:
         if warn:
             print('Warning: you appear to be making the PriorInfo directly rather than using setup_priors. Proceed with caution, or set up your priors using csv files. You can mute this warning by using warn=False.')
 
+        # This is the dictionary containing all prior ranges
+        self.priors = {}
+
+        # These are lists of fitting parameters and corresponding lists of
+        # the telescope, filter and epoch indices.
         self.fitting_params = []
+        self._telescope_idx = []
         self._filter_idx = []
         self._epoch_idx = []
-        self.priors = {}
-        self.num_times = default_dict['num_times']
-        self.num_wavelengths = default_dict['num_wavelengths']
+
+        self.n_epochs = default_dict['n_epochs']
+        self.n_filters = default_dict['n_filters']
+        self.n_telescopes = default_dict['n_telescopes']
         self.limb_dark = default_dict['limb_dark']
 
         # Initialise limb darkening
@@ -65,7 +73,7 @@ class PriorInfo:
 
         for ldc in self.limb_dark_coeffs:
             # Set up the default values for the limb darkening coeffs
-            self.priors[ldc] = [_Param(_prior_info_defaults[ldc]) for i in range(self.num_wavelengths)]
+            self.priors[ldc] = [_Param(_prior_info_defaults[ldc]) for i in range(self.n_filters)]
 
         # Initialse a bit for the detrending
         self.detrend = False
@@ -73,23 +81,31 @@ class PriorInfo:
 
         # Initialise normalisation things
         self.normalise=False
-        self.priors['norm'] = np.ones((self.num_wavelengths, self.num_times), object)
+        self.priors['norm'] = np.ones((self.n_telescopes, self.n_filters, self.n_epochs), object)
 
-        # Set up a dictionary containing the parameters with default values
+        # So far we have only initialised TransitFit default values. Now we
+        # go through the default_dict to update to any user-supplied defaults.
+
         for key in default_dict.keys():
             if key in ['rp'] + self.limb_dark_coeffs:
-                self.priors[key] = [_Param(default_dict[key]) for i in range(self.num_wavelengths)]
-            #elif key =='t0':
-            #    self.priors[key] = [_Param(default_dict[key]) for i in range(self.num_times)]
-            elif key in ['num_times', 'num_wavelengths', 'limb_dark']:
-                pass
+                # Only filter-variant parameters
+                # Since these are not being fitted at this point, we just set
+                # them all to the same value
+                self.priors[key] = np.array([_Param(default_dict[key]) for i in range(self.n_filters)])
+
             elif key in ['norm']:
-                self.priors[key] = np.array([[_Param(default_dict[key]) for i in range(self.num_times)] for j in range(self.num_wavelengths)], object)
+                # light curve specific values - need all indices
+                self.priors[key] = np.full((self.n_telescopes, self.n_filters, self.n_epochs), _Param(default_dict[key]), object)
+
+            elif key in ['n_telescopes', 'n_epochs', 'n_filters', 'limb_dark']:
+                # The 'do nothing' keys
+                pass
             else:
                 self.priors[key] = _Param(default_dict[key])
 
 
-    def add_uniform_fit_param(self, name, best, low_lim, high_lim, epoch_idx=None, filter_idx=None):
+    def add_uniform_fit_param(self, name, best, low_lim, high_lim,
+                              telescope_idx=None, filter_idx=None, epoch_idx=None):
         '''
         Adds a new parameter which will be fitted uniformly in the range given
         by low_lim and high_lim
@@ -117,7 +133,7 @@ class PriorInfo:
             if epoch_idx is None:
                 raise ValueError('epoch_idx must be provided for parameter {}'.format(name))
 
-            self.priors[name][filter_idx, epoch_idx] = _UniformParam(best, low_lim, high_lim)
+            self.priors[name][telescope_idx, filter_idx, epoch_idx] = _UniformParam(best, low_lim, high_lim)
 
         # Anything else
         # Note t0 is included in here - we just need t0 from one light curve
@@ -129,36 +145,8 @@ class PriorInfo:
         self.fitting_params.append(name)
         self._filter_idx.append(filter_idx)
         self._epoch_idx.append(epoch_idx)
+        self._telescope_idx.append(telescope_idx)
 
-    def _from_unit_interval(self, i, u):
-        '''
-        Gets parameter self.fitting_params[i] from a number u between 0 and 1
-
-        DEPRECIATED as of v0.8
-        '''
-        name = self.fitting_params[i]
-        fidx = self._filter_idx[i]
-        eidx = self._epoch_idx[i]
-
-        if name in ['rp']:
-            return self.priors[name][fidx].from_unit_interval(u)
-
-        elif name in self.detrending_coeffs + ['norm']:
-                return self.priors[name][fidx, eidx].from_unit_interval(u)
-
-        elif name in self.limb_dark_coeffs:
-            # Here we handle the different types of limb darkening, and
-            # enforce a physically allowed set of limb darkening coefficients
-            # following Kipping 2013 https://arxiv.org/abs/1308.0009 for
-            # two-parameter limb darkening methods
-
-            # First up, convert the unit-interval fitted
-
-            if not self.ld_fit_method == 'independent':
-                # We are using PyLDTK to deal with likelihoods
-                return self.priors[name][fidx].from_unit_interval(u)
-
-        return self.priors[name].from_unit_interval(u)
 
     def _convert_unit_cube(self, cube):
         '''
@@ -168,7 +156,7 @@ class PriorInfo:
         Notes
         -----
         All conversion from unit q values to actual LD values is done here
-        using convert_qtoA. Does not need to be reproduced elsewhere 
+        using convert_qtoA. Does not need to be reproduced elsewhere
         '''
         new_cube = np.zeros(len(self.fitting_params))
 
@@ -180,6 +168,7 @@ class PriorInfo:
                 skip_params -= 1
 
             else:
+                tidx = self._telescope_idx[i]
                 fidx = self._filter_idx[i]
                 eidx = self._epoch_idx[i]
 
@@ -187,7 +176,7 @@ class PriorInfo:
                     new_cube[i] = self.priors[name][fidx].from_unit_interval(cube[i])
 
                 elif name in self.detrending_coeffs + ['norm']:
-                    new_cube[i] = self.priors[name][fidx, eidx].from_unit_interval(cube[i])
+                    new_cube[i] = self.priors[name][tidx, fidx, eidx].from_unit_interval(cube[i])
 
                 elif name in self.limb_dark_coeffs:
                     # Here we handle the different types of limb darkening, and
@@ -225,20 +214,21 @@ class PriorInfo:
         result = {}
 
         # Now make some empty arrays we can fill in.
-        result['rp'] = np.zeros(self.num_wavelengths)
+        result['rp'] = np.zeros(self.n_filters)
 
-        result['norm'] = np.ones((self.num_wavelengths, self.num_times))
+        result['norm'] = np.ones((self.n_telescopes, self.n_filters, self.n_epochs))
 
         for u in self.limb_dark_coeffs:
-            result[u] = np.zeros(self.num_wavelengths)
+            result[u] = np.full(self.n_filters, None)
 
         for d in self.detrending_coeffs:
-            result[d] = np.zeros((self.num_wavelengths, self.num_times))
+            result[d] = np.full((self.n_telescopes, self.n_filters, self.n_epochs), None)
 
         # Now we generate the results
 
         # First we deal with the parameters we are actually fitting.
         for i, key in enumerate(self.fitting_params):
+            tidx = self._telescope_idx[i]
             fidx = self._filter_idx[i]
             eidx = self._epoch_idx[i]
 
@@ -246,7 +236,7 @@ class PriorInfo:
                 result[key][fidx] = array[i]
 
             elif key in self.detrending_coeffs + ['norm']:
-                result[key][fidx, eidx] = array[i]
+                result[key][tidx, fidx, eidx] = array[i]
 
             else:
                 result[key] = array[i]
@@ -284,147 +274,78 @@ class PriorInfo:
         '''
         pass
 
-    def _add_nth_order_detrending(self, data_array, order=1, lower_lim=-5,
-                                  upper_lim=5):
-        '''
-        Initialises nth order detrending for the light curves.
-
-        Parameters
-        ----------
-        data_array : np.array
-            One of the times, flux or uncertainty arrays to be used in fitting.
-            This is required to ensure that we only detrend light curves which
-            actually exist!
-        order : int, optional
-            The order of detrending function to use. Default is 1
-        '''
-        if self.detrend:
-            raise ValueError('Detrending is already initialised. You need to make a new PriorInfo to use another detrending method!')
-
-        order = int(order)
-
-        self.detrend = True
-        self.detrending_method = 'nth order'
-        # Set up the detrending function
-        self.detrending_order = order
-        self.detrending_function = DetrendingFunction(NthOrderDetrendingFunction(order))
-
-        # Set up the parameters to be detrended
-        for di in range(order):
-            key = 'd{}'.format(di)  # What is the parameter referred to as?
-
-            # Initialse a default priors array.
-            self.priors[key] = np.array([[None for i in range(self.num_times)] for j in range(self.num_wavelengths)], object)
-
-            # Add to an array of listing valid detrending coeffs
-            self.detrending_coeffs.append(key)
-
-            # Add the fitting info!
-            for j in range(self.num_wavelengths):
-                for k in range(self.num_times):
-                    if data_array[j, k] is not None:
-                        # A light curve exists
-                        self.add_uniform_fit_param(key, (lower_lim + upper_lim)/2, lower_lim, upper_lim, filter_idx=j, epoch_idx=k)
-
-    def _add_custom_detrending(self, data_array, function, coeff_lims=None):
-        '''
-        Adds custom detrending. We assume that the first argument in function
-        is times
-
-        Parameters
-        ----------
-        data_array : np.array
-            One of the times, flux or uncertainty arrays to be used in fitting.
-            This is required to ensure that we only detrend light curves which
-            actually exist!
-        function : function
-            The detrending function. We assume that the first argument is
-            the times, and that all others are single valued - TransitFit
-            cannot fit list/array variables
-        coeff_lims : None or array_like, shape (n_args, 2)
-            The lower and upper limits of each of the non-time arguments of
-            the detrending function.
-
-        '''
-        if self.detrend:
-            raise ValueError('Detrending is already initialised. You need to make a new PriorInfo to use another detrending method!')
-
-        self.detrend=True
-        self.detrending_method = 'custom'
-        self.detrending_function = DetrendingFunction(function)
-
-        # Sort out coefficient limits
-        if coeff_lims is None:
-            # Add in a default upper and lower value of ±100
-            coeff_lims = np.array([[-100, 100] for i in range(self.detrending_function.n_required_args)])
-        coeff_lims = np.array(coeff_lims)
-        if not coeff_lims.shape[0] == self.detrending_function.n_required_args and coeff_lims.shape[1] == 2:
-            raise ValueError('Invalid shape {} for coefficient limits with {} required coefficients'.format(coeff_lims.shape, self.detrending_function.n_required_args))
-
-        # Set up the parameters to be detrended
-        # The -1 is there because we assume that the first arg is the times.
-        for di in range(self.detrending_function.n_required_args - 1):
-            key = 'd{}'.format(di)  # What is the parameter referred to as?
-
-            # Initialse a default priors array.
-            self.priors[key] = np.array([[None for i in range(self.num_times)] for j in range(self.num_wavelengths)], object)
-
-            # Add to an array of listing valid detrending coeffs
-            self.detrending_coeffs.append(key)
-
-            # Add the fitting info!
-            for j in range(self.num_wavelengths):
-                for k in range(self.num_times):
-                    if data_array[j, k] is not None:
-                        # A light curve exists
-                        self.add_uniform_fit_param(key, (coeff_lims[i, 0] + coeff_lims[i, 1])/2, coeff_lims[i, 0], coeff_lims[i, 1], filter_idx=j, epoch_idx=k)
-
-
-    def add_detrending(self, data_array, method='nth order', order=1,
-                       lower_lim=-5, upper_lim=5, function=None,
+    def add_detrending(self, lightcurves, method_list, method_index_array,
+                       lower_lim=-15, upper_lim=15, function=None,
                        coeff_lims=None):
         '''
         Initialises detrending for the light curves.
 
         Parameters
         ----------
-        data_array : np.array
-            One of the times, flux or uncertainty arrays to be used in fitting.
-            This is required to ensure that we only detrend light curves which
-            actually exist!
-        method : str, optional
-            The detrending method to use. Accepted are
-                nth order
-                custom
-        order : int, optional
-            If nth order detrending specified, this is the order of the
-            detrending function. Default is 1.
+        lightcurves : np.array of `LightCurve`s, shape (n_telescopes, n_filters, n_epochs)
+            The array of LightCurves to be detrended.
+        method_list : array_like, shape (n_detrending_models, 2)
+            A list of different detrending models. Each entry should consist
+            of a method and a second parameter dependent on the method.
+            Accepted methods are
+                ['nth order', order]
+                ['custom', function]
+                ['off', ]
+            function here is a custom detrending function. TransitFit assumes
+            that the first argument to this function is times and that all
+            other arguments are single-valued - TransitFit cannot fit
+            list/array variables. If 'off' is used, no detrending will be
+            applied to the `LightCurve`s using this model.
+        method_index_array : array_like, shape (n_telescopes, n_filters, n_epochs)
+            For each LightCurve in `lightcurves`, this array should contain the
+            index of the detrending method in `method_list` to be applied to
+            this LightCurve
         lower_lim : float, optional
-            The lower limit to place on the coefficients for nth order
-            detrending. Default is -5
+            The lower limit to place on the detrending coefficients.
+            Default is -15
         upper_lim : float, optional
-            The upper limit to place on the coefficients for nth order
-            detrending. Default is 5
-        function : None or function, optional
-            The detrending function. If provided and method is 'custom', will
-            apply this as the detrending function. We assume that the first
-            argument is times, and that all others are single valued -
-            TransitFit cannot fit list/array variables. Default is None
-        coeff_lims : None or array_like, shape (n_args, 2)
-            The lower and upper limits of each of the non-time arguments of
-            the detrending function, if supplied. If None and method is
-            'custom', all lower and upper bounds will default to -100 and 100
-            respectively.
+            The upper limit to place on the detrending coefficients.
+            Default is 15
         '''
-        if method == 'nth order':
-            self._add_nth_order_detrending(data_array, order, lower_lim, upper_lim)
-        elif method == 'custom':
-            if function is None:
-                raise ValueError('You need to supply a function for custom detrending!')
-            self._add_custom_detrending(data_array, function, coeff_lims)
+        if self.detrend:
+            raise ValueError('Detrending is already initialised. You need to make a new PriorInfo to use another detrending method!')
 
-        else:
-            raise ValueError('Unrecognised detrending method {}'.format(method))
+        self._validate_lightcurves_array(lightcurves)
+
+        for i in np.ndindex(lightcurves.shape):
+            telescope_idx = i[0]
+            filter_idx = i[1]
+            epoch_idx = i[2]
+
+            if lightcurves[i] is not None:
+                # We have a lightcurve - let's detrend it.
+                method_idx = method_index_array[i]
+                method = method_list[method_idx]
+                if not method[0] == 'off':
+                    # Set up the detrending in the LightCurve
+                    if method[0] == 'nth order':
+                        lightcurves[i].set_detrending(method[0], order=method[1])
+                    elif method[0] == 'custom':
+                        lightcurves[i].set_detrending(method[0], function=method[1])
+                    else:
+                        raise ValueError('Unable to recognise method list entry {}'.format(method))
+
+                    # Now we set up the fitting of the detrending params
+                    n_coeffs = lightcurves[i].num_detrending_params
+
+                    for coeff_i in range(n_coeffs):
+                        coeff_name = 'd{}_{}'.format(coeff_i, method_idx)
+
+                        # Initialise an entry in the priors dict if there isn't
+                        # one already
+                        if coeff_name not in self.priors:
+                            self.priors[coeff_name] = np.full((self.n_telescopes, self.n_filters, self.n_epochs), None, object)
+
+                            self.detrending_coeffs.append(coeff_name)
+
+                        self.add_uniform_fit_param(coeff_name, (lower_lim + upper_lim)/2, lower_lim, upper_lim, telescope_idx, filter_idx, epoch_idx)
+
+        self.detrend=True
 
     def fit_limb_darkening(self, fit_method='independent', low_lim=-5,
                            high_lim=-5, host_T=None, host_logg=None,
@@ -500,15 +421,15 @@ class PriorInfo:
         if not fit_method == 'independent':
             if filters is None:
                 raise ValueError('Filters must be provided for coupled and single ld_fit_methods')
-            if not len(filters) == self.num_wavelengths:
-                raise ValueError('{} filters were given, but there are {} filters required!'.format(len(filters), self.num_wavelengths))
+            if not len(filters) == self.n_filters:
+                raise ValueError('{} filters were given, but there are {} filters required!'.format(len(filters), self.n_filters))
 
         # Some flags and useful info to store
         self.fit_ld = True
         self.ld_fit_method = fit_method
 
         # First up, we need to initialise each LDC for fitting:
-        for i in range(self.num_wavelengths):
+        for i in range(self.n_filters):
             for ldc, name in enumerate(self.limb_dark_coeffs):
                 self.add_uniform_fit_param(name, 0.5, 0, 1, filter_idx=i)
 
@@ -523,43 +444,44 @@ class PriorInfo:
                                             ld_model, n_samples, do_mc,
                                             cache_path)
 
-    def fit_normalisation(self, flux_array, default_low=0.1):
+    def fit_normalisation(self, lightcurves, default_low=0.1):
         '''
         When run, the Retriever will fit normalisation of the data as a
         free parameter.
 
         Parameters
         ----------
-        flux_array : np.array
-            The array of fluxes to be used in fitting. This serves two purposes
-            First, to ensure that we only normalise light curves which
-            actually exist! Second, we can use the value of fluxes to
-            estimate a normalisation constant (c_n) range for each light curve.
-            We use
+        lightcurves : np.array of `LightCurve`s, shape (n_telescopes, n_filters, n_epochs)
+            The array of LightCurves to be normalised. We can use the value of
+            fluxes to estimate a normalisation constant (c_n) range for each
+            light curve. We use
                 ``1/f_median -1 <= c_n <= 1/f_median + 1``
             as the default range, where f_median is the median flux value.
         default_low : float, optional
             The lowest value to consider as a multiplicative normalisation
             constant. Default is 0.1.
         '''
+        if self.normalise:
+            raise ValueError('Detrending is already initialised. You need to make a new PriorInfo to use another detrending method!')
+
+        self._validate_lightcurves_array(lightcurves)
+
+        for i in np.ndindex(lightcurves.shape):
+            telescope_idx = i[0]
+            filter_idx = i[1]
+            epoch_idx = i[2]
+            if lightcurves[i] is not None:
+                # A light curve exists. Set up normalisation
+                best, low, high = lightcurves[i].set_normalisation(default_low)
+
+                self.add_uniform_fit_param('norm', best, low, high, telescope_idx, filter_idx, epoch_idx)
+
         self.normalise = True
 
-        # like detrending, we have to normalise each light curve separately
-        for j in range(self.num_wavelengths):
-            for k in range(self.num_times):
-                if flux_array[j, k] is not None:
-                    # A light curve exists
-                    # First we set up the scaling factor
-                    med_fact = 1/np.median(flux_array[j, k])
-                    if med_fact - 1 <=0:
-                        low_fact = default_low
-                    else:
-                        low_fact = med_fact - 1
-
-                    high_fact = med_fact + 1
-
-                    #print('The automatically detected limits for normalisation constants are:')
-                    #print('Low      Median      High')
-                    #print(round(low_fact,2), round(med_fact,2),  round(high_fact,2))
-
-                    self.add_uniform_fit_param('norm', med_fact, low_fact, high_fact, filter_idx=j, epoch_idx=k)
+    def _validate_lightcurves_array(self, lightcurves):
+        '''
+        Checks that an array of LightCurves is the correct shape for use with
+        the PriorInfo
+        '''
+        if not lightcurves.shape == (self.n_telescopes, self.n_filters, self.n_epochs):
+            raise ValueError('lightcurves has shape {} but should have shape {}'.format(lightcurves.shape, (self.n_telescopes, self.n_filters, self.n_epochs)))

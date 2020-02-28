@@ -17,7 +17,7 @@ from matplotlib import colors
 import batman
 import os
 
-def plot_individual_lightcurves(times, flux, uncertainty, priorinfo, results,
+def plot_individual_lightcurves(lightcurves, priorinfo, results,
                                 folder_path='./plots', figsize=(12,8),
                                 color='dimgrey', titles=None, add_titles=True,
                                 fnames=None):
@@ -25,17 +25,17 @@ def plot_individual_lightcurves(times, flux, uncertainty, priorinfo, results,
     Once you have run retrieval, use this to plot things!
 
     Will make a figure for each light curve, and save with filenames reflecting
-    epoch and filter number
+    telescope, filter, and epoch number
     '''
     # Get some numbers for loop purposes
-    n_epochs = priorinfo.num_times
-    n_filters = priorinfo.num_wavelengths
+    n_epochs = priorinfo.n_epochs
+    n_filters = priorinfo.n_filters
 
     if titles is not None:
         try:
             titles = np.array(titles)
-            if not titles.shape == (n_filters, n_epochs):
-                print('Warning: titles shape is {}, not ({},{}). Reverting to default titles'.format(titles.shape, n_filters, n_epochs))
+            if not titles.shape == lightcurves.shape:
+                print('Warning: titles shape is {}, not {}. Reverting to default titles'.format(titles.shape, lightcurves.shape))
                 titles = None
         except Exception as e:
             print('Raised exception: {}'.format(e))
@@ -59,132 +59,142 @@ def plot_individual_lightcurves(times, flux, uncertainty, priorinfo, results,
 
     best_dict = priorinfo._interpret_param_array(best)
 
-    # For each light curve, make a plot!
-    for fi in range(n_filters):
-        for ei in range(n_epochs):
-            if times[fi, ei] is not None:
-                # We are plotting this!!
+    # Get the array of detrending coeffs:
+    if priorinfo.detrend:
+        # We need to combine the detrending coeff arrays into one
+        # Each entry should be a list containing all the detrending
+        # coefficients to trial.
+        d = np.full(lightcurves.shape, None, object)
 
-                # Set up the figure and the relevant axes
-                gs = gridspec.GridSpec(6, 7)
-                fig = plt.figure(figsize=figsize)
-
-                main_ax = fig.add_subplot(gs[:-2, :-1])
-                residual_ax = fig.add_subplot(gs[-2:, :-1], sharex=main_ax)
-                hist_ax = fig.add_subplot(gs[-2:,-1], sharey=residual_ax)
-
-                # Format the axes
-                main_ax.tick_params('both', which='both', direction='in',
-                                    labelbottom='off', top='on', right='on')
-
-
-                residual_ax.tick_params('both', which='both', direction='in',
-                                        top='on', right='on')
-
-
-                hist_ax.tick_params('both', which='both', direction='in',
-                                     labelleft='off', labelbottom='off',
-                                     right='on', top='on')
-
-                main_ax.set_ylabel('Normalised flux')
-                residual_ax.set_ylabel('Residual')
-                residual_ax.set_xlabel('Time (BJD)')
-
-                if add_titles:
-                    if titles is None:
-                        main_ax.set_title('Filter {}, Epoch {}'.format(fi, ei))
+        for i in np.ndindex(d.shape):
+            for coeff in priorinfo.detrending_coeffs:
+                if best_dict[coeff][i] is not None:
+                    if d[i] is None:
+                        d[i] = [best_dict[coeff][i]]
                     else:
-                        main_ax.set_title(titles[fi, ei])
-
-                fig.tight_layout()
-                fig.subplots_adjust(hspace=0, wspace=0)
+                        d[i].append(best_dict[coeff][i])
 
 
-                # Now make the best fit light curve
+    # For each light curve, make a plot!
+    for i in np.ndindex(lightcurves.shape):
+        if lightcurves[i] is not None:
+            # We are plotting this!!
 
-                # First we set up the parameters
-                params = batman.TransitParams()
-                params.t0 = best_dict['t0']
-                params.per = best_dict['P']
-                params.rp = best_dict['rp'][fi]
-                params.a = best_dict['a']
-                params.inc = best_dict['inc']
-                params.ecc = best_dict['ecc']
-                params.w = best_dict['w']
-                params.limb_dark = priorinfo.limb_dark
-                params.u = np.array([best_dict[key] for key in priorinfo.limb_dark_coeffs]).T[fi]
+            # Set up the figure and the relevant axes
+            gs = gridspec.GridSpec(6, 7)
+            fig = plt.figure(figsize=figsize)
 
-                plot_times = np.linspace(times[fi, ei].min(), times[fi,ei].max(), 1000 )
+            main_ax = fig.add_subplot(gs[:-2, :-1])
+            residual_ax = fig.add_subplot(gs[-2:, :-1], sharex=main_ax)
+            hist_ax = fig.add_subplot(gs[-2:,-1], sharey=residual_ax)
 
-                m = batman.TransitModel(params, plot_times)
+            # Format the axes
+            main_ax.tick_params('both', which='both', direction='in',
+                                labelbottom='off', top='on', right='on')
 
-                best_curve = m.light_curve(params)
 
-                m_sample_times = batman.TransitModel(params, times[fi, ei])
-                time_wise_best_curve = m_sample_times.light_curve(params)
+            residual_ax.tick_params('both', which='both', direction='in',
+                                    top='on', right='on')
 
-                norm = best_dict['norm'][fi, ei]
 
-                # Plot the raw data
-                if priorinfo.detrend:
-                    d = [best_dict[d][fi, ei] for d in priorinfo.detrending_coeffs]
+            hist_ax.tick_params('both', which='both', direction='in',
+                                 labelleft='off', labelbottom='off',
+                                 right='on', top='on')
 
-                    dF = priorinfo.detrending_function(times[fi, ei]-np.floor(times[fi, ei][0]), *d)
+            main_ax.set_ylabel('Normalised flux')
+            residual_ax.set_ylabel('Residual')
+            residual_ax.set_xlabel('Time (BJD)')
 
-                    plot_fluxes = norm * (flux[fi, ei] - dF)
+            if add_titles:
+                if titles is None:
+                    main_ax.set_title('Telescope {} Filter {}, Epoch {}'.format(i[0], i[1], i[2]))
                 else:
-                    plot_fluxes = norm * (flux[fi, ei])
+                    main_ax.set_title(titles[i])
 
-                main_ax.errorbar(times[fi, ei], plot_fluxes,
-                            norm * uncertainty[fi, ei], zorder=1,
-                            linestyle='', marker='x', color=color,
-                            elinewidth=0.8, alpha=0.6)
+            fig.tight_layout()
+            fig.subplots_adjust(hspace=0, wspace=0)
 
-                # Plot the curve
-                main_ax.plot(plot_times, best_curve, linewidth=2,
-                            color=color)
+            # Now make the best fit light curve
 
-                # plot the residuals
-                residuals = plot_fluxes - time_wise_best_curve
+            # First we set up the parameters
+            params = batman.TransitParams()
+            params.t0 = best_dict['t0']
+            params.per = best_dict['P']
+            params.rp = best_dict['rp'][i[1]]
+            params.a = best_dict['a']
+            params.inc = best_dict['inc']
+            params.ecc = best_dict['ecc']
+            params.w = best_dict['w']
+            params.limb_dark = priorinfo.limb_dark
+            params.u = np.array([best_dict[key] for key in priorinfo.limb_dark_coeffs]).T[i[1]]
 
-                residual_ax.errorbar(times[fi, ei], residuals,
-                            norm * uncertainty[fi, ei], linestyle='',
-                            color=color, marker='x', elinewidth=0.8, alpha=0.6)
+            plot_times = np.linspace(lightcurves[i].times.min(), lightcurves[i].times.max(), 1000 )
 
-                residual_ax.axhline(0, linestyle='dashed', color='gray',
-                                    linewidth=1, zorder=1)
+            m = batman.TransitModel(params, plot_times)
 
-                # Histogram the residuals
-                # Sort out colors:
-                rgba_color = colors.to_rgba(color)
-                facecolor = (rgba_color[0], rgba_color[1], rgba_color[2], 0.6)
+            best_curve = m.light_curve(params)
 
-                hist_ax.hist(residuals, bins=30, orientation='horizontal',
-                             color=facecolor, edgecolor=rgba_color,
-                             histtype='stepfilled')
-                hist_ax.axhline(0, linestyle='dashed', color='gray',
+            m_sample_times = batman.TransitModel(params, lightcurves[i].times)
+            time_wise_best_curve = m_sample_times.light_curve(params)
+
+            norm = best_dict['norm'][i]
+
+            # Plot the raw data
+            if priorinfo.detrend:
+                plot_fluxes, plot_errors = lightcurves[i].detrend_flux(d[i], norm)
+            else:
+                plot_fluxes, plot_errors = lightcurves[i].detrend_flux(None, norm)
+
+            main_ax.errorbar(lightcurves[i].times, plot_fluxes,
+                        plot_errors, zorder=1,
+                        linestyle='', marker='x', color=color,
+                        elinewidth=0.8, alpha=0.6)
+
+            # Plot the curve
+            main_ax.plot(plot_times, best_curve, linewidth=2,
+                        color=color)
+
+            # plot the residuals
+            residuals = plot_fluxes - time_wise_best_curve
+
+            residual_ax.errorbar(lightcurves[i].times, residuals,
+                        plot_errors, linestyle='',
+                        color=color, marker='x', elinewidth=0.8, alpha=0.6)
+
+            residual_ax.axhline(0, linestyle='dashed', color='gray',
                                 linewidth=1, zorder=1)
 
-                # Prune axes
-                main_ax.yaxis.set_major_locator(MaxNLocator(6, prune='lower'))
-                residual_ax.yaxis.set_major_locator(MaxNLocator(4, prune='upper'))
-                residual_ax.xaxis.set_major_locator(MaxNLocator(8, prune='upper'))
+            # Histogram the residuals
+            # Sort out colors:
+            rgba_color = colors.to_rgba(color)
+            facecolor = (rgba_color[0], rgba_color[1], rgba_color[2], 0.6)
 
-                # Save the figures
-                # Make the plots folder
-                os.makedirs(folder_path, exist_ok=True)
+            hist_ax.hist(residuals, bins=30, orientation='horizontal',
+                         color=facecolor, edgecolor=rgba_color,
+                         histtype='stepfilled')
+            hist_ax.axhline(0, linestyle='dashed', color='gray',
+                            linewidth=1, zorder=1)
 
-                if fnames is None:
-                    fig.savefig('{}/f{}_e{}.pdf'.format(folder_path, fi, ei),
+            # Prune axes
+            main_ax.yaxis.set_major_locator(MaxNLocator(6, prune='lower'))
+            residual_ax.yaxis.set_major_locator(MaxNLocator(4, prune='upper'))
+            residual_ax.xaxis.set_major_locator(MaxNLocator(8, prune='upper'))
+
+            # Save the figures
+            # Make the plots folder
+            os.makedirs(folder_path, exist_ok=True)
+
+            if fnames is None:
+                fig.savefig('{}/t{}_f{}_e{}.pdf'.format(folder_path, i[0], i[1], i[2]),
+                            bbox_inches='tight')
+            else:
+                if fnames[i] is None:
+                    fig.savefig('{}/t{}_f{}_e{}.pdf'.format(folder_path, i[0], i[1], i[2]),
                                 bbox_inches='tight')
                 else:
-                    if fnames[fi,ei] is None:
-                        fig.savefig('{}/f{}_e{}.pdf'.format(folder_path, fi, ei),
-                                    bbox_inches='tight')
-                    else:
-                        if not fnames[fi,ei][-4:] == '.pdf':
-                            fnames[fi,ei] += '.pdf'
-                        fig.savefig(os.path.join(folder_path, fnames[fi,ei]),
-                                    bbox_inches='tight')
+                    if not fnames[i][-4:] == '.pdf':
+                        fnames[i] += '.pdf'
+                    fig.savefig(os.path.join(folder_path, fnames[i]),
+                                bbox_inches='tight')
 
-                plt.close()
+            plt.close()

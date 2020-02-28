@@ -11,11 +11,11 @@ import numpy as np
 
 
 
-def run_retrieval(data_files, priors, ld_model='quadratic',
-                  ld_fit_method='independent', filter_info=None, host_T=None,
+def run_retrieval(data_files, priors, detrending_list=[['nth order', 1]],
+                  ld_model='quadratic', ld_fit_method='independent',
+                  filter_info=None, data_skiprows=0, host_T=None,
                   host_logg=None, host_z=None, ldc_low_lim=-5, ldc_high_lim=-5,
-                  n_ld_samples=20000, do_ld_mc=False, detrending='nth order',
-                  detrending_order=1, detrending_function=None, nlive=300,
+                  n_ld_samples=20000, do_ld_mc=False, nlive=300,
                   normalise=True, low_norm=0.1, dlogz=None, maxiter=None,
                   maxcall=None,  output_param_path='./outputs.csv',
                   final_lightcurve_folder='./final_light_curves',
@@ -28,15 +28,17 @@ def run_retrieval(data_files, priors, ld_model='quadratic',
 
     Parameters
     ----------
-    data_files : str or array_like, shape (n_light_curves, 3)
+    data_files : str or array_like, shape (n_light_curves, 5)
         Either a path to a file which contains the paths to data files with
         associated epoch and filter numbers, or a list of paths.
         If a path to a .csv file is provided, columns should be in the order
-        -------------------------------
-        |  path  |  epoch  |  filter  |
-        -------------------------------
+        ------------------------------------------------------------
+        |  path  |  telescope  |  filter  |  epoch  |  detrending  |
+        ------------------------------------------------------------
+        where detrending is an index which refers to the detrending method from
+        detrending_method_list to use for a given light curve
         If a list in provided, each row should contain
-        [data path, epoch index, filter index]
+        [data path, telescope idx, filter idx, epoch idx, detrending idx]
     priors : str or array_like, shape(X, 5)
         Path to a .csv file containing prior information on each variable to be
         fitted, or a list containing the same information. The columns for
@@ -57,6 +59,19 @@ def run_retrieval(data_files, priors, ld_model='quadratic',
                      should be in the same time units as the period
             - 'ecc' : the orbital eccentricity
             - 'w' : the longitude of periastron in degrees
+    detrending_list : array_like, shape (n_detrending_models, 2)
+        A list of different detrending models. Each entry should consist
+        of a method and a second parameter dependent on the method.
+        Accepted methods are
+            ['nth order', order]
+            ['custom', function]
+            ['off', ]
+        function here is a custom detrending function. TransitFit assumes
+        that the first argument to this function is times and that all
+        other arguments are single-valued - TransitFit cannot fit
+        list/array variables. If 'off' is used, no detrending will be
+        applied to the `LightCurve`s using this model. The default is
+        [['nth order', 1]], giving linear detrending.
     ld_model : str, optional
         The limb darkening model to use. Allowed models are
             - 'linear'
@@ -124,22 +139,6 @@ def run_retrieval(data_files, priors, ld_model='quadratic',
         If True, will use MCMC sampling to more accurately estimate the
         uncertainty on intial limb darkening parameters provided by PyLDTk.
         Default is False.
-    detrending : str or None, optional
-        If not None, detrending will be performed. Accepted detrending models
-        are
-            - 'nth order'
-            - 'custom'.
-        'nth order' must have a detrending_order value supplied and will
-        detrend whilst obeying a flux conservation law. If 'custom', then
-        detrending_function must be provided. Default is 'nth order'.
-    detrending_order : int, optional
-        The order of detrending function to apply if detrending is 'nth order'.
-        The default is 1, corresponding to linear detrending.
-    detrending_funcs : None or function, optional
-        The detrending function. If provided and detrending is 'custom', will
-        apply this as the detrending function. We assume that the first
-        argument is times, and that all others are single valued -
-        TransitFit cannot fit list/array variables. Default is None
     nlive : int, optional
         The number of live points to use in the nested sampling retrieval.
     normalise : bool, optional
@@ -195,21 +194,22 @@ def run_retrieval(data_files, priors, ld_model='quadratic',
     print('Loading light curve data...')
 
     if type(data_files) == str:
-        times, depths, errors = read_input_file(data_files)
+        lightcurves, detrending_index_array = read_input_file(data_files)
     else:
-        data_path_array = parse_data_path_list(data_files)
-        times, depths, errors = read_data_path_array(data_path_array)
+        data_path_array, detrending_index_array = parse_data_path_list(data_files)
+        lightcurves = read_data_path_array(data_path_array)
 
-    num_epochs = times.shape[1]
-    num_filters = times.shape[0]
+    n_telescopes = lightcurves.shape[0]
+    n_filters = lightcurves.shape[1]
+    n_epochs = lightcurves.shape[2]
 
     # Read in the priors
     if type(priors) == str:
         print('Loading priors from {}...'.format(priors))
-        priors = read_priors_file(priors, num_epochs, num_filters, ld_model)
+        priors = read_priors_file(priors, n_telescopes, n_filters, n_epochs, ld_model)
     else:
         print('Initialising priors...')
-        priors = parse_priors_list(priors, ld_model, num_filters, num_epochs)
+        priors = parse_priors_list(priors, n_telescopes, n_filters, n_epochs, ld_model)
 
     # Set up all the optional fitting modes (limb darkening, detrending,
     # normalisation...)
@@ -235,20 +235,17 @@ def run_retrieval(data_files, priors, ld_model='quadratic',
                                   host_logg, host_z, filters, ld_model,
                                   n_ld_samples, do_ld_mc, cache_path)
 
-
-
-    if detrending is not None:
-        print('Initialising detrending')
-        priors.add_detrending(times, detrending, order=detrending_order, function=detrending_function)
+    print('Initialising detrending')
+    priors.add_detrending(lightcurves, detrending_list, detrending_index_array)
 
     if normalise:
         print('Initialising normalisation...')
-        priors.fit_normalisation(depths, default_low=low_norm)
+        priors.fit_normalisation(lightcurves, default_low=low_norm)
 
     print('The parameters we are retrieving are: {}'.format(priors.fitting_params))
     print('Beginning retrieval of {} parameters'.format(len(priors.fitting_params)))
     retriever = Retriever()
-    return retriever.run_dynesty(times, depths, errors, priors,
+    return retriever.run_dynesty(lightcurves, priors,
                                  maxiter=maxiter, maxcall=maxcall, nlive=nlive,
                                  dlogz=dlogz, savefname=output_param_path,
                                  plot=plot_best, plot_folder=plot_folder,

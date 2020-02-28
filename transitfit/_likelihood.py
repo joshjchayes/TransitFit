@@ -12,76 +12,90 @@ from copy import deepcopy
 
 
 class LikelihoodCalculator:
-    def __init__(self, times, depths, errors, priorinfo):
+    def __init__(self, lightcurves, priorinfo):
         '''
-        This class can be used to quickly calculate the likelihood of a set
-        of parameters to fit a given data set.
+        Object to quickly calculate the likelihood of a set of parameters to
+        fit a given set of light curves.
 
-        self.batman_params is a batman.TransitParams object which we
-        continually update to calculate the model transit curve.
-
-        each of times, depths, errors needs to be an MxN array where M is the
-        number of different wavelengths being used, and N is is time (each
-        transit). This allows us to couple light curves together to help
-        work out rp and t0 in a coupled manner.
-
-        If no light curve exists for a point in the array, the entry should be
-        None
+        Parameters
+        ----------
+        lightcurves : array_like, shape (n_telescopes, n_filters, n_epochs)
+            An array of LightCurves. If no data exists for a point in the array
+            then the entry should be `None`.
+        priorinfo : PriorInfo
+            The PriorInfo object for retrieval
         '''
-        times = np.array(times, dtype=object)
-        depths = np.array(depths, dtype=object)
-        errors = np.array(errors, dtype=object)
+        self.lightcurves = np.array(lightcurves, dtype=object)
 
-        self.num_wavelengths = times.shape[0]
-        self.num_times = times.shape[1]
+        self.n_telescopes = self.lightcurves.shape[0]
+        self.n_filters = self.lightcurves.shape[1]
+        self.n_epochs = self.lightcurves.shape[2]
 
-        self.num_light_curves = len(np.where(times == None)[0])
+        self.num_light_curves = len(np.where(self.lightcurves.flatten() != None)[0])
 
-        self.times = times
-        self.depths = depths
-        self.errors = errors
+        # We need to make a separate TransitParams and TransitModels for each
+        # light curve.
 
-        # We need to make a separate TransitParams for each light curve.
-        # Initialse it:
-        self.batman_params = np.array([[None for i in range(self.num_times)] for j in range(self.num_wavelengths)])
+        # Initialise them:
+        self.batman_params = np.full((self.n_telescopes, self.n_filters, self.n_epochs), None, object)
+        self.batman_models = np.full((self.n_telescopes, self.n_filters, self.n_epochs), None, object)
 
-        for i in range(self.num_wavelengths):
-            for j in range(self.num_times):
-                if self.times[i][j] is not None:
-                    self.batman_params[i][j] = batman.TransitParams()
+        for i in np.ndindex(self.lightcurves.shape):
+            if self.lightcurves[i] is not None:
+                # Set up the params
+                self.batman_params[i] = batman.TransitParams()
 
-        # Need to make a sepeate model for each one too.
-        # Initialse it:
-        self.batman_models = np.array([[None for i in range(self.num_times)] for j in range(self.num_wavelengths)])
 
-        for i in range(self.num_wavelengths):
-            for j in range(self.num_times):
-                if self.times[i][j] is not None:
 
-                    # Make some realistic parameters to setup the models with
-                    default_params = batman.TransitParams()
-                    default_params.t0 = priorinfo.priors['t0'].default_value
-                    default_params.per = priorinfo.priors['P'].default_value
-                    default_params.rp = priorinfo.priors['rp'][i].default_value
-                    default_params.a = priorinfo.priors['a'].default_value
-                    default_params.inc = priorinfo.priors['inc'].default_value
-                    default_params.ecc = priorinfo.priors['ecc'].default_value
-                    default_params.w = priorinfo.priors['w'].default_value
-                    default_params.limb_dark = priorinfo.limb_dark
-                    u = [priorinfo.priors[uX][i].default_value for uX in priorinfo.limb_dark_coeffs]
-                    default_params.u = u
+                # Set up the TransitModels
+                # Make some realistic parameters to setup the models with
+                default_params = batman.TransitParams()
+                default_params.t0 = priorinfo.priors['t0'].default_value
+                default_params.per = priorinfo.priors['P'].default_value
+                default_params.rp = priorinfo.priors['rp'][i[1]].default_value
+                default_params.a = priorinfo.priors['a'].default_value
+                default_params.inc = priorinfo.priors['inc'].default_value
+                default_params.ecc = priorinfo.priors['ecc'].default_value
+                default_params.w = priorinfo.priors['w'].default_value
+                default_params.limb_dark = priorinfo.limb_dark
+                u = [priorinfo.priors[uX][i[1]].default_value for uX in priorinfo.limb_dark_coeffs]
+                default_params.u = u
 
-                    # Now make the models
-                    self.batman_models[i][j] = batman.TransitModel(default_params, self.times[i][j])
+                # Now make the models
+                self.batman_models[i] = batman.TransitModel(default_params, self.lightcurves[i].times)
 
 
     def find_likelihood(self, t0, per, rp, a, inc, ecc, w, limb_dark, u,
-                        norm, detrend_function=None, d=None):
+                        norm, d=None):
         '''
         Calculates the ln likelihood of a set of parameters matching the given
         model
 
-        rp should be array with lengths self.num_wavelengths
+        Parameters
+        ----------
+        t0 : float
+            t0 value
+        per : float
+            The period, in the same units as t0
+        rp : array_like, shape (n_filters,)
+            The planet radii for each filter
+        a : float
+            The semimajor axis
+        inc : float
+            Orbital inclination in degrees
+        ecc : float
+            Orbital inclination
+        w : float
+            The angle of periastron
+        limb_dark : str
+            The limb darkening model to use
+        u : array_like, shape (n_filters, n_ld_coeffs)
+            The limb darkening coefficients
+        norm : array_like, shape(n_telescopes, n_filters, n_epochs)
+            The normalisation constants
+        d : array_like, shape(n_telescopes, n_filters, n_epochs)
+            Each entry should be a list containing all the detrending
+            coefficients to trial.
 
         Returns
         -------
@@ -89,83 +103,67 @@ class LikelihoodCalculator:
             The ln likelihood of the parameter set
         '''
 
-        if not len(rp) == self.num_wavelengths:
-            raise ValueError('You supplied {} rp values, not {} as expected'.format(len(rp), self.num_wavelengths))
+        if not len(rp) == self.n_filters:
+            raise ValueError('You supplied {} rp values, not {} as expected'.format(len(rp), self.n_filters))
 
         all_chi2 = []
         n_data_points = 0
-        for i in range(self.num_wavelengths):
-            for j in range(self.num_times):
-                if self.batman_params[i,j] is not None:
-                    # Update the parameters to the ones we are interested in
-                    self.update_params(i, j, t0, per, rp[i], a, inc, ecc, w, limb_dark, u[i])
 
-                    # Calculate the transits and the chi2 values
-                    model = self.batman_models[i, j]
-                    model_depths = model.light_curve(self.batman_params[i,j])
+        for i in np.ndindex(self.lightcurves.shape):
+            telescope_idx = i[0]
+            filter_idx = i[1]
+            epoch_idx = i[2]
 
-                    comparison_depths = deepcopy(self.depths[i][j])
+            if self.batman_params[i] is not None:
+                # update the parameters to the testing ones
+                self.update_params(telescope_idx, filter_idx, epoch_idx, t0, per, rp[filter_idx], a, inc, ecc, w, limb_dark, u[filter_idx])
 
+                # Calculate the model transits
+                model = self.batman_models[i]
+                model_flux = model.light_curve(self.batman_params[i])
 
-                    # If detrending is happening, it goes on here!
-                    if detrend_function is not None:
-                        if d is None:
-                            raise TypeError('Detrend function given but d is None!')
+                # Get the detrended/normalised flux from the LightCurves
+                comparison_flux, err = self.lightcurves[i].detrend_flux(d[i], norm[i])
 
-                        # Because we are taking times in BJD, the detrend
-                        # function results are MASSIVE. We will detrend using
-                        # only the decimal part of the times as this
-                        # significantly reduces the range of each of the
-                        # detrending coefficients
-                        subtract_val = np.floor(self.times[i][j][0])
-                        detrend_values = detrend_function(self.times[i][j] - subtract_val, *d[:,i,j])
+                # Work out the chi2
+                chi2 = sum((model_flux - comparison_flux)**2 / err**2)
 
-                        comparison_depths -= detrend_values
+                # Check to make sure that there is actually a transit in the model
+                # otherwise we impose a large penalty to the chi2 value
+                # This avoids a situation where the detrending values try
+                # to completely flatten the light curves, which is wrong!
+                if np.isclose(model_flux, 1).all():
+                    chi2 += 10000000
 
-                    # Normalise to a baseline of 1
-                    comparison_depths *= norm[i, j]
+                all_chi2.append(chi2)
 
-                    # Work out the chi2 of the fit
-                    # Assuming that the data is rescaled to a baseline flux of 1.
-                    chi2 = sum((model_depths - comparison_depths)**2 / (self.errors[i][j] * norm[i, j])**2)
-
-                    # Check to make sure that there is actually a transit in the model
-                    # otherwise we impose a large penalty to the chi2 value
-                    # This avoids a situation where the detrending values try
-                    # to completely flatten the light curves, which is wrong!
-                    if np.isclose(model_depths, 1).all():
-                        chi2 += 10000000
-
-                    all_chi2.append(chi2)
-                    n_data_points += len(comparison_depths)
-
-        # The ln likelihood is just -1*chi2
         return - sum(all_chi2)
 
-    def update_params(self, wavelength_index, time_index, t0=None, per=None, rp=None,
-                      a=None, inc=None, ecc=None, w=None, limb_dark=None,
-                      u=None):
+
+    def update_params(self, telescope_idx, filter_idx, epoch_index, t0=None,
+                      per=None, rp=None, a=None, inc=None, ecc=None, w=None,
+                      limb_dark=None, u=None):
         '''
         Updates self.params with values given
         '''
         if t0 is not None:
-            self.batman_params[wavelength_index, time_index].t0 = t0
+            self.batman_params[telescope_idx, filter_idx, epoch_index].t0 = t0
         if per is not None:
-            self.batman_params[wavelength_index, time_index].per = per
+            self.batman_params[telescope_idx, filter_idx, epoch_index].per = per
         if rp is not None:
-            self.batman_params[wavelength_index, time_index].rp = rp
+            self.batman_params[telescope_idx, filter_idx, epoch_index].rp = rp
         if a is not None:
-            self.batman_params[wavelength_index, time_index].a = a
+            self.batman_params[telescope_idx, filter_idx, epoch_index].a = a
         if inc is not None:
-            self.batman_params[wavelength_index, time_index].inc = inc
+            self.batman_params[telescope_idx, filter_idx, epoch_index].inc = inc
         if ecc is not None:
-            self.batman_params[wavelength_index, time_index].ecc = ecc
+            self.batman_params[telescope_idx, filter_idx, epoch_index].ecc = ecc
         if w is not None:
-            self.batman_params[wavelength_index, time_index].w = w
+            self.batman_params[telescope_idx, filter_idx, epoch_index].w = w
         if limb_dark is not None:
-            self.batman_params[wavelength_index, time_index].limb_dark = limb_dark
+            self.batman_params[telescope_idx, filter_idx, epoch_index].limb_dark = limb_dark
         if u is not None:
-            self.batman_params[wavelength_index, time_index].u = u
+            self.batman_params[telescope_idx, filter_idx, epoch_index].u = u
 
     def _validate_variant_parameter(self, p):
         '''
@@ -179,7 +177,6 @@ class LikelihoodCalculator:
         p = np.asarray(p)
 
         if not p.shape[0] == self.num_light_curves:
-            print(p)
-            raise ValueError('Incorrect number {} of parameters provided for fitting {} lightcuves.'.format(p.shape[0], self.num_light_curves))
+            raise ValueError('Incorrect number {} of parameters provided for fitting {} lightcurves.'.format(p.shape[0], self.num_light_curves))
 
         return p

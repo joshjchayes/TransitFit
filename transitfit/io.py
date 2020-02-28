@@ -11,6 +11,9 @@ import dynesty
 import csv
 import os
 from ._utils import validate_variable_key
+from .lightcurve import LightCurve
+import batman
+import os
 
 def parse_filter_list(filter_list):
     '''
@@ -52,15 +55,16 @@ def parse_data_path_list(data_path_list):
 
     Parameters
     ----------
-    data_path_list : array_like, shape (n_light_curves, 3)
+    data_path_list : array_like, shape (n_light_curves, 5)
         The list of paths. Each row should contain
-        [data path, epoch index, filter index]
+        [data path, telescope idx, filter idx, epoch idx, detrending idx]
 
     Returns
     -------
-    data_path_array : array_like, shape (num_filters, num_epochs)
-        The paths inserted into an array where each column is a particular
-        filter and each row is a particular epoch of observation.
+    data_path_array : array_like, shape (num_filters, num_epochs, num_telescopes)
+        The paths inserted into an array which can be used by TransitFit
+    detrending_index_array : array_like, shape (num_filters, num_epochs, num_telescopes)
+        The array of detrending model indices for each light curve
     '''
     data_path_list = np.array(data_path_list, dtype=object)
 
@@ -68,21 +72,28 @@ def parse_data_path_list(data_path_list):
         data_path_list = np.array([data_path_list])
 
     # Work out how many epochs and filters we have
-    n_epochs = data_path_list[:,1].max() + 1
+    n_telescopes = data_path_list[:,1].max() + 1
     n_filters = data_path_list[:,2].max() + 1
+    n_epochs = data_path_list[:,3].max() + 1
+
+    n_detrending_models = data_path_list[:,4].max() + 1
 
     # Initialise a blank array, filling it with None.
-    data_path_array = np.array([[None for i in range(n_epochs)] for j in range(n_filters)], object)
+    data_path_array = np.full((n_telescopes, n_filters, n_epochs), None, object)
+    detrending_index_array = np.full((n_telescopes, n_filters, n_epochs), None, object)
+
 
     # Populate the blank array
     for row in data_path_list:
-        p, i, j = row
-        data_path_array[j,i] = p
+        p, i, j, k, l = row
+        data_path_array[i, j, k] = p
+        detrending_index_array[i, j, k] = l
 
-    return data_path_array
+    return data_path_array, detrending_index_array
 
 
-def parse_priors_list(priors_list, ld_model, num_filters, num_epochs):
+def parse_priors_list(priors_list, n_telescopes, n_filters,
+                     n_epochs, ld_model):
     '''
     Parses a list of priors to produce a PriorInfo with all fitting parameters
     initialised.
@@ -94,12 +105,16 @@ def parse_priors_list(priors_list, ld_model, num_filters, num_epochs):
         set fixed values by setting the low and high values to `None` or
         `np.nan`. Each row should be of the form
         [key, default value, low limit, high limit, filter index]
+    n_telescopes : int
+        The number of different telescopes being used. Required so that
+        simultaneous observations from different observatories can be used by
+        TransitFit
+    n_filters : int
+        The number of different filters being used
+    n_epochs : int
+        The number of different epochs being used
     ld_model : str
         The limb darkening model to use
-    num_filters : int
-        The number of different filters being used
-    num_epochs : int
-        The number of different epochs being used.
 
     Returns
     -------
@@ -133,7 +148,7 @@ def parse_priors_list(priors_list, ld_model, num_filters, num_epochs):
                               priors_dict['t0'][0],
                               priors_dict['ecc'][0],
                               priors_dict['w'][0],
-                              ld_model, num_epochs, num_filters)
+                              ld_model, n_telescopes, n_filters, n_epochs)
 
     ##########################
     # Initialise the fitting #
@@ -157,7 +172,7 @@ def parse_priors_list(priors_list, ld_model, num_filters, num_epochs):
 
 def _read_data_csv(path):
     '''
-    Given a path to a csv with columns [time, depths, errors], will get
+    Given a path to a csv with columns [time, flux, errors], will get
     all the data in a way which can be used by the Retriever
 
     '''
@@ -165,9 +180,9 @@ def _read_data_csv(path):
     data = pd.read_csv(path)
 
     # Extract the arrays
-    times, depths, errors = data.values.T
+    times, flux, errors = data.values.T
 
-    return times, depths, errors
+    return times, flux, errors
 
 def _read_data_txt(path, skiprows=0):
     '''
@@ -175,7 +190,7 @@ def _read_data_txt(path, skiprows=0):
     '''
     times, depth, errors = np.loadtxt(path, skiprows=skiprows).T
 
-    return times, depths, errors
+    return times, flux, errors
 
 
 def read_data_file(path, skiprows=0, delimiter=None, folder=None):
@@ -217,36 +232,37 @@ def read_data_file(path, skiprows=0, delimiter=None, folder=None):
 
 def read_data_path_array(data_path_array, skiprows=0):
     '''
-    If passed an array of paths, will read in to produce times, flux and
-    uncertainty arrays
+    If passed an array of paths, will read in to produce an array of
+    `LightCurve`s
+
+    Parameters
+    ----------
+    data_path_array : array_like, shape (n_telescopes, n_filters, n_epochs)
+        Array with paths to data to load
+
+    Returns
+    -------
+    lightcurves  : np.array of `LightCurve`s, shape (n_telescopes, n_filters, n_epochs)
+        The data loaded and stored as an array of LightCurves
     '''
     data_path_array = np.array(data_path_array)
 
-    num_wavelengths = data_path_array.shape[0]
-    num_times = data_path_array.shape[1]
+    n_telescopes = data_path_array.shape[0]
+    n_filters = data_path_array.shape[1]
+    n_epochs = data_path_array.shape[2]
 
-    data = np.array([[None for i in range(num_times)] for j in range(num_wavelengths)], object)
+    lightcurves = np.full((data_path_array.shape), None, object)
 
-    for i in range(num_wavelengths):
-        for j in range(num_times):
-            if data_path_array[i,j] is not None:
-                data[i,j] = read_data_file(data_path_array[i,j])
+    for i in np.ndindex(lightcurves.shape):
+        if data_path_array[i] is not None:
+            times, flux, errors = read_data_file(data_path_array[i])
 
+            lightcurves[i] = LightCurve(times, flux, errors, i[0], i[1], i[2])
 
-    times = np.array([[None for i in range(num_times)] for j in range(num_wavelengths)], object)
-    depths = np.array([[None for i in range(num_times)] for j in range(num_wavelengths)], object)
-    errors = np.array([[None for i in range(num_times)] for j in range(num_wavelengths)], object)
+    return lightcurves
 
-    for i in range(num_wavelengths):
-        for j in range(num_times):
-            if data[i,j] is not None:
-                times[i,j] = data[i,j][0]
-                depths[i,j] = data[i,j][1]
-                errors[i,j] = data[i,j][2]
-
-    return times, depths, errors
-
-def read_priors_file(path, num_epochs, num_filters, limb_dark='quadratic'):
+def read_priors_file(path, n_telescopes, n_filters, n_epochs,
+                     limb_dark='quadratic'):
     '''
     If given a csv file containing priors, will produce a PriorInfo object
     based off the given values
@@ -261,17 +277,19 @@ def read_priors_file(path, num_epochs, num_filters, limb_dark='quadratic'):
         |  key  |   best  |  low_lim  |   high_lim  |  filter  |
         --------------------------------------------------------
 
-        If the parameter is invariant across an epoch or filter, leave the
+        If the parameter is invariant across a filter, leave the
         entry blank.
 
         If you want to fix a parameter at a given value, leave low_lim and
-        high_lim blank. Just provide best, along with epoch and filter if
-        required
-    num_epochs : int
-        The number of observation epochs which exist in the data
-    num_filters : int
-        The number of different filters which are used in the observations
-
+        high_lim blank. Just provide best, along with filter if required
+    n_telescopes : int
+        The number of different telescopes being used. Required so that
+        simultaneous observations from different observatories can be used by
+        TransitFit
+    n_filters : int
+        The number of different filters being used
+    n_epochs : int
+        The number of different epochs being used
     limb_dark : str, optional
         The model of limb darkening you want to use. Accepted are
             - linear
@@ -288,10 +306,10 @@ def read_priors_file(path, num_epochs, num_filters, limb_dark='quadratic'):
     '''
     priors_list = pd.read_csv(path).values
 
-    return parse_priors_list(priors_list, limb_dark, num_filters, num_epochs)
+    return parse_priors_list(priors_list, n_telescopes, n_filters, n_epochs, limb_dark)
 
 
-def read_input_file(path):
+def read_input_file(path, skiprows=0):
     '''
     Reads in a file with listed inputs and produces data arrays for use in
     retrieval.
@@ -300,27 +318,27 @@ def read_input_file(path):
     ----------
     path : str
         The path to the .csv file with the paths to input parameters and
-        their filter and epoch number.
+        their telescope, filter, epoch, and detrending indices.
 
         Columns should be in the order
-        -------------------------------
-        |  path  |  epoch  |  filter  |
-        -------------------------------
+        ------------------------------------------------------------
+        |  path  |  telescope  |  filter  |  epoch  |  detrending  |
+        ------------------------------------------------------------
 
     Returns
     -------
-    times : np.array
-        The times of each data point
-    flux : np.array
-        The fluxes
-    uncertainty : np.array
-        The uncertainty on each flux
+    lightcurves  : np.array of `LightCurve`s, shape (n_telescopes, n_filters, n_epochs)
+        The data loaded and stored as an array of LightCurves
+    detrending_index_array : array_like, shape (n_telescopes, n_filters, n_epochs)
+        The detrending indices for each lightcurve
     '''
     info = pd.read_csv(path).values
 
-    data_path_array = parse_data_path_list(info)
+    data_path_array, detrending_index_array = parse_data_path_list(info)
 
-    return read_data_path_array(data_path_array)
+    lightcurves = read_data_path_array(data_path_array, skiprows=skiprows)
+
+    return lightcurves, detrending_index_array
 
 def read_filter_info(path):
     '''
@@ -397,7 +415,7 @@ def save_results(results, priorinfo, filepath='outputs.csv'):
             #elif param in ['t0']:
             #    param = param +'_{}'.format(int(priorinfo._epoch_idx[i]))
             elif param in priorinfo.detrending_coeffs + ['norm']:
-                param = param + '_f{}_e{}'.format(int(priorinfo._filter_idx[i]), int(priorinfo._epoch_idx[i]))
+                param = param + '_t{}_f{}_e{}'.format(int(priorinfo._telescope_idx[i]),int(priorinfo._filter_idx[i]), int(priorinfo._epoch_idx[i]))
             elif param in priorinfo.limb_dark_coeffs and priorinfo.ld_fit_method in ['independent', 'coupled']:
                 # All the LD coeffs are fitted separately and will write out
                 param = param +'_{}'.format(int(priorinfo._filter_idx[i]))
@@ -485,7 +503,7 @@ def print_results(results, priorinfo, n_dof):
             #elif param in ['t0']:
             #    param = param +'_{}'.format(int(priorinfo._epoch_idx[i]))
             elif param in priorinfo.detrending_coeffs + ['norm']:
-                param = param + '_f{}e{}:'.format(int(priorinfo._filter_idx[i]), int(priorinfo._epoch_idx[i]))
+                param = param + '_t{}_f{}_e{}:'.format(int(priorinfo._telescope_idx[i]),int(priorinfo._filter_idx[i]), int(priorinfo._epoch_idx[i]))
             elif param in priorinfo.limb_dark_coeffs and priorinfo.ld_fit_method in ['independent', 'coupled']:
                 # All the LD coeffs are fitted separately and will write out
                 param = param +'_{}:\t'.format(int(priorinfo._filter_idx[i]))
@@ -528,61 +546,84 @@ def print_results(results, priorinfo, n_dof):
     print('red chi2:\t {}'.format(round(best_chi2/n_dof, 5)))
 
 
-def save_final_light_curves(times, flux, uncertainty, priorinfo, results,
+def save_final_light_curves(lightcurves, priorinfo, results,
                             folder='./final_light_curves'):
     '''
     Applies detrending and normalisation to each light curve and saves to .csv
 
     Parameters
     ----------
+    lightcurves : array_like, shape (n_telescopes, n_filters, n_epochs)
+        An array of LightCurves. If no data exists for a point in the array
+        then the entry should be `None`.
+    priorinfo : transitfit.priorinfo.PriorInfo
+        The PriorInfo object
     results : dynesty.results.Results
         The Dynesty results object, but must also have weights, cov and
         uncertainties as entries.
-    priorinfo : transitfit.priorinfo.PriorInfo
-        The PriorInfo object
     folder : str, optional
         The folder to save the files to. Default is './final_light_curves'
     '''
-    # Get some numbers for loop purposes
-    n_epochs = priorinfo.num_times
-    n_filters = priorinfo.num_wavelengths
-
     # Get the best values
     best = results.samples[np.argmax(results.logl)]
     best_dict = priorinfo._interpret_param_array(best)
 
+    # Get the array of detrending coeffs:
+    if priorinfo.detrend:
+        # We need to combine the detrending coeff arrays into one
+        # Each entry should be a list containing all the detrending
+        # coefficients to trial.
+        d = np.full(lightcurves.shape, None, object)
+
+        for i in np.ndindex(d.shape):
+            for coeff in priorinfo.detrending_coeffs:
+                if best_dict[coeff][i] is not None:
+                    if d[i] is None:
+                        d[i] = [best_dict[coeff][i]]
+                    else:
+                        d[i].append(best_dict[coeff][i])
+
     os.makedirs(folder, exist_ok=True)
 
     # Loop over each light curve and apply detrending and normalisation
-    for fi in range(n_filters):
-        for ei in range(n_epochs):
-            if times[fi, ei] is not None:
+    for i in np.ndindex(lightcurves.shape):
+        if lightcurves[i] is not None:
 
-                norm = best_dict['norm'][fi, ei]
+            # Calculate the detrended light curve
+            norm = best_dict['norm'][i]
 
-                if priorinfo.detrend:
-                    d = [best_dict[d][fi, ei] for d in priorinfo.detrending_coeffs]
+            if priorinfo.detrend:
+                detrended_flux, detrended_errors = lightcurves[i].detrend_flux(d[i], norm)
+            else:
+                detrended_flux, detrended_errors = lightcurves[i].detrend_flux(None, norm)
 
-                    dF = priorinfo.detrending_function(times[fi, ei]-np.floor(times[fi, ei][0]), *d)
+            # Calculate the value of the best fit light curve at the same times
+            # First we set up the parameters
+            params = batman.TransitParams()
+            params.t0 = best_dict['t0']
+            params.per = best_dict['P']
+            params.rp = best_dict['rp'][i[1]]
+            params.a = best_dict['a']
+            params.inc = best_dict['inc']
+            params.ecc = best_dict['ecc']
+            params.w = best_dict['w']
+            params.limb_dark = priorinfo.limb_dark
+            params.u = np.array([best_dict[key] for key in priorinfo.limb_dark_coeffs]).T[i[1]]
 
-                    detrended_flux = norm * (flux[fi, ei] - dF)
-                else:
-                    # No detrending, just normalisation
-                    detrended_flux = norm * flux[fi, ei]
+            m_sample_times = batman.TransitModel(params, lightcurves[i].times)
+            time_wise_best_curve = m_sample_times.light_curve(params)
 
-                normalised_uncertainty = norm * uncertainty[fi, ei]
+            write_dict = []
+            for j, tj in enumerate(lightcurves[i].times):
+                #print(i)
+                write_dict.append({'Time' : tj,
+                                   'Normalised flux' : detrended_flux[j],
+                                   'Uncertainty' : detrended_errors[j],
+                                   'Best fit curve' : time_wise_best_curve[j]})
 
-
-                write_dict = []
-                for i, ti in enumerate(times[fi, ei]):
-                    #print(i)
-                    write_dict.append({'Time' : ti,
-                                       'Normalised flux' : detrended_flux[i],
-                                       'Uncertainty' : normalised_uncertainty[i]})
-
-                fname = 'f{}_e{}_detrended.csv'.format(fi, ei)
-                with open(os.path.join(folder, fname), 'w') as f:
-                    columns = ['Time', 'Normalised flux', 'Uncertainty']
-                    writer = csv.DictWriter(f, columns)
-                    writer.writeheader()
-                    writer.writerows(write_dict)
+            fname = 't{}_f{}_e{}_detrended.csv'.format(i[0], i[1], i[2])
+            with open(os.path.join(folder, fname), 'w') as f:
+                columns = ['Time', 'Normalised flux', 'Uncertainty', 'Best fit curve']
+                writer = csv.DictWriter(f, columns)
+                writer.writeheader()
+                writer.writerows(write_dict)

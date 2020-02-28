@@ -6,7 +6,7 @@ same wavelength and epoch respectively
 '''
 import numpy as np
 from ._likelihood import LikelihoodCalculator
-from ._utils import validate_data_format, get_normalised_weights, get_covariance_matrix
+from ._utils import validate_lightcurve_array_format, get_normalised_weights, get_covariance_matrix
 from .io import save_results, print_results, save_final_light_curves
 from .plotting import plot_individual_lightcurves
 from dynesty import NestedSampler
@@ -14,6 +14,7 @@ import dynesty.utils
 import matplotlib.pyplot as plt
 import batman
 import csv
+import os
 
 class Retriever:
     def __init__(self):
@@ -23,9 +24,9 @@ class Retriever:
         '''
         pass
 
-    def run_dynesty(self, times, depths, errors, priorinfo,
+    def run_dynesty(self, lightcurves, priorinfo,
                     maxiter=None, maxcall=None,
-                    nlive=300, plot=True, dlogz=None, savefname='outputs.csv',
+                    nlive=300, plot=True, dlogz=None, savefname='./outputs.csv',
                     output_folder='./final_light_curves', plot_folder='./plots',
                     figsize=(12,8), plot_color='dimgrey', plot_titles=None,
                     add_plot_titles=True, plot_fnames=None, **dynesty_kwargs):
@@ -34,13 +35,9 @@ class Retriever:
 
         Parameters
         ----------
-        times : array_like
-            The times of the transit data. Should be in BJD.
-        depths : array_like
-            The flux measurements taken of the target star, normalised to a
-            baseline of 1.
-        errors : array_like
-            The errors associated with the depths.
+        lightcurves : array_like, shape (n_telescopes, n_filters, n_epochs)
+            An array of LightCurves. If no data exists for a point in the array
+            then the entry should be `None`.
         priorinfo : PriorInfo
             The priors for fitting. This basically sets the intervals over
             which each parameter is fitted.
@@ -91,16 +88,17 @@ class Retriever:
         # number of dimensions being fitted.
         ndims = len(priorinfo.fitting_params)
 
-        times, depths, errors = validate_data_format(times, depths, errors)
+        lightcurves = validate_lightcurve_array_format(lightcurves)
 
-        n_dof = 0.
-        for row in times:
-            for c in row:
-                if c is not None:
-                    n_dof += len(c)
+        # Calculate the number of degrees of freedom - how many data points do we have?
+        n_dof = 0
+        for i in np.ndindex(lightcurves.shape):
+            if lightcurves[i] is not None:
+                n_dof += len(lightcurves[i].times)
+
 
         # Make an object to calculate all the likelihoods
-        likelihood_calc = LikelihoodCalculator(times, depths, errors, priorinfo)
+        likelihood_calc = LikelihoodCalculator(lightcurves, priorinfo)
 
         def dynesty_transform_prior(cube):
             '''
@@ -123,12 +121,21 @@ class Retriever:
 
 
             if priorinfo.detrend:
-                # Do the detrending things
-                detr_func = priorinfo.detrending_function
-                d = np.array([params[key] for key in priorinfo.detrending_coeffs])
+                # We need to combine the detrending coeff arrays into one
+                # Each entry should be a list containing all the detrending
+                # coefficients to trial.
+                d = np.full(lightcurves.shape, None, object)
+
+                for i in np.ndindex(d.shape):
+                    for coeff in priorinfo.detrending_coeffs:
+                        if params[coeff][i] is not None:
+                            if d[i] is None:
+                                d[i] = [params[coeff][i]]
+                            else:
+                                d[i].append(params[coeff][i])
+
             else:
                 # Don't detrend
-                detr_func = None
                 d = None
 
 
@@ -142,7 +149,6 @@ class Retriever:
                                                             limb_dark,
                                                             np.array(u).T,
                                                             params['norm'],
-                                                            detr_func,
                                                             d)
 
             if priorinfo.fit_ld and not priorinfo.ld_fit_method == 'independent':
@@ -180,23 +186,26 @@ class Retriever:
         # Save to outputs?
         try:
             save_results(results, priorinfo, savefname)
+            print('Best fit parameters saved to {}'.format(os.path.abspath(savefname)))
         except Exception as e:
             print('The following exception was raised  whilst saving parameter results. I have just returned the results dictionary')
             print(e)
 
         try:
-            save_final_light_curves(times, depths, errors, priorinfo,
+            save_final_light_curves(lightcurves, priorinfo,
                                     results, output_folder)
+            print('Fitted light curves saved to {}'.format(os.path.abspath(output_folder)))
         except Exception as e:
             print('The following exception was raised whilst saving final light curves. I have just returned the results dictionary')
             print(e)
 
         if plot:
             try:
-                plot_individual_lightcurves(times, depths, errors, priorinfo,
+                plot_individual_lightcurves(lightcurves, priorinfo,
                                             results, folder_path=plot_folder,
                                             color=plot_color, titles=plot_titles, add_titles=add_plot_titles,
                                             fnames=plot_fnames)
+                print('Plots saved to {}'.format(os.path.abspath(plot_folder)))
             except Exception as e:
                 # TODO: Try plotting from files rather than results objects
                 print('Plotting error: I have failed to plot anything due to the following error:')
