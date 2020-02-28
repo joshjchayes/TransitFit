@@ -10,7 +10,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="transitfit",
-    version="0.8.5",
+    version="0.9.0",
     author="Joshua Hayes",
     author_email="joshjchayes@gmail.com",
     description="A package to fit exoplanet transit light curves",
