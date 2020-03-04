@@ -25,7 +25,7 @@ class Retriever:
         pass
 
     def run_dynesty(self, lightcurves, priorinfo,
-                    maxiter=None, maxcall=None,
+                    maxiter=None, maxcall=None, sample='auto',
                     nlive=300, plot=True, dlogz=None, savefname='./outputs.csv',
                     output_folder='./final_light_curves', plot_folder='./plots',
                     figsize=(12,8), plot_color='dimgrey', plot_titles=None,
@@ -47,6 +47,22 @@ class Retriever:
         maxcall : int or None, optional
             The maximum number of likelihood calls in retrieval. If None, will
             continue until stopping criterion is reached. Default is None.
+        sample : str, optional
+            Method used to sample uniformly within the likelihood constraint,
+            conditioned on the provided bounds. Unique methods available are:
+            uniform sampling within the bounds('unif'), random walks with fixed
+            proposals ('rwalk'), random walks with variable (“staggering”)
+            proposals ('rstagger'), multivariate slice sampling along preferred
+            orientations ('slice'), “random” slice sampling along all
+            orientations ('rslice'), “Hamiltonian” slices along random
+            trajectories ('hslice'), and any callable function which follows
+            the pattern of the sample methods defined in dynesty.sampling.
+            'auto' selects the sampling method based on the dimensionality of
+            the problem (from ndim). When ndim < 10, this defaults to 'unif'.
+            When 10 <= ndim <= 20, this defaults to 'rwalk'. When ndim > 20,
+            this defaults to 'hslice' if a gradient is provided and 'slice'
+            otherwise. 'rstagger' and 'rslice' are provided as alternatives for
+            'rwalk' and 'slice', respectively. Default is 'auto'.
         nlive : int, optional
             The number of live points in the nested retrieval. Default is 300
         dlogz : float, optional
@@ -158,7 +174,7 @@ class Retriever:
 
         # Set up and run the sampler here!!
         sampler = NestedSampler(dynesty_lnlike, dynesty_transform_prior,
-                                ndims, bound='multi', sample='rwalk',
+                                ndims, bound='multi', sample=sample,
                                 update_interval=float(ndims), nlive=nlive,
                                 **dynesty_kwargs)
         sampler.run_nested(maxiter=maxiter, maxcall=maxcall, dlogz=dlogz)

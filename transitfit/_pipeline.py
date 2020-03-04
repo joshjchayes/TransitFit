@@ -17,7 +17,8 @@ def run_retrieval(data_files, priors, detrending_list=[['nth order', 1]],
                   host_logg=None, host_z=None, ldc_low_lim=-5, ldc_high_lim=-5,
                   n_ld_samples=20000, do_ld_mc=False, nlive=300,
                   normalise=True, low_norm=0.1, dlogz=None, maxiter=None,
-                  maxcall=None,  output_param_path='./outputs.csv',
+                  maxcall=None, sample='auto',
+                  output_param_path='./outputs.csv',
                   final_lightcurve_folder='./final_light_curves',
                   plot_folder='./plots', plot_best=True, figsize=(12,8),
                   plot_color='dimgrey', plot_titles=None, add_plot_titles=True,
@@ -160,6 +161,28 @@ def run_retrieval(data_files, priors, detrending_list=[['nth order', 1]],
         `ln(z + z_est) - ln(z) < dlogz`, where z is the current evidence
         from all saved samples and z_est is the estimated contribution from
         the remaining volume. The default is `1e-3 * (nlive - 1) + 0.01`.
+    maxiter : int or None, optional
+        The maximum number of iterations to run. If None, will
+        continue until stopping criterion is reached. Default is None.
+    maxcall : int or None, optional
+        The maximum number of likelihood calls in retrieval. If None, will
+        continue until stopping criterion is reached. Default is None.    
+    sample : str, optional
+        Method used to sample uniformly within the likelihood constraint,
+        conditioned on the provided bounds. Unique methods available are:
+        uniform sampling within the bounds('unif'), random walks with fixed
+        proposals ('rwalk'), random walks with variable (“staggering”)
+        proposals ('rstagger'), multivariate slice sampling along preferred
+        orientations ('slice'), “random” slice sampling along all
+        orientations ('rslice'), “Hamiltonian” slices along random
+        trajectories ('hslice'), and any callable function which follows
+        the pattern of the sample methods defined in dynesty.sampling.
+        'auto' selects the sampling method based on the dimensionality of
+        the problem (from ndim). When ndim < 10, this defaults to 'unif'.
+        When 10 <= ndim <= 20, this defaults to 'rwalk'. When ndim > 20,
+        this defaults to 'hslice' if a gradient is provided and 'slice'
+        otherwise. 'rstagger' and 'rslice' are provided as alternatives for
+        'rwalk' and 'slice', respectively. Default is 'auto'.
     output_param_path : str, optional
         Path to save output csv to. Default is './outputs.csv'
     final_lightcurve_folder : str, optional
