@@ -166,7 +166,7 @@ def run_retrieval(data_files, priors, detrending_list=[['nth order', 1]],
         continue until stopping criterion is reached. Default is None.
     maxcall : int or None, optional
         The maximum number of likelihood calls in retrieval. If None, will
-        continue until stopping criterion is reached. Default is None.    
+        continue until stopping criterion is reached. Default is None.
     sample : str, optional
         Method used to sample uniformly within the likelihood constraint,
         conditioned on the provided bounds. Unique methods available are:
@@ -276,4 +276,4 @@ def run_retrieval(data_files, priors, detrending_list=[['nth order', 1]],
                                  output_folder=final_lightcurve_folder,
                                  plot_titles=plot_titles,
                                  add_plot_titles=add_plot_titles,
-                                 plot_fnames=plot_fnames)
+                                 plot_fnames=plot_fnames, sample=sample)
