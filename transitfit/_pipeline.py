@@ -7,7 +7,10 @@ priors!
 
 from .io import read_priors_file, read_input_file, read_filter_info, parse_data_path_list, read_data_path_array, parse_priors_list, parse_filter_list
 from .retriever import Retriever
+from .retrieval_splitter import RetrievalSplitter
+
 import numpy as np
+
 
 
 
@@ -22,7 +25,8 @@ def run_retrieval(data_files, priors, detrending_list=[['nth order', 1]],
                   final_lightcurve_folder='./final_light_curves',
                   plot_folder='./plots', plot_best=True, figsize=(12,8),
                   plot_color='dimgrey', plot_titles=None, add_plot_titles=True,
-                  plot_fnames=None, cache_path=None):
+                  plot_fnames=None, cache_path=None, use_batches=True,
+                  max_batch_parameters=25, max_batch_curves=100):
     '''
     Runs a full retrieval of posteriors using nested sampling on a transit
     light curve or a set of transit light curves.
@@ -238,7 +242,7 @@ def run_retrieval(data_files, priors, detrending_list=[['nth order', 1]],
     # normalisation...)
     if ld_fit_method == 'independent':
         print('Initialising limb darkening fitting...')
-        priors.fit_limb_darkening(ld_fit_method, ldc_low_lim, ldc_high_lim, ld_model=ld_model)
+        priors.fit_limb_darkening(ld_fit_method, ldc_low_lim, ldc_high_lim)
 
     elif ld_fit_method in ['coupled', 'single']:
         if filter_info is None:
@@ -254,26 +258,57 @@ def run_retrieval(data_files, priors, detrending_list=[['nth order', 1]],
             filters = parse_filter_list(filter_info)
 
         print('Initialising limb darkening fitting...')
-        priors.fit_limb_darkening(ld_fit_method, ldc_low_lim, ldc_high_lim, host_T,
-                                  host_logg, host_z, filters, ld_model,
+        priors.fit_limb_darkening(ld_fit_method, host_T,
+                                  host_logg, host_z, filters,
                                   n_ld_samples, do_ld_mc, cache_path)
 
-    print('Initialising detrending')
-    priors.add_detrending(lightcurves, detrending_list, detrending_index_array)
+    print('Initialising detrending...')
+    priors.fit_detrending(lightcurves, detrending_list, detrending_index_array)
 
     if normalise:
         print('Initialising normalisation...')
         priors.fit_normalisation(lightcurves, default_low=low_norm)
 
-    print('The parameters we are retrieving are: {}'.format(priors.fitting_params))
-    print('Beginning retrieval of {} parameters'.format(len(priors.fitting_params)))
+    if not use_batches:
+        # No splitting needs to happen
+        print('The parameters we are retrieving are: {}'.format(priors.fitting_params))
+        print('Beginning retrieval of {} parameters...'.format(len(priors.fitting_params)))
+        retriever = Retriever()
+        return retriever.run_dynesty(lightcurves, priors,
+                                     maxiter=maxiter, maxcall=maxcall, nlive=nlive,
+                                     dlogz=dlogz, savefname=output_param_path,
+                                     plot=plot_best, plot_folder=plot_folder,
+                                     figsize=figsize, plot_color=plot_color,
+                                     output_folder=final_lightcurve_folder,
+                                     plot_titles=plot_titles,
+                                     add_plot_titles=add_plot_titles,
+                                     plot_fnames=plot_fnames, sample=sample)
+
+
+    print("We will be running using batches!")
+    print('Initialising batch calculation...')
+    # We are using batches.
+    splitter = RetrievalSplitter(lightcurves, priors)
+
+    batched_lightcurves, batched_priors, batches = splitter.split_retrieval(max_batch_parameters, max_batch_curves)
+
     retriever = Retriever()
-    return retriever.run_dynesty(lightcurves, priors,
-                                 maxiter=maxiter, maxcall=maxcall, nlive=nlive,
-                                 dlogz=dlogz, savefname=output_param_path,
-                                 plot=plot_best, plot_folder=plot_folder,
-                                 figsize=figsize, plot_color=plot_color,
-                                 output_folder=final_lightcurve_folder,
-                                 plot_titles=plot_titles,
-                                 add_plot_titles=add_plot_titles,
-                                 plot_fnames=plot_fnames, sample=sample)
+    results = []
+    for i, batch in enumerate(batches):
+        print('Running retrieval on batch {} of {}: Filters {}'.format(i+1, len(batches), batch))
+        try:
+            result = retriever.run_dynesty(batched_lightcurves[i], batched_priors[i],
+                                           maxiter=maxiter, maxcall=maxcall, nlive=nlive,
+                                           dlogz=dlogz, savefname=output_param_path,
+                                           plot=plot_best, plot_folder=plot_folder,
+                                           figsize=figsize, plot_color=plot_color,
+                                           output_folder=final_lightcurve_folder,
+                                           plot_titles=plot_titles,
+                                           add_plot_titles=add_plot_titles,
+                                           plot_fnames=plot_fnames, sample=sample)
+            results.append(result)
+        except Exception as e:
+            print("Warning: The following exception has been raised:")
+            print(e)
+
+    return results

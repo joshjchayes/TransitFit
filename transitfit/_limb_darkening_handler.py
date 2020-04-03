@@ -47,6 +47,10 @@ class LimbDarkeningHandler:
 
         self.ldtk_handler = None
 
+        self.host_T = None
+        self.host_logg = None
+        self.host_z = None
+
     def get_required_coefficients(self, model=None):
         '''
         Finds the number of coefficients required for a given model and returns
@@ -218,6 +222,10 @@ class LimbDarkeningHandler:
         '''
         if model is None:
             model = self.default_model
+
+        self.host_T = host_T
+        self.host_logg = host_logg
+        self.host_z = host_z
 
         self.ldtk_handler = LDTKHandler(host_T, host_logg, host_z, filters,
                                         model, n_samples, do_mc, cache_path)

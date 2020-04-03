@@ -79,6 +79,10 @@ def plot_individual_lightcurves(lightcurves, priorinfo, results,
     for i in np.ndindex(lightcurves.shape):
         if lightcurves[i] is not None:
             # We are plotting this!!
+            telescope_idx = lightcurves[i].telescope_idx
+            filter_idx = lightcurves[i].filter_idx
+            epoch_idx = lightcurves[i].epoch_idx
+
 
             # Set up the figure and the relevant axes
             gs = gridspec.GridSpec(6, 7)
@@ -185,12 +189,10 @@ def plot_individual_lightcurves(lightcurves, priorinfo, results,
             os.makedirs(folder_path, exist_ok=True)
 
             if fnames is None:
-                fig.savefig('{}/t{}_f{}_e{}.pdf'.format(folder_path, i[0], i[1], i[2]),
-                            bbox_inches='tight')
+                fig.savefig('{}/t{}_f{}_e{}.pdf'.format(folder_path, telescope_idx, filter_idx, epoch_idx), bbox_inches='tight')
             else:
                 if fnames[i] is None:
-                    fig.savefig('{}/t{}_f{}_e{}.pdf'.format(folder_path, i[0], i[1], i[2]),
-                                bbox_inches='tight')
+                    fig.savefig('{}/t{}_f{}_e{}.pdf'.format(folder_path, telescope_idx, filter_idx, epoch_idx), bbox_inches='tight')
                 else:
                     if not fnames[i][-4:] == '.pdf':
                         fnames[i] += '.pdf'

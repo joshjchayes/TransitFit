@@ -16,10 +16,9 @@ _prior_info_defaults = {'P':1, 'a':10, 'inc':90, 'rp':0.05, 't0':0, 'ecc':0,
                         'n_epochs':1, 'norm':1}
 
 
-def setup_priors(P, rp, a, inc, t0, ecc, w, ld_model, n_telescopes, n_filters, n_epochs, norm=1):
+def setup_priors(P, rp, a, inc, t0, ecc, w, ld_model, n_telescopes, n_filters, n_epochs):
     '''
-    Initialises a PriorInfo object with default parameter values. Fitting
-    parameters can be added by
+    Initialises a PriorInfo object with default parameter values.
     '''
     default_dict = {'rp' : rp,
                     'P' : P,
@@ -31,7 +30,6 @@ def setup_priors(P, rp, a, inc, t0, ecc, w, ld_model, n_telescopes, n_filters, n
                     'n_telescopes' : n_telescopes,
                     'n_epochs' : n_epochs,
                     'n_filters' : n_filters,
-                    'norm' : norm,
                     'limb_dark' : ld_model}
 
     return PriorInfo(default_dict, warn=False)
@@ -274,9 +272,8 @@ class PriorInfo:
         '''
         pass
 
-    def add_detrending(self, lightcurves, method_list, method_index_array,
-                       lower_lim=-15, upper_lim=15, function=None,
-                       coeff_lims=None):
+    def fit_detrending(self, lightcurves, method_list, method_index_array,
+                       lower_lim=-15, upper_lim=15):
         '''
         Initialises detrending for the light curves.
 
@@ -311,6 +308,10 @@ class PriorInfo:
             raise ValueError('Detrending is already initialised. You need to make a new PriorInfo to use another detrending method!')
 
         self._validate_lightcurves_array(lightcurves)
+
+        # Store some info - used in splitting
+        self._detrend_method_list = method_list
+        self._detrend_method_index_array = method_index_array
 
         for i in np.ndindex(lightcurves.shape):
             telescope_idx = i[0]
@@ -347,9 +348,9 @@ class PriorInfo:
 
         self.detrend=True
 
-    def fit_limb_darkening(self, fit_method='independent', low_lim=-5,
-                           high_lim=-5, host_T=None, host_logg=None,
-                           host_z=None, filters=None, ld_model='quadratic',
+    def fit_limb_darkening(self, fit_method='independent',
+                           host_T=None, host_logg=None,
+                           host_z=None, filters=None,
                            n_samples=20000, do_mc=False, cache_path=None):
         '''
         Initialises fitting of limb darkening parameters, either independently
@@ -372,16 +373,6 @@ class PriorInfo:
                 - 'independent' : Each LD coefficient is fitted separately for
                   each filter, with no coupling to the ldtk models.
             The default is 'independent'.
-        low_lim : float, optional
-            The lower limit to use in conversion in the case where there are
-            open bounds on a coefficient (power2 and nonlinear models). Note
-            that in order to conserve sampling density in all regions for the
-            power2 model, you should set lower_lim=-high_lim. Default is -5
-        high_lim : float, optional
-            The upper limit to use in conversion in the case where there are
-            open bounds on a coefficient (power2 and nonlinear models). Note
-            that in order to conserve sampling density in all regions for the
-            power2 model, you should set lower_lim=-high_lim. Default is 5
         host_T : tuple or None, optional
             The effective temperature of the host star, in Kelvin, given as a
             (value, uncertainty) pair. Must be provided if fit_method is
@@ -401,8 +392,6 @@ class PriorInfo:
             filters should correspond to the filter_idx parameter used
             elsewhere. Must be provided if fit_method is 'coupled' or 'single'.
             Default is None.
-        ld_model : str, optional
-            The model of limb darkening to use. Default is 'quadratic'
         n_samples : int, optional
             The number of limb darkening profiles to create. Passed to
             ldtk.LDPSetCreator.create_profiles(). Default is 20000.
@@ -427,6 +416,10 @@ class PriorInfo:
         # Some flags and useful info to store
         self.fit_ld = True
         self.ld_fit_method = fit_method
+        self.filters = filters
+        self._n_ld_samples = n_samples
+        self._do_ld_mc = do_mc
+        self._ld_cache_path = cache_path
 
         # First up, we need to initialise each LDC for fitting:
         for i in range(self.n_filters):
@@ -441,8 +434,8 @@ class PriorInfo:
         if not fit_method == 'independent':
             # Now if we are coupling across wavelength we must initialise PyLDTK
             self.ld_handler.initialise_ldtk(host_T, host_logg, host_z, filters,
-                                            ld_model, n_samples, do_mc,
-                                            cache_path)
+                                            self.limb_dark,
+                                            n_samples, do_mc, cache_path)
 
     def fit_normalisation(self, lightcurves, default_low=0.1):
         '''

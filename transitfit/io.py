@@ -588,6 +588,9 @@ def save_final_light_curves(lightcurves, priorinfo, results,
     # Loop over each light curve and apply detrending and normalisation
     for i in np.ndindex(lightcurves.shape):
         if lightcurves[i] is not None:
+            telescope_idx = lightcurves[i].telescope_idx
+            filter_idx = lightcurves[i].filter_idx
+            epoch_idx = lightcurves[i].epoch_idx
 
             # Calculate the detrended light curve
             norm = best_dict['norm'][i]
@@ -621,7 +624,7 @@ def save_final_light_curves(lightcurves, priorinfo, results,
                                    'Uncertainty' : detrended_errors[j],
                                    'Best fit curve' : time_wise_best_curve[j]})
 
-            fname = 't{}_f{}_e{}_detrended.csv'.format(i[0], i[1], i[2])
+            fname = 't{}_f{}_e{}_detrended.csv'.format(telescope_idx, filter_idx, epoch_idx)
             with open(os.path.join(folder, fname), 'w') as f:
                 columns = ['Time', 'Normalised flux', 'Uncertainty', 'Best fit curve']
                 writer = csv.DictWriter(f, columns)
