@@ -17,7 +17,7 @@ import numpy as np
 def run_retrieval(data_files, priors, detrending_list=[['nth order', 1]],
                   ld_model='quadratic', ld_fit_method='independent',
                   filter_info=None, data_skiprows=0, host_T=None,
-                  host_logg=None, host_z=None, ldc_low_lim=-5, ldc_high_lim=-5,
+                  host_logg=None, host_z=None, ldc_low_lim=-5, ldc_high_lim=5,
                   n_ld_samples=20000, do_ld_mc=False, nlive=300,
                   normalise=True, low_norm=0.1, dlogz=None, maxiter=None,
                   maxcall=None, sample='auto',
@@ -242,7 +242,7 @@ def run_retrieval(data_files, priors, detrending_list=[['nth order', 1]],
     # normalisation...)
     if ld_fit_method == 'independent':
         print('Initialising limb darkening fitting...')
-        priors.fit_limb_darkening(ld_fit_method, ldc_low_lim, ldc_high_lim)
+        priors.fit_limb_darkening(ld_fit_method)
 
     elif ld_fit_method in ['coupled', 'single']:
         if filter_info is None:

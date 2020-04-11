@@ -146,10 +146,10 @@ class LightCurve:
 
         Parameters
         ----------
-        d : array_like, shape(num_detrending_params,), optional
+        d : array_like, shape(num_detrending_params,)
             Array of the detrending parameters to use
         norm : float, optional
-            The normalisation constant to use. Default is 1
+            The normalisation constant to use
 
         Returns
         -------
@@ -176,3 +176,12 @@ class LightCurve:
             detrended_errors *= norm
 
         return detrended_flux, detrended_errors
+
+    def created_detrended_LightCurve(self, d, norm):
+        '''
+        Creates a detrended LightCurve using detrend_flux() and returns it
+        '''
+        detrended_flux, detrended_errors = self.detrend_flux(d, norm)
+
+        return LightCurve(self.times, detrended_flux, detrended_errors,
+                          self.telescope_idx, self.filter_idx, self.epoch_idx)
