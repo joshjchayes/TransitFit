@@ -10,6 +10,7 @@ from .retriever import Retriever
 from .retrieval_splitter import RetrievalSplitter
 
 import numpy as np
+import os
 
 
 
@@ -258,16 +259,23 @@ def run_retrieval(data_files, priors, detrending_list=[['nth order', 1]],
             filters = parse_filter_list(filter_info)
 
         print('Initialising limb darkening fitting...')
-        priors.fit_limb_darkening(ld_fit_method, host_T,
-                                  host_logg, host_z, filters,
-                                  n_ld_samples, do_ld_mc, cache_path)
+        if cache_path is not None:
+            priors.fit_limb_darkening(ld_fit_method, host_T,
+                                      host_logg, host_z, filters,
+                                      n_ld_samples, do_ld_mc, os.path.expanduser(cache_path))
+        else:
+            priors.fit_limb_darkening(ld_fit_method, host_T,
+                                      host_logg, host_z, filters,
+                                      n_ld_samples, do_ld_mc, cache_path)
 
     print('Initialising detrending...')
     priors.fit_detrending(lightcurves, detrending_list, detrending_index_array)
 
     if normalise:
         print('Initialising normalisation...')
-        priors.fit_normalisation(lightcurves, default_low=low_norm)
+        priors.fit_normalisation(lightcurves)
+
+    print(priors.priors)
 
     if not use_batches:
         # No splitting needs to happen
@@ -284,6 +292,9 @@ def run_retrieval(data_files, priors, detrending_list=[['nth order', 1]],
                                      add_plot_titles=add_plot_titles,
                                      plot_fnames=plot_fnames, sample=sample)
 
+
+    print('WARNING: as of v0.10, this mode is depriciated and cannot be trusted.')
+    print('To use batched mode, please use the AdvancedRetriever module.')
 
     print("We will be running using batches!")
     print('Initialising batch calculation...')
@@ -312,3 +323,45 @@ def run_retrieval(data_files, priors, detrending_list=[['nth order', 1]],
             print(e)
 
     return results
+
+
+
+def load_priors(data_path, prior_path):
+    print('Loading light curve data...')
+
+    lightcurves, detrending_index_array = read_input_file(data_path)
+
+    n_telescopes = lightcurves.shape[0]
+    n_filters = lightcurves.shape[1]
+    n_epochs = lightcurves.shape[2]
+
+    # Read in the priors
+    print('Loading priors from {}...'.format(prior_path))
+    priors = read_priors_file(prior_path, n_telescopes, n_filters, n_epochs, 'quadratic')
+
+
+    # Set up all the optional fitting modes (limb darkening, detrending,
+    # normalisation...)
+    print('Initialising limb darkening fitting...')
+    priors.fit_limb_darkening('independent')
+
+    print('Initialising detrending...')
+    priors.fit_detrending(lightcurves, [['nth order', 2]], detrending_index_array)
+
+    print('Initialising normalisation...')
+    priors.fit_normalisation(lightcurves)
+
+    print(priors)
+
+    return priors
+
+def run_with_priors_function(data_path, prior_path):
+
+    lightcurves, detrending_index_array = read_input_file(data_path)
+
+    priors = load_priors(data_path, prior_path)
+
+    print('The parameters we are retrieving are: {}'.format(priors.fitting_params))
+    print('Beginning retrieval of {} parameters...'.format(len(priors.fitting_params)))
+    retriever = Retriever()
+    return retriever.run_dynesty(lightcurves, priors, nlive=60, dlogz=0.7, sample='rslice')

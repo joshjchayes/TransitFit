@@ -23,7 +23,7 @@ def validate_lightcurve_array_format(arr):
         # We can check this by looking for any entries with None: if there
         # are any, then we are missing an axis and should raise an error as
         # we cannot tell which of telescope, wavelength or epoch is missing.
-        if np.any(np_arrays[arr] == None):
+        if np.any(arr[arr] == None):
             raise ValueError('You appear to be missing either the telescope, wavelength or epoch axis in your input LightCurve array. Please check the format and try again')
         arr = arr.reshape(1,1,1)
     elif arr.ndim == 2:
@@ -32,8 +32,9 @@ def validate_lightcurve_array_format(arr):
 
     elif arr.ndim > 3:
         raise ValueError('There are too many axes in your input LightCurve array! There should only be three, in the order (telescope, filter, epoch)')
-        
+
     return arr
+
 
 def validate_data_format(a1, a2, a3):
     '''
@@ -117,6 +118,7 @@ def validate_variable_key(key):
 
     raise KeyError('Unable to recognise variable name {}'.format(key))
 
+
 def calculate_logg(host_mass, host_radius):
     '''
     Calculates log10(g) for a host in units usable by TransitFit.
@@ -174,3 +176,16 @@ def get_covariance_matrix(results):
     cov = np.cov(results.samples, rowvar=False, aweights=results.weights)
 
     return cov
+
+def weighted_avg_and_std(values, weights):
+    '''
+    Calculates the weigted average and error on some data.
+    '''
+    if len(values) == 1:
+        # We have only been given one value - return it
+        return values[0], weights[0]
+
+    average = np.average(values, weights=weights)
+    variance = np.average((values-average)**2, weights=weights)
+
+    return average, np.sqrt(variance)

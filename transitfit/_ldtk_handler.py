@@ -53,7 +53,7 @@ class LDTKHandler:
         self.default_model = ld_model
 
         # Set up the filters
-        print('Setting up filters')
+        #print('Setting up filters')
         ldtk_filters = []
         for i, f in enumerate(filters):
             ldtk_filters.append(BoxcarFilter('{}'.format(i), f[0], f[1]))
@@ -61,18 +61,18 @@ class LDTKHandler:
         # Make the set creator, downloading data files if required
         if cache_path is not None:
             os.makedirs(cache_path, exist_ok=True)
-        print('Making LD parameter set creator.')
-        print('This may take some time as we may need to download files...')
+        #print('Making LD parameter set creator.')
+        #print('This may take some time as we may need to download files...')
         set_creator = LDPSetCreator(teff=host_T, logg=host_logg, z=host_z,
                                     filters=ldtk_filters, cache=cache_path)
 
         # Get the LD profiles from the set creator
-        print('Obtaining LD profiles')
+        #print('Obtaining LD profiles')
         self.profile_set = set_creator.create_profiles(nsamples=n_samples)
 
         # Find the 'best values' for each filter and then find the ratios
         # compared to the first.
-        print('Finding coefficients and ratios')
+        #print('Finding coefficients and ratios')
         self.coeffs = {}
         self.ratios = {}
         for model in _implemented_ld_models:

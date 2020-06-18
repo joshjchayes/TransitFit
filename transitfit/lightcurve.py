@@ -62,18 +62,18 @@ class LightCurve:
 
             function = NthOrderDetrendingFunction(order)
             self.detrending_function = DetrendingFunction(function)
-            self.num_detrending_params = order
+            self.n_detrending_params = order
         elif method.lower() == 'custom':
             if function is None:
                 raise ValueError('You must provide the custom detrending function')
             self.detrending_function = DetrendingFunction(function)
-            self.num_detrending_params = self.detrending_function.n_required_args - 1
+            self.n_detrending_params = self.detrending_function.n_required_args - 1
         else:
             raise ValueError('Unrecognised method {}'.format(method))
 
         self.detrend = True
 
-    def set_normalisation(self, default_low=0.1):
+    def set_normalisation(self):
         '''
         Turns on normalisation. Also estimates limits and a best initial guess.
 
@@ -100,7 +100,7 @@ class LightCurve:
         '''
         self.normalise = True
 
-        return self.estimate_normalisation_limits(default_low)
+        return self.estimate_normalisation_limits()
 
     def estimate_normalisation_limits(self, default_low=0.1):
         '''
@@ -129,27 +129,25 @@ class LightCurve:
         as the default range, where f_median is the median flux value.
         '''
         median_factor = 1/np.median(self.flux)
-        if median_factor - 1 <=0:
-            low_factor = default_low
-        else:
-            low_factor = median_factor - 1
 
-        high_factor = median_factor + 1
+        # updated v0.10.0 - gives a narrower prior
+        low_factor = 1/np.max(self.flux)
+        high_factor = 1/np.min(self.flux)
 
         return median_factor, low_factor, high_factor
 
 
-    def detrend_flux(self, d, norm):
+    def detrend_flux(self, d, norm=1):
         '''
         When given a normalisation constant and some detrending parameters,
         will return the detrended flux and errors
 
         Parameters
         ----------
-        d : array_like, shape(num_detrending_params,)
+        d : array_like, shape(n_detrending_params,)
             Array of the detrending parameters to use
         norm : float, optional
-            The normalisation constant to use
+            The normalisation constant to use. Default is 1
 
         Returns
         -------
@@ -165,6 +163,7 @@ class LightCurve:
         # We detrend using only the fractional part of the times as this
         # significantly reduces the range of each of the detrending
         # coefficients
+
         if self.detrend and d is not None:
             subtract_val = np.floor(self.times[0])
             detrend_values = self.detrending_function(self.times - subtract_val, *d)
@@ -177,7 +176,7 @@ class LightCurve:
 
         return detrended_flux, detrended_errors
 
-    def created_detrended_LightCurve(self, d, norm):
+    def create_detrended_LightCurve(self, d, norm):
         '''
         Creates a detrended LightCurve using detrend_flux() and returns it
         '''
@@ -185,3 +184,60 @@ class LightCurve:
 
         return LightCurve(self.times, detrended_flux, detrended_errors,
                           self.telescope_idx, self.filter_idx, self.epoch_idx)
+
+    def fold(self, t0, period):
+        '''
+        Folds the LightCurve so that all times are between t0 - period/2 and
+        t0 + period/2
+
+        returns a new LightCurve
+        '''
+        times = self.times + (((t0 + period/2) - self.times)//period) * period
+        return LightCurve(times, self.flux, self.errors, self.telescope_idx,
+                          self.filter_idx, self.epoch_idx)
+
+    def combine(self, *lightcurves, telescope_idx=None, filter_idx=None,
+                epoch_idx=None):
+        '''
+        Combines the LightCurve with other lightcurves which are passed to it
+        and returns a new lightcurve containing all the data of the input
+        curves. Note that you should probably only do this with lightcurves
+        which have already been detrended, otherwise you might struggle
+        to detrend the combined one.
+        '''
+        times = self.times
+        flux = self.flux
+        errors = self.errors
+
+        for lightcurve in lightcurves:
+            times = np.hstack((times, lightcurve.times))
+            flux = np.hstack((flux, lightcurve.flux))
+            errors = np.hstack((errors, lightcurve.errors))
+
+        return LightCurve(times, flux, errors, telescope_idx, filter_idx,
+                          epoch_idx)
+
+    def __eq__(self, other):
+        '''
+        Checks two LightCurves are the same. We are only checking the times,
+        fluxes and errors.
+        '''
+        if not isinstance(other, LightCurve):
+            return False
+
+        if not self.times.shape == other.times.shape:
+            return False
+        if not np.all(self.times == other.times):
+            return False
+
+        if not self.flux.shape == other.flux.shape:
+            return False
+        if not np.all(self.flux == other.flux):
+            return False
+
+        if not self.errors.shape == other.errors.shape:
+            return False
+        if not np.all(self.errors == other.errors):
+            return False
+
+        return True

@@ -5,7 +5,9 @@ Object to handle and deal with prior info for retrieval
 '''
 
 import numpy as np
-from ._params import _Param, _UniformParam
+from collections.abc import Iterable
+
+from ._params import _Param, _UniformParam, _GaussianParam
 from .detrending_funcs import NthOrderDetrendingFunction
 from .detrender import DetrendingFunction
 from ._limb_darkening_handler import LimbDarkeningHandler
@@ -79,7 +81,7 @@ class PriorInfo:
 
         # Initialise normalisation things
         self.normalise=False
-        self.priors['norm'] = np.ones((self.n_telescopes, self.n_filters, self.n_epochs), object)
+        self.priors['norm'] = np.full((self.n_telescopes, self.n_filters, self.n_epochs), _Param(1), object)
 
         # So far we have only initialised TransitFit default values. Now we
         # go through the default_dict to update to any user-supplied defaults.
@@ -102,7 +104,7 @@ class PriorInfo:
                 self.priors[key] = _Param(default_dict[key])
 
 
-    def add_uniform_fit_param(self, name, best, low_lim, high_lim,
+    def add_uniform_fit_param(self, name, low_lim, high_lim,
                               telescope_idx=None, filter_idx=None, epoch_idx=None):
         '''
         Adds a new parameter which will be fitted uniformly in the range given
@@ -122,7 +124,7 @@ class PriorInfo:
         if name in ['rp'] + self.limb_dark_coeffs:
             if filter_idx is None:
                 raise ValueError('filter_idx must be provided for parameter {}'.format(name))
-            self.priors[name][filter_idx] = _UniformParam(best, low_lim, high_lim)
+            self.priors[name][filter_idx] = _UniformParam(low_lim, high_lim)
 
         # Deal with detrending fitting
         elif name in self.detrending_coeffs + ['norm']:
@@ -131,13 +133,13 @@ class PriorInfo:
             if epoch_idx is None:
                 raise ValueError('epoch_idx must be provided for parameter {}'.format(name))
 
-            self.priors[name][telescope_idx, filter_idx, epoch_idx] = _UniformParam(best, low_lim, high_lim)
+            self.priors[name][telescope_idx, filter_idx, epoch_idx] = _UniformParam(low_lim, high_lim)
 
         # Anything else
         # Note t0 is included in here - we just need t0 from one light curve
         # to be able to fit that with P
         else:
-            self.priors[name] = _UniformParam(best, low_lim, high_lim)
+            self.priors[name] = _UniformParam(low_lim, high_lim)
 
         # Store some info for later
         self.fitting_params.append(name)
@@ -145,6 +147,48 @@ class PriorInfo:
         self._epoch_idx.append(epoch_idx)
         self._telescope_idx.append(telescope_idx)
 
+    def add_gaussian_fit_param(self, name, mean, stdev,
+                               telescope_idx=None, filter_idx=None, epoch_idx=None):
+        '''
+        Adds a new parameter which will be fitted using a Gaussian prior
+        specified by mean and stdev
+
+        index is used if name is 'rp' or 't0' and refers to the column or
+        row in the MxN array which the data we are retrieving should be in.
+        Since limb darkening is wavelength specific, this should also be
+        given for 'u1', 'u2', 'u3', and 'u4'.
+        '''
+
+        # Check that the parameter was initialised
+        if not name in self.priors:
+            raise KeyError('Unrecognised prior name {}'.format(name))
+
+        # Deal with wavelength variant parameters
+        if name in ['rp'] + self.limb_dark_coeffs:
+            if filter_idx is None:
+                raise ValueError('filter_idx must be provided for parameter {}'.format(name))
+            self.priors[name][filter_idx] = _GaussianParam(mean, stdev)
+
+        # Deal with detrending fitting
+        elif name in self.detrending_coeffs + ['norm']:
+            if filter_idx is None:
+                raise ValueError('filter_idx must be provided for parameter {}'.format(name))
+            if epoch_idx is None:
+                raise ValueError('epoch_idx must be provided for parameter {}'.format(name))
+
+            self.priors[name][telescope_idx, filter_idx, epoch_idx] = _GaussianParam(mean, stdev)
+
+        # Anything else
+        # Note t0 is included in here - we just need t0 from one light curve
+        # to be able to fit that with P
+        else:
+            self.priors[name] = _GaussianParam(mean, stdev)
+
+        # Store some info for later
+        self.fitting_params.append(name)
+        self._filter_idx.append(filter_idx)
+        self._epoch_idx.append(epoch_idx)
+        self._telescope_idx.append(telescope_idx)
 
     def _convert_unit_cube(self, cube):
         '''
@@ -190,7 +234,10 @@ class PriorInfo:
                     # Get all [0,1] values of LDCs for this filter.
                     LDCs = cube[i: i + len(self.limb_dark_coeffs)]
 
-                    new_cube[i:i + len(self.limb_dark_coeffs)] = self.ld_handler.convert_qtoA(*LDCs)
+                    # These are all the Kipping parameter, q!
+                    # Convert the Kipping parameter q into the physical u
+                    #new_cube[i:i + len(self.limb_dark_coeffs)] = self.ld_handler.convert_qtou(*LDCs)
+                    new_cube[i:i + len(self.limb_dark_coeffs)] = LDCs
 
                     # Skip the rest of the LDCs for the filter
                     skip_params = len(self.limb_dark_coeffs) - 1
@@ -273,7 +320,7 @@ class PriorInfo:
         pass
 
     def fit_detrending(self, lightcurves, method_list, method_index_array,
-                       lower_lim=-15, upper_lim=15):
+                       lower_lim=-1, upper_lim=1):
         '''
         Initialises detrending for the light curves.
 
@@ -332,7 +379,7 @@ class PriorInfo:
                         raise ValueError('Unable to recognise method list entry {}'.format(method))
 
                     # Now we set up the fitting of the detrending params
-                    n_coeffs = lightcurves[i].num_detrending_params
+                    n_coeffs = lightcurves[i].n_detrending_params
 
                     for coeff_i in range(n_coeffs):
                         coeff_name = 'd{}_{}'.format(coeff_i, method_idx)
@@ -344,7 +391,7 @@ class PriorInfo:
 
                             self.detrending_coeffs.append(coeff_name)
 
-                        self.add_uniform_fit_param(coeff_name, (lower_lim + upper_lim)/2, lower_lim, upper_lim, telescope_idx, filter_idx, epoch_idx)
+                        self.add_uniform_fit_param(coeff_name, lower_lim, upper_lim, telescope_idx, filter_idx, epoch_idx)
 
         self.detrend=True
 
@@ -422,9 +469,10 @@ class PriorInfo:
         self._ld_cache_path = cache_path
 
         # First up, we need to initialise each LDC for fitting:
+        # Note that whist we are fitting
         for i in range(self.n_filters):
             for ldc, name in enumerate(self.limb_dark_coeffs):
-                self.add_uniform_fit_param(name, 0.5, 0, 1, filter_idx=i)
+                self.add_uniform_fit_param(name, 0, 1, filter_idx=i)
 
             # If we are in 'single' mode, we only need to fit for the first
             # wavelength
@@ -437,7 +485,7 @@ class PriorInfo:
                                             self.limb_dark,
                                             n_samples, do_mc, cache_path)
 
-    def fit_normalisation(self, lightcurves, default_low=0.1):
+    def fit_normalisation(self, lightcurves):
         '''
         When run, the Retriever will fit normalisation of the data as a
         free parameter.
@@ -465,9 +513,9 @@ class PriorInfo:
             epoch_idx = i[2]
             if lightcurves[i] is not None:
                 # A light curve exists. Set up normalisation
-                best, low, high = lightcurves[i].set_normalisation(default_low)
+                best, low, high = lightcurves[i].set_normalisation()
 
-                self.add_uniform_fit_param('norm', best, low, high, telescope_idx, filter_idx, epoch_idx)
+                self.add_uniform_fit_param('norm', low, high, telescope_idx, filter_idx, epoch_idx)
 
         self.normalise = True
 
@@ -478,3 +526,45 @@ class PriorInfo:
         '''
         if not lightcurves.shape == (self.n_telescopes, self.n_filters, self.n_epochs):
             raise ValueError('lightcurves has shape {} but should have shape {}'.format(lightcurves.shape, (self.n_telescopes, self.n_filters, self.n_epochs)))
+
+    def __str__(self):
+        '''
+        Sets the print behaviour for a PriorInfo
+        '''
+        print_str = ''
+
+        # Add info on memory location of object
+        print_str += self.__repr__() + '\n'
+
+        print_str += 'Limb darkening model: {}\n'.format(self.limb_dark)
+        print_str += 'n telescopes: {}\n'.format(self.n_telescopes)
+        print_str += 'n filters: {}\n'.format(self.n_filters)
+        print_str += 'n epochs: {}\n'.format(self.n_epochs)
+
+
+        # Add the priors, with fitting mode and relevant numbers
+        for var in self.priors:
+            #Check if iterable
+            if isinstance(self.priors[var], Iterable):
+                temp_var = np.array(self.priors[var])
+                for i in np.ndindex(temp_var.shape):
+                    if temp_var[i] is not None:
+                        if type(temp_var[i]) is _Param:
+                            print_str += '{}, {}: Fixed - value: {}\n'.format(var, i, temp_var[i].default_value)
+                        elif type(temp_var[i]) is _UniformParam:
+                            print_str += '{}, {}: Uniform - min: {} - max: {}\n'.format(var, i, temp_var[i].low_lim, temp_var[i].high_lim)
+                        elif type(temp_var[i]) is _GaussianParam:
+                            print_str += '{}, {}: Gaussian - mean: {} - stdev: {}\n'.format(var, i, temp_var[i].mean, temp_var[i].stdev)
+                        else:
+                            print_str += '{}, {}: Unrecognised type - {}\n'.format(var, i, temp_var[i].__str__())
+            else:
+                if type(self.priors[var]) is _Param:
+                    print_str += '{}: Fixed - value: {}\n'.format(var, self.priors[var].default_value)
+                elif type(self.priors[var]) is _UniformParam:
+                    print_str += '{}: Uniform - min: {} - max: {}\n'.format(var, self.priors[var].low_lim, self.priors[var].high_lim)
+                elif type(self.priors[var]) is _GaussianParam:
+                    print_str += '{}: Gaussian - mean: {} - stdev: {}\n'.format(var, self.priors[var].mean, self.priors[var].stdev)
+                else:
+                    print_str += '{}: Unrecognised type - {}\n'.format(var, self.priors[var].__str__())
+
+        return print_str

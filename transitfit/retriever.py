@@ -112,7 +112,6 @@ class Retriever:
             if lightcurves[i] is not None:
                 n_dof += len(lightcurves[i].times)
 
-
         # Make an object to calculate all the likelihoods
         likelihood_calc = LikelihoodCalculator(lightcurves, priorinfo)
 
@@ -135,7 +134,6 @@ class Retriever:
             limb_dark = priorinfo.limb_dark
             u = [params[key] for key in priorinfo.limb_dark_coeffs]
 
-
             if priorinfo.detrend:
                 # We need to combine the detrending coeff arrays into one
                 # Each entry should be a list containing all the detrending
@@ -153,7 +151,6 @@ class Retriever:
             else:
                 # Don't detrend
                 d = None
-
 
             ln_likelihood = likelihood_calc.find_likelihood(params['t0'],
                                                             params['P'],
@@ -175,9 +172,19 @@ class Retriever:
         # Set up and run the sampler here!!
         sampler = NestedSampler(dynesty_lnlike, dynesty_transform_prior,
                                 ndims, bound='multi', sample=sample,
-                                update_interval=float(ndims), nlive=nlive,
+                                #update_interval=float(ndims),
+                                nlive=nlive,
                                 **dynesty_kwargs)
-        sampler.run_nested(maxiter=maxiter, maxcall=maxcall, dlogz=dlogz)
+
+        print('Our priors are:')
+        print(priorinfo)
+
+
+        try:
+            sampler.run_nested(maxiter=maxiter, maxcall=maxcall, dlogz=dlogz)
+        except:
+            print(priorinfo)
+            raise
 
         results = sampler.results
 

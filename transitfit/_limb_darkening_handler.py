@@ -54,7 +54,7 @@ class LimbDarkeningHandler:
     def get_required_coefficients(self, model=None):
         '''
         Finds the number of coefficients required for a given model and returns
-        a string name for each of the form 'qX' where X is a number.
+        a string name for each of the form 'uX' where X is a number.
 
         Parameters
         ----------
@@ -78,7 +78,7 @@ class LimbDarkeningHandler:
 
         raise ValueError('Unrecognised model {}'.format(model))
 
-    def convert_qtoA(self, *q, model=None):
+    def convert_qtou(self, *q, model=None):
         '''
         Takes parameters q distributed between [0,1] and converts them into
         physical values for limb darkening coefficients.
@@ -89,7 +89,7 @@ class LimbDarkeningHandler:
 
         Notes
         -----
-        This is the inverse of convert_Atoq
+        This is the inverse of convert_utoq
         '''
         if model is None:
             model = self.default_model
@@ -122,16 +122,16 @@ class LimbDarkeningHandler:
             # Kipping (2013) method to (see Kipping 2016) and as such, we can
             # only fit for free parameters, without reparameterising to allow
             # only physically valid combinations.
-            A = q[0] * (self.high - self.low) + self.low
-            B = q[1] * (self.high - self.low) + self.low
-            C = q[2] * (self.high - self.low) + self.low
-            D = q[3] * (self.high - self.low) + self.low
+            u1 = q[0] * (self.high - self.low) + self.low
+            u2 = q[1] * (self.high - self.low) + self.low
+            u3 = q[2] * (self.high - self.low) + self.low
+            u4 = q[3] * (self.high - self.low) + self.low
 
-            return A, B, C, D
+            return u1, u2, u3, u4
 
         raise ValueError('Unrecognised model {}'.format(model))
 
-    def convert_Atoq(self, *A, model=None):
+    def convert_utoq(self, *u, model=None):
         '''
         Takes actual values of the LD coefficients and converts them to a
         value q between [0,1].
@@ -142,7 +142,7 @@ class LimbDarkeningHandler:
 
         Notes
         -----
-        This is the inverse of convert_qtoA
+        This is the inverse of convert_qtou
         '''
         if model is None:
             model = self.default_model
@@ -152,37 +152,81 @@ class LimbDarkeningHandler:
             return q[0]
 
         if model == 'quadratic':
-            return (A[0] + A[1]) ** 2, A[0]/(2 * (A[0] + A[1]))
+            return (u[0] + u[1]) ** 2, u[0]/(2 * (u[0] + u[1]))
 
         if model == 'squareroot':
-            return (A[0] + A[1]) ** 2, A[1]/(2 * (A[0] + A[1]))
+            return (u[0] + u[1]) ** 2, u[1]/(2 * (u[0] + u[1]))
 
         if model == 'power2':
             # This parameterisation has been derived for TransitFit and is
             # explained in the paper
-            q1 = (A[0] - self.low)/(1 - self.low)
+            q1 = (u[0] - self.low)/(1 - self.low)
 
-            if A[0] < 0:
+            if u[0] < 0:
                 # negative quadrant
-                return u1, 1 - (A[1]/self.low)
+                return u1, 1 - (u[1]/self.low)
 
             else:
                 # positive quadrant
-                return u1, A[1]/self.high
+                return u1, u[1]/self.high
 
         if model == 'nonlinear':
             # This is an 'outstanding and formidable problem' to apply the
             # Kipping (2013) method to (see Kipping 2016) and as such, we can
             # only fit for free parameters, without reparameterising to allow
             # only physically valid combinations.
-            q0 = (A[0] - self.low) /  (self.high - self.low)
-            q1 = (A[1] - self.low) /  (self.high - self.low)
-            q2 = (A[2] - self.low) /  (self.high - self.low)
-            q3 = (A[3] - self.low) /  (self.high - self.low)
+            q0 = (u[0] - self.low) /  (self.high - self.low)
+            q1 = (u[1] - self.low) /  (self.high - self.low)
+            q2 = (u[2] - self.low) /  (self.high - self.low)
+            q3 = (u[3] - self.low) /  (self.high - self.low)
 
             return q0, q1, q2, q3
 
         raise ValueError('Unrecognised model {}'.format(model))
+
+    def convert_qtou_with_errors(self, q, q_err, model=None):
+        '''
+        Converts kipping parameters with errors into physical LDCs with errors
+        '''
+        if model is None:
+            model = self.default_model
+
+        u = list(self.convert_qtou(*q, ))
+
+        if model == 'linear':
+            u_err = q_err
+
+            return u, u_err
+
+        if model  == 'quadratic':
+            u_err = []
+            u_err.append(np.sqrt(((q[1] * q_err[0])**2)/q[0] + 4 * q[0] * q_err[1]**2))
+            u_err.append(np.sqrt((((1- 2 * q[1]) * q_err[0])**2)/(0.25 * q[0]) + 4 * q[0] * q_err[1] ** 2))
+
+            return u, u_err
+
+        if model == 'squareroot':
+            u_err = []
+            u_err.append(np.sqrt((((1- 2 * q[1]) * q_err[0])**2)/(0.25 * q[0]) + 4 * q[0] * q_err[1] ** 2))
+            u_err.append(np.sqrt(((q[1] * q_err[0])**2)/q[0] + 4 * q[0] * q_err[1]**2))
+
+            return u, u_err
+
+        if model == 'power2':
+            u_err = []
+            u_err.append(abs(1-self.low) * q_err[0])
+            if u[1] < 0:
+                u_err.append(abs(self.low) * q_err[1])
+            else:
+                u_err.append(abs(self.high) * q_err[1])
+
+            return u, u_err
+
+        if model == 'nonlinear':
+            u_err = [abs(self.high - self.low) * err for err in q_err]
+
+            return u, u_err
+
 
     def initialise_ldtk(self, host_T, host_logg, host_z, filters,
                         model=None, n_samples=20000, do_mc=False,

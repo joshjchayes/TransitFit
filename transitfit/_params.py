@@ -6,26 +6,54 @@ by the PriorInfo to determine dimensionality etc.
 
 '''
 
+from scipy.stats import norm
 
 class _Param:
-    def __init__(self, best, low_lim=None, high_lim=None):
-        self.default_value = best
-        self.low_lim = low_lim
-        self.high_lim = high_lim
+    def __init__(self, value):
+
+        self.default_value = value
+        self.low_lim=None
+        self.high_lim=None
 
     def from_unit_interval(self, u):
         raise NotImplementedError
 
 
 class _UniformParam(_Param):
-    def __init__(self, best, low_lim, high_lim):
-        # TODO: sanity checks on values and low < best < high
+    def __init__(self, low_lim, high_lim):
+        if low_lim >= high_lim:
+            raise ValueError('low_lim >= high_lim')
 
-        super().__init__(best, low_lim, high_lim)
+        super().__init__((high_lim + low_lim)/2)
+        self.low_lim = low_lim
+        self.high_lim = high_lim
 
     def from_unit_interval(self, u):
         '''
         Function to convert value u in range (0,1], will convert to a value to
         be used by Batman
         '''
+        if u > 1 or u < 0:
+            raise ValueError('u must satisfy 0 < u < 1. ')
         return u * (self.high_lim - self.low_lim) + self.low_lim
+
+class _GaussianParam(_Param):
+    def __init__(self, best, sigma):
+        '''
+        A GaussianParam is one which is fitted using a Gaussian prior (normal)
+        distribution.
+        '''
+
+        super().__init__(best)
+        self.mean = best
+        self.stdev = sigma
+        self.distribution = norm(best, sigma)
+
+    def from_unit_interval(self, u):
+        '''
+        Function to convert value u in range (0,1], will convert to a value to
+        be used by Batman
+        '''
+        if u > 1 or u < 0:
+            raise ValueError('u must satisfy 0 < u < 1')
+        return self.distribution.ppf(u)

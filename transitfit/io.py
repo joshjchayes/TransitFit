@@ -93,7 +93,8 @@ def parse_data_path_list(data_path_list):
 
 
 def parse_priors_list(priors_list, n_telescopes, n_filters,
-                     n_epochs, ld_model):
+                      n_epochs, ld_model, filter_indices=None, folded=False,
+                      folded_P=None, folded_t0=None):
     '''
     Parses a list of priors to produce a PriorInfo with all fitting parameters
     initialised.
@@ -104,7 +105,7 @@ def parse_priors_list(priors_list, n_telescopes, n_filters,
         A list of prior information for each variable to be fitted. Can also
         set fixed values by setting the low and high values to `None` or
         `np.nan`. Each row should be of the form
-        [key, default value, low limit, high limit, filter index]
+        [key, mode, input A, input B, filter index]
     n_telescopes : int
         The number of different telescopes being used. Required so that
         simultaneous observations from different observatories can be used by
@@ -115,20 +116,54 @@ def parse_priors_list(priors_list, n_telescopes, n_filters,
         The number of different epochs being used
     ld_model : str
         The limb darkening model to use
+    filter_indices : array_like, optional
+        If provided, will only initialise fitting for parameters which are
+        relevant to the filter indices given. Note that this will result in
+        a difference between the filter indices used at the top, user level and
+        those used within this PriorInfo
+    folded : bool, optional
+        If True, will not initialise P or t0 from the priors list. Instead will
+        use folded_P and folded_t0 to set fixed values. Default is False
+    folded_P : float, optional
+        Required if folded is True. This is the period that the light curves
+        are folded to
+    folded_t0 : float, optional
+        Required if folded is True. This is the t0 that the light curves are
+        folded to
 
     Returns
     -------
     prior_info : PriorInfo
         The fully initialised PriorInfo which can then be used in fitting.
     '''
+
+    if folded:
+        if folded_P is None:
+            raise ValueError('folded_P must be provided for folded prior mode')
+        if folded_t0 is None:
+            raise ValueError('folded_t0 must be provided for folded prior mode')
+
     priors_dict = {}
 
+    if filter_indices is None:
+        # We will use all filters
+        filter_indices = np.arange(n_filters)
+
+    rp_count = 0
     for row in priors_list:
         # First check the key and correct if possible
         row[0] = validate_variable_key(row[0])
 
         # Now add to the priors_dict
-        priors_dict[row[0]] = row[1:]
+        if row[0] in ['rp']:
+            # We have to deal with extracting particular filters
+
+            if row[-1] in filter_indices:
+                priors_dict[row[0]] = np.append(row[2:-1], rp_count)
+                rp_count += 1
+
+        else:
+            priors_dict[row[0]] = row[2:]
 
     ##############################
     # Make the default PriorInfo #
@@ -141,31 +176,63 @@ def parse_priors_list(priors_list, n_telescopes, n_filters,
             priors_dict[key] = [_prior_info_defaults[key]]
 
     # Now make the basic PriorInfo
-    prior_info = setup_priors(priors_dict['P'][0],
-                              priors_dict['rp'][0],
-                              priors_dict['a'][0],
-                              priors_dict['inc'][0],
-                              priors_dict['t0'][0],
-                              priors_dict['ecc'][0],
-                              priors_dict['w'][0],
-                              ld_model, n_telescopes, n_filters, n_epochs)
+    if folded:
+        # Use the given folded_P and folded_t0
+        prior_info = setup_priors(folded_P,
+                                  priors_dict['rp'][0],
+                                  priors_dict['a'][0],
+                                  priors_dict['inc'][0],
+                                  folded_t0,
+                                  priors_dict['ecc'][0],
+                                  priors_dict['w'][0],
+                                  ld_model, n_telescopes, n_filters, n_epochs)
+    else:
+        # setup using the file values of t0 and P
+        prior_info = setup_priors(priors_dict['P'][0],
+                                  priors_dict['rp'][0],
+                                  priors_dict['a'][0],
+                                  priors_dict['inc'][0],
+                                  priors_dict['t0'][0],
+                                  priors_dict['ecc'][0],
+                                  priors_dict['w'][0],
+                                  ld_model, n_telescopes, n_filters, n_epochs)
 
     ##########################
     # Initialise the fitting #
     ##########################
+    rp_count = 0
+    for ri, row in enumerate(priors_list):
+        key, mode, inputA, inputB, filt = row
 
-    for row in priors_list:
-        key, best, low, high, filt = row
-        # Check this has been given as a value to fit and not just specified
-        if low is None:
-            low = np.nan
-        if high is None:
-            high = np.nan
-        if np.isfinite(low) and np.isfinite(high):
+        if key in ['P', 't0'] and folded:
+            # Skip P and t0 for folded mode
+            pass
+
+        if mode.lower() in ['fixed', 'f', 'constant', 'c']:
+            # Not being fitted. Default value was specified.
+            pass
+
+        elif mode.lower() in ['uniform', 'unif', 'u']:
+            # Uniform fitting
             if key in ['rp']:
-                prior_info.add_uniform_fit_param(key, best, low, high, filter_idx=int(filt))
+                # NOTE: this assumes that the rp values are provided in filter index order.
+                if filt in filter_indices:
+                    prior_info.add_uniform_fit_param(key, inputA, inputB, filter_idx=int(rp_count))
+                    rp_count += 1
             else:
-                prior_info.add_uniform_fit_param(key, best, low, high)
+                prior_info.add_uniform_fit_param(key, inputA, inputB)
+
+        elif mode.lower() in ['gaussian', 'gauss', 'normal', 'norm', 'g']:
+            # Gaussian fitting
+            if key in ['rp']:
+                if filt in filter_indices:
+                    prior_info.add_gaussian_fit_param(key, inputA, inputB, filter_idx=int(rp_count))
+                    rp_count += 1
+            else:
+                prior_info.add_gaussian_fit_param(key, inputA, inputB)
+
+        else:
+            raise ValueError('Unrecognised fiting mode {} in input row {}. Must be any of "uniform", "gaussian", or "fixed"'.format(mode, ri))
 
     return prior_info
 
@@ -182,7 +249,9 @@ def _read_data_csv(path):
     # Extract the arrays
     times, flux, errors = data.values.T
 
-    return times, flux, errors
+    non_nan = np.invert(np.any(pd.isna(data.values.T), axis=0))
+
+    return times[non_nan], flux[non_nan], errors[non_nan]
 
 def _read_data_txt(path, skiprows=0):
     '''
@@ -190,7 +259,9 @@ def _read_data_txt(path, skiprows=0):
     '''
     times, depth, errors = np.loadtxt(path, skiprows=skiprows).T
 
-    return times, flux, errors
+    non_nan = np.invert(np.any(pd.isna(data.values.T), axis=0))
+
+    return times[non_nan], flux[non_nan], errors[non_nan]
 
 
 def read_data_file(path, skiprows=0, delimiter=None, folder=None):
@@ -226,9 +297,11 @@ def read_data_file(path, skiprows=0, delimiter=None, folder=None):
         folder = ''
 
     if path[-4:] == '.csv':
-        return _read_data_csv(os.path.join(folder, path))
+        times, flux, errors = _read_data_csv(os.path.join(folder, path))
     if path[-4:] == '.txt':
-        return _read_data_txt(os.path.join(folder, path), skiprows)
+        times, flux, errors = _read_data_txt(os.path.join(folder, path), skiprows)
+
+    return times, flux, errors
 
 def read_data_path_array(data_path_array, skiprows=0):
     '''
@@ -255,14 +328,15 @@ def read_data_path_array(data_path_array, skiprows=0):
 
     for i in np.ndindex(lightcurves.shape):
         if data_path_array[i] is not None:
-            times, flux, errors = read_data_file(data_path_array[i])
+            times, flux, errors = read_data_file(data_path_array[i], skiprows)
 
             lightcurves[i] = LightCurve(times, flux, errors, i[0], i[1], i[2])
 
     return lightcurves
 
 def read_priors_file(path, n_telescopes, n_filters, n_epochs,
-                     limb_dark='quadratic'):
+                     limb_dark='quadratic', filter_indices=None, folded=False,
+                     folded_P=None, folded_t0=None):
     '''
     If given a csv file containing priors, will produce a PriorInfo object
     based off the given values
@@ -274,14 +348,18 @@ def read_priors_file(path, n_telescopes, n_filters, n_epochs,
 
         Columns should me in the order
         --------------------------------------------------------
-        |  key  |   best  |  low_lim  |   high_lim  |  filter  |
+        |  key  |   mode  |  input_A  |   input_B   |  filter  |
         --------------------------------------------------------
 
-        If the parameter is invariant across a filter, leave the
-        entry blank.
+        The available modes and the expected values of inputs A and B are:
 
-        If you want to fix a parameter at a given value, leave low_lim and
-        high_lim blank. Just provide best, along with filter if required
+        - 'uniform': input A should be lower limit, input B should be upper
+                     limit
+        - 'gaussian': input_A should be mean, input_B should be standard
+                      deviation.
+        - 'fixed': input_A should be the fixed value. input_B is not used and
+                   should be left blank.
+
     n_telescopes : int
         The number of different telescopes being used. Required so that
         simultaneous observations from different observatories can be used by
@@ -298,6 +376,20 @@ def read_priors_file(path, n_telescopes, n_filters, n_epochs,
             - power2
             - nonlinear
         Default is quadratic
+    filter_indices : array_like, optional
+        If provided, will only initialise fitting for parameters which are
+        relevant to the filter indices given. Note that this will result in
+        a difference between the filter indices used at the top, user level and
+        those used within this PriorInfo
+    folded : bool, optional
+        If True, will not initialise P or t0 from the priors list. Instead will
+        use folded_P and folded_t0 to set fixed values. Default is False
+    folded_P : float, optional
+        Required if folded is True. This is the period that the light curves
+        are folded to
+    folded_t0 : float, optional
+        Required if folded is True. This is the t0 that the light curves are
+        folded to
 
     Notes
     -----
@@ -306,7 +398,7 @@ def read_priors_file(path, n_telescopes, n_filters, n_epochs,
     '''
     priors_list = pd.read_csv(path).values
 
-    return parse_priors_list(priors_list, n_telescopes, n_filters, n_epochs, limb_dark)
+    return parse_priors_list(priors_list, n_telescopes, n_filters, n_epochs, limb_dark, filter_indices, folded, folded_P, folded_t0)
 
 
 def read_input_file(path, skiprows=0):
@@ -547,7 +639,7 @@ def print_results(results, priorinfo, n_dof):
 
 
 def save_final_light_curves(lightcurves, priorinfo, results,
-                            folder='./final_light_curves'):
+                            folder='./final_light_curves', folded=False):
     '''
     Applies detrending and normalisation to each light curve and saves to .csv
 
@@ -563,6 +655,9 @@ def save_final_light_curves(lightcurves, priorinfo, results,
         uncertainties as entries.
     folder : str, optional
         The folder to save the files to. Default is './final_light_curves'
+    folded : bool, optional
+        If True, will assume that the lightcurves provided are folded and
+        will change the filenames accordingly. Default is False
     '''
     # Get the best values
     best = results.samples[np.argmax(results.logl)]
@@ -624,7 +719,11 @@ def save_final_light_curves(lightcurves, priorinfo, results,
                                    'Uncertainty' : detrended_errors[j],
                                    'Best fit curve' : time_wise_best_curve[j]})
 
-            fname = 't{}_f{}_e{}_detrended.csv'.format(telescope_idx, filter_idx, epoch_idx)
+            if folded:
+                fname = 'filter_{}_FOLDED.csv'.format(filter_idx)
+            else:
+                fname = 't{}_f{}_e{}_detrended.csv'.format(telescope_idx, filter_idx, epoch_idx)
+
             with open(os.path.join(folder, fname), 'w') as f:
                 columns = ['Time', 'Normalised flux', 'Uncertainty', 'Best fit curve']
                 writer = csv.DictWriter(f, columns)

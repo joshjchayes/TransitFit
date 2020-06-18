@@ -19,8 +19,8 @@ import os
 
 def plot_individual_lightcurves(lightcurves, priorinfo, results,
                                 folder_path='./plots', figsize=(12,8),
-                                color='dimgrey', titles=None, add_titles=True,
-                                fnames=None):
+                                marker_color='dimgrey', line_color='black',
+                                titles=None, add_titles=True, fnames=None):
     '''
     Once you have run retrieval, use this to plot things!
 
@@ -92,32 +92,6 @@ def plot_individual_lightcurves(lightcurves, priorinfo, results,
             residual_ax = fig.add_subplot(gs[-2:, :-1], sharex=main_ax)
             hist_ax = fig.add_subplot(gs[-2:,-1], sharey=residual_ax)
 
-            # Format the axes
-            main_ax.tick_params('both', which='both', direction='in',
-                                labelbottom='off', top='on', right='on')
-
-
-            residual_ax.tick_params('both', which='both', direction='in',
-                                    top='on', right='on')
-
-
-            hist_ax.tick_params('both', which='both', direction='in',
-                                 labelleft='off', labelbottom='off',
-                                 right='on', top='on')
-
-            main_ax.set_ylabel('Normalised flux')
-            residual_ax.set_ylabel('Residual')
-            residual_ax.set_xlabel('Time (BJD)')
-
-            if add_titles:
-                if titles is None:
-                    main_ax.set_title('Telescope {} Filter {}, Epoch {}'.format(i[0], i[1], i[2]))
-                else:
-                    main_ax.set_title(titles[i])
-
-            fig.tight_layout()
-            fig.subplots_adjust(hspace=0, wspace=0)
-
             # Now make the best fit light curve
 
             # First we set up the parameters
@@ -151,26 +125,26 @@ def plot_individual_lightcurves(lightcurves, priorinfo, results,
 
             main_ax.errorbar(lightcurves[i].times, plot_fluxes,
                         plot_errors, zorder=1,
-                        linestyle='', marker='x', color=color,
+                        linestyle='', marker='x', color=marker_color,
                         elinewidth=0.8, alpha=0.6)
 
             # Plot the curve
             main_ax.plot(plot_times, best_curve, linewidth=2,
-                        color=color)
+                        color=line_color)
 
             # plot the residuals
             residuals = plot_fluxes - time_wise_best_curve
 
             residual_ax.errorbar(lightcurves[i].times, residuals,
                         plot_errors, linestyle='',
-                        color=color, marker='x', elinewidth=0.8, alpha=0.6)
+                        color=marker_color, marker='x', elinewidth=0.8, alpha=0.6)
 
             residual_ax.axhline(0, linestyle='dashed', color='gray',
                                 linewidth=1, zorder=1)
 
             # Histogram the residuals
             # Sort out colors:
-            rgba_color = colors.to_rgba(color)
+            rgba_color = colors.to_rgba(marker_color)
             facecolor = (rgba_color[0], rgba_color[1], rgba_color[2], 0.6)
 
             hist_ax.hist(residuals, bins=30, orientation='horizontal',
@@ -179,10 +153,37 @@ def plot_individual_lightcurves(lightcurves, priorinfo, results,
             hist_ax.axhline(0, linestyle='dashed', color='gray',
                             linewidth=1, zorder=1)
 
+
             # Prune axes
             main_ax.yaxis.set_major_locator(MaxNLocator(6, prune='lower'))
             residual_ax.yaxis.set_major_locator(MaxNLocator(4, prune='upper'))
             residual_ax.xaxis.set_major_locator(MaxNLocator(8, prune='upper'))
+
+            # Format the axes
+            main_ax.tick_params('both', which='both', direction='in',
+                                labelbottom='off', top='on', right='on')
+
+
+            residual_ax.tick_params('both', which='both', direction='in',
+                                    top='on', right='on')
+
+
+            hist_ax.tick_params('both', which='both', direction='in',
+                                 labelleft='off', labelbottom='off',
+                                 right='on', top='on')
+
+            main_ax.set_ylabel('Normalised flux')
+            residual_ax.set_ylabel('Residual')
+            residual_ax.set_xlabel('Time (BJD)')
+
+            if add_titles:
+                if titles is None:
+                    main_ax.set_title('Telescope {} Filter {}, Epoch {}'.format(i[0], i[1], i[2]))
+                else:
+                    main_ax.set_title(titles[i])
+
+            fig.tight_layout()
+            fig.subplots_adjust(hspace=0, wspace=0)
 
             # Save the figures
             # Make the plots folder

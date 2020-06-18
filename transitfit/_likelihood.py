@@ -25,6 +25,7 @@ class LikelihoodCalculator:
         priorinfo : PriorInfo
             The PriorInfo object for retrieval
         '''
+        lightcurves = deepcopy(lightcurves)
         self.lightcurves = np.array(lightcurves, dtype=object)
 
         self.n_telescopes = self.lightcurves.shape[0]
@@ -32,6 +33,8 @@ class LikelihoodCalculator:
         self.n_epochs = self.lightcurves.shape[2]
 
         self.num_light_curves = len(np.where(self.lightcurves.flatten() != None)[0])
+
+        self.priors = priorinfo
 
         # We need to make a separate TransitParams and TransitModels for each
         # light curve.
@@ -44,8 +47,6 @@ class LikelihoodCalculator:
             if self.lightcurves[i] is not None:
                 # Set up the params
                 self.batman_params[i] = batman.TransitParams()
-
-
 
                 # Set up the TransitModels
                 # Make some realistic parameters to setup the models with
@@ -65,7 +66,7 @@ class LikelihoodCalculator:
                 self.batman_models[i] = batman.TransitModel(default_params, self.lightcurves[i].times)
 
 
-    def find_likelihood(self, t0, per, rp, a, inc, ecc, w, limb_dark, u,
+    def find_likelihood(self, t0, per, rp, a, inc, ecc, w, limb_dark, q,
                         norm, d=None):
         '''
         Calculates the ln likelihood of a set of parameters matching the given
@@ -89,8 +90,8 @@ class LikelihoodCalculator:
             The angle of periastron
         limb_dark : str
             The limb darkening model to use
-        u : array_like, shape (n_filters, n_ld_coeffs)
-            The limb darkening coefficients
+        q : array_like, shape (n_filters, n_ld_coeffs)
+            The limb darkening coefficients, as Kipping parameters
         norm : array_like, shape(n_telescopes, n_filters, n_epochs)
             The normalisation constants
         d : array_like, shape(n_telescopes, n_filters, n_epochs)
@@ -116,14 +117,19 @@ class LikelihoodCalculator:
 
             if self.batman_params[i] is not None:
                 # update the parameters to the testing ones
-                self.update_params(telescope_idx, filter_idx, epoch_idx, t0, per, rp[filter_idx], a, inc, ecc, w, limb_dark, u[filter_idx])
+                u = self.priors.ld_handler.convert_qtou(*q[filter_idx])
+
+                self.update_params(telescope_idx, filter_idx, epoch_idx, t0, per, rp[filter_idx], a, inc, ecc, w, limb_dark, u)
 
                 # Calculate the model transits
                 model = self.batman_models[i]
                 model_flux = model.light_curve(self.batman_params[i])
 
                 # Get the detrended/normalised flux from the LightCurves
-                comparison_flux, err = self.lightcurves[i].detrend_flux(d[i], norm[i])
+                if d is None:
+                    comparison_flux, err = self.lightcurves[i].detrend_flux(d, norm[i])
+                else:
+                    comparison_flux, err = self.lightcurves[i].detrend_flux(d[i], norm[i])
 
                 # Work out the chi2
                 chi2 = sum((model_flux - comparison_flux)**2 / err**2)
