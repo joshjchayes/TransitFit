@@ -75,10 +75,16 @@ class LDTKHandler:
         #print('Finding coefficients and ratios')
         self.coeffs = {}
         self.ratios = {}
-        for model in _implemented_ld_models:
-            self.coeffs[model] = self._extract_best_coeffs(model)
-            self.ratios[model] = self.coeffs[model][0] / self.coeffs[model][0][0]
 
+        self._power2_available = True
+
+        for model in _implemented_ld_models:
+            try:
+                self.coeffs[model] = self._extract_best_coeffs(model)
+                self.ratios[model] = self.coeffs[model][0] / self.coeffs[model][0][0]
+            except:
+                print('power2 model cannot be initialised. If you want to use this, please use the development version of ldtk available on https://github.com/hpparvi/ldtk, rather than the pypi version.')
+                self._power2_available = False
 
     def estimate_values(self, ld0_values, ld_model):
         '''
@@ -98,6 +104,8 @@ class LDTKHandler:
         all_ld_values : array_like, shape (n_filters, n_coeffs)
             The estimated limb darkening parameters
         '''
+        if ld_model == 'power2' and not self._power2_available:
+            raise ValueError('power2 model is not available. If you want to use this, please use the development version of ldtk available on https://github.com/hpparvi/ldtk, rather than the pypi version.')
 
         return ld0_values * self.ratios[ld_model]
 
@@ -153,6 +161,8 @@ class LDTKHandler:
         if ld_model == 'nonlinear':
             return self.profile_set.lnlike_nl(coeffs)
         if ld_model == 'power2':
+            if not self._power2_available:
+                raise ValueError('power2 model is not available. If you want to use this, please use the development version of ldtk available on https://github.com/hpparvi/ldtk, rather than the pypi version.')
             return self.profile_set.lnlike_p2(coeffs)
         if ld_model == 'squareroot':
             return self.profile_set.lnlike_sq(coeffs)
