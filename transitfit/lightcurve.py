@@ -102,7 +102,7 @@ class LightCurve:
 
         return self.estimate_normalisation_limits()
 
-    def estimate_normalisation_limits(self, default_low=0.1):
+    def estimate_normalisation_limits(self):
         '''
         Estimates the range for fitting a normalisation constant, and also
         finds a reasonable first guess.
@@ -125,8 +125,8 @@ class LightCurve:
         Notes
         -----
         We use
-            ``1/f_median -1 <= c_n <= 1/f_median + 1``
-        as the default range, where f_median is the median flux value.
+            ``1/f_min <= c_n <= 1/f_max``
+        as the default range.
         '''
         median_factor = 1/np.median(self.flux)
 

@@ -9,6 +9,8 @@
 
 [Requirements](#requirements)
 
+[Basic Usage](#basics)
+
 [Inputs](#inputs)
 
 [Limb darkening](#limb_darkening)
@@ -36,6 +38,18 @@ Along with an installation of Python 3 (with the standard Conda distribution pac
 - [batman](https://www.cfa.harvard.edu/~lkreidberg/batman/index.html)
 
 - [Limb darkening toolkit (ldtk)](https://github.com/hpparvi/ldtk)
+
+
+<a name="basics"></a>
+## Basic Usage
+Using TransitFit is as simple as calling a single function! You will need to have set up some input files (see [below](#inputs))
+
+```
+import transitfit as tf
+
+results = tf.run_retrieval(path/to/data_file, path/to/priors_file, )
+
+```
 
 
 <a name="inputs"></a>
@@ -85,13 +99,13 @@ The priors file is used for defining which physical parameters are to be fitted,
 
 - **distribution**: can be any of
 
-    - uniform: uses a uniform prior
+    - ``uniform``: uses a uniform prior
 
-    - gaussian: uses a Gaussian prior
+    - ``gaussian``: uses a Gaussian prior
 
-    - fixed: This parameter won't be fitted and will be fixed at a value
+    - ``fixed``: This parameter won't be fitted and will be fixed at a value
 
-- **Input A**: The use of this input varies depending on the distribution being used
+- **Input A**: The use of this input varies depending on the distribution being used:
 
     - uniform: This is the lower bound of the uniform distribution
 
@@ -99,7 +113,7 @@ The priors file is used for defining which physical parameters are to be fitted,
 
     - fixed: this is the value to fix the parameter at
 
-- **Input B**: the use of this input varies depending on the distribution being used
+- **Input B**: the use of this input varies depending on the distribution being used:
 
     - uniform: This is the upper bound of the uniform distribution
 
@@ -125,3 +139,4 @@ The filter info file defines the wavelengths of the filters that observations we
 
 <a name="detrending"></a>
 ## Detrending
+TransitFit offers nth-order detrending which is fitted simultaneously with other parameters. In order to

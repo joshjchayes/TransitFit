@@ -7,7 +7,6 @@ priors!
 
 from .io import read_priors_file, read_input_file, read_filter_info, parse_data_path_list, read_data_path_array, parse_priors_list, parse_filter_list
 from .retriever import Retriever
-from .retrieval_splitter import RetrievalSplitter
 
 import numpy as np
 import os
@@ -15,47 +14,51 @@ import os
 
 
 
-def run_retrieval(data_files, priors, detrending_list=[['nth order', 1]],
-                  ld_model='quadratic', ld_fit_method='independent',
-                  filter_info=None, data_skiprows=0, host_T=None,
-                  host_logg=None, host_z=None, ldc_low_lim=-5, ldc_high_lim=5,
-                  n_ld_samples=20000, do_ld_mc=False, nlive=300,
-                  normalise=True, low_norm=0.1, dlogz=None, maxiter=None,
-                  maxcall=None, sample='auto',
-                  output_param_path='./outputs.csv',
-                  final_lightcurve_folder='./final_light_curves',
-                  plot_folder='./plots', plot_best=True, figsize=(12,8),
-                  plot_color='dimgrey', plot_titles=None, add_plot_titles=True,
-                  plot_fnames=None, cache_path=None, use_batches=True,
-                  max_batch_parameters=25, max_batch_curves=100):
+def run_retrieval(data_files, priors, filter_info=None,
+                  detrending_list=[['nth order', 1]],
+                  limb_darkening_model='quadratic',
+                  ld_fit_method='independent', fitting_mode='auto',
+                  max_batch_parameters=25, batch_overlap=2,
+                  host_T=None, host_logg=None, host_z=None, nlive=300,
+                  dlogz=None, maxiter=None, maxcall=None,
+                  dynesty_sample='auto', normalise=True,
+                  results_output_folder='./output_parameters',
+                  final_lightcurve_folder='./fitted_lightcurves',
+                  plot_folder='./plots', plot_final=True, plot_partial=True,
+                  marker_color='dimgrey', line_color='black', ldtk_cache=None,
+                  n_ld_samples=20000, do_ld_mc=False, data_skiprows=0):
     '''
     Runs a full retrieval of posteriors using nested sampling on a transit
-    light curve or a set of transit light curves.
+    light curve or a set of transit light curves. For more guidance on the use
+    of input files and structuring, see the TransitFit README.
 
     Parameters
     ----------
-    data_files : str or array_like, shape (n_light_curves, 5)
-        Either a path to a file which contains the paths to data files with
-        associated epoch and filter numbers, or a list of paths.
-        If a path to a .csv file is provided, columns should be in the order
+    data_files : str
+        The path to the data input .csv file, which contains the paths to the
+        light curve data. Within this file, columns should be in the order
         ------------------------------------------------------------
         |  path  |  telescope  |  filter  |  epoch  |  detrending  |
         ------------------------------------------------------------
         where detrending is an index which refers to the detrending method from
         detrending_method_list to use for a given light curve
-        If a list in provided, each row should contain
-        [data path, telescope idx, filter idx, epoch idx, detrending idx]
-    priors : str or array_like, shape(X, 5)
+    priors : str
         Path to a .csv file containing prior information on each variable to be
-        fitted, or a list containing the same information. The columns for
-        either should be in the order
-        ---------------------------------------------------------------
-        | key | default value | low limit | high limit | filter index |
-        ---------------------------------------------------------------
-        If you want to fix a parameter at a given value, leave low_lim and
-        high_lim blank (if in a file) or set to `None` or `np.nan`. Just
-        provide best, along with epoch and filter if required.
-        The accepted keys are:
+        fitted. The columns for should be in the order
+        --------------------------------------------------------
+        |  key  |   mode  |  input_A  |   input_B   |  filter  |
+        --------------------------------------------------------
+
+        The available modes and the expected values of inputs A and B are:
+
+        - 'uniform': input A should be lower limit, input B should be upper
+                     limit
+        - 'gaussian': input_A should be mean, input_B should be standard
+                      deviation.
+        - 'fixed': input_A should be the fixed value. input_B is not used and
+                   should be left blank.
+
+        The recognised key values are:
             - 'P' : orbital period. Should be in the same time units as t0
             - 'rp' : planet radius (filter specific). One should be provided
                      for each filter being used
@@ -65,6 +68,25 @@ def run_retrieval(data_files, priors, detrending_list=[['nth order', 1]],
                      should be in the same time units as the period
             - 'ecc' : the orbital eccentricity
             - 'w' : the longitude of periastron in degrees
+            - {'q0', 'q1', 'q2', 'q3'} : the Kipping limb darkening parameters.
+                     These should only be set in the priors file if
+                     ld_fit_method is `'off'` and in this case you can use the
+                     priors to set the fixed value to use for the limb
+                     darkening coefficients.
+    filter_info : str, optional
+        Path to a .csv file containing information on the wavelengths of the
+        filters that observations were made at. TransitFit currently can only
+        handle uniform box filters, and so we recommend using the equivalent
+        width values of filters where possible. The columns should be in the
+        order
+        -----------------------------------------
+        |   filter_idx  |   low_wl  |   high_wl |
+        -----------------------------------------
+        where low_wl and high_wl are in nm.
+        This is required if ld_fit_method is `'single'` or `'coupled'`. If not
+        None and host_T, host_logg and host_z are not None, retrieval will
+        include fitting realistic limb darkening parameters for the filters.
+        Default is None.
     detrending_list : array_like, shape (n_detrending_models, 2)
         A list of different detrending models. Each entry should consist
         of a method and a second parameter dependent on the method.
@@ -76,7 +98,7 @@ def run_retrieval(data_files, priors, detrending_list=[['nth order', 1]],
         that the first argument to this function is times and that all
         other arguments are single-valued - TransitFit cannot fit
         list/array variables. If 'off' is used, no detrending will be
-        applied to the `LightCurve`s using this model. The default is
+        applied to the light curves using this model. The default is
         [['nth order', 1]], giving linear detrending.
     ld_model : str, optional
         The limb darkening model to use. Allowed models are
@@ -104,18 +126,36 @@ def run_retrieval(data_files, priors, detrending_list=[['nth order', 1]],
               lead to much higher computation times.
             - `'independent'` : Each LD coefficient is fitted separately for
               each filter, with no coupling to the ldtk models.
+            - `'off'` : no limb darkening fitting will occurr. If using this
+              mode, it it strongly recommended to set values for the
+              Kipping q parameters using the priors file.
         Default is `'independent'`
-    filter_info : str or array_like, shape (n_filters, 3) or None, optional
-        Path to a .csv file containing prior information on each variable to be
-        fitted, or a list containing the same information. The columns for
-        either should be in the order
-        -----------------------------------------
-        |   filter_idx  |   low_wl  |   high_wl |
-        -----------------------------------------
-        This is required if ld_fit_method is `'single'` or `'coupled'`. If not
-        None and host_T, host_logg and host_z are not None, retrieval will
-        include fitting realistic limb darkening parameters for the filters.
-        Default is None.
+    fitting_mode : {`'auto'`, `'all'`, `'folded'`, `'batched'`}, optional
+        The approach TransitFit takes towards limiting the number of parameters
+        being simultaneously fitted. The available modes are:
+        - `'auto'` : Will calculate the number of parameters required to fit
+          all the data simulataneously. If this is less than max_parameters,
+          will set to `'all'` mode, else will set to `'folded'`
+        - `'all'` : Fits all parameters simultaneously, with no folding or
+          batching of curves. Should be used with caution when fitting very
+          large (~< 30) numbers of parameters.
+        - `'folded'` : Useful for fitting curves with multiple epochs for each
+          filter. TransitFit will fit each filter separately and produce a
+          period-folded light curve for each filter, before fitting these
+          simultaneously.
+        - `'batched'` : Useful for large numbers of light curves with
+          relatively few shared filters, so `'folded'` loses large amounts of
+          multi-epoch information. This mode splits the filters into sets of
+          overlapping batches, runs each batch and uses the weighted means of
+          each batch to produce a final result.
+        Default is `'auto'`.
+    max_batch_parameters : int, optional
+        The maximum number of parameters to use in a single retrieval when
+        using folded or batched fitting modes. Default is 25.
+    batch_overlap : in, optional
+        The number of filters or epochs to overlap adjacent batches by where
+        possible. This ensures that adjacent batches share information. Default
+        is 2.
     host_T : tuple or None, optional
         The effective temperature of the host star, in Kelvin. Should be given
         as a (value, uncertainty) pair. Required if ld_fit_method is `'single'`
@@ -127,38 +167,15 @@ def run_retrieval(data_files, priors, detrending_list=[['nth order', 1]],
     host_z : tuple or None, optional
         The metalicity of the host, given as a (value, uncertainty) pair.
         Required if ld_fit_method is `'single'` or `'coupled'`. Default is None
-    ldc_low_lim : float, optional
-        The lower limit to use in conversion in the case where there are
-        open bounds on a limb darkening coefficient (power2 and nonlinear
-        models). Note that in order to conserve sampling density in all regions
-        for the power2 model, you should set lower_lim=-high_lim. Default is -5
-    ldc_high_lim : float, optional
-        The upper limit to use in conversion in the case where there are
-        open bounds on a limb darkening coefficient (power2 and nonlinear
-        models). Note that in order to conserve sampling density in all regions
-        for the power2 model, you should set lower_lim=-high_lim. Default is 5
-    n_ld_samples : int, optional
-        Controls the number of samples taken by PyLDTk when calculating LDCs
-        when using 'coupled' or 'single' modes for limb darkening fitting.
-        Default is 20000
-    do_ld_mc : bool, optional
-        If True, will use MCMC sampling to more accurately estimate the
-        uncertainty on intial limb darkening parameters provided by PyLDTk.
-        Default is False.
     nlive : int, optional
         The number of live points to use in the nested sampling retrieval.
     normalise : bool, optional
         If True, will assume that the light curves have not been normalised and
         will fit normalisation constants within the retrieval. The range to
         fit normalisation constants c_n are automatically detected using
-            ``1/f_median - 1 <= c_n <= 1/f_median + 1``
-        as the default range, where f_median is the median flux value for a
-        given light curve. ``low_norm`` can be used to adjust the default
-        minimum value in the case that ``1/f_median - 1  < 0``. Default is
-        True.
-    low_norm : float, optional
-        The lowest value to consider as a multiplicative normalisation
-        constant. Default is 0.1.
+            ``1/f_min <= c_n <= 1/f_max``
+        as the default range, where f_min and f_max are the minimum and maximum
+        flux values for a given light curve. Default is True.
     dlogz : float, optional
         Retrieval iteration will stop when the estimated contribution of the
         remaining prior volume to the total evidence falls below this
@@ -172,7 +189,7 @@ def run_retrieval(data_files, priors, detrending_list=[['nth order', 1]],
     maxcall : int or None, optional
         The maximum number of likelihood calls in retrieval. If None, will
         continue until stopping criterion is reached. Default is None.
-    sample : str, optional
+    dynesty_sample : str, optional
         Method used to sample uniformly within the likelihood constraint,
         conditioned on the provided bounds. Unique methods available are:
         uniform sampling within the bounds('unif'), random walks with fixed
@@ -188,180 +205,67 @@ def run_retrieval(data_files, priors, detrending_list=[['nth order', 1]],
         this defaults to 'hslice' if a gradient is provided and 'slice'
         otherwise. 'rstagger' and 'rslice' are provided as alternatives for
         'rwalk' and 'slice', respectively. Default is 'auto'.
-    output_param_path : str, optional
-        Path to save output csv to. Default is './outputs.csv'
-    final_lightcurve_folder : str, optional
-        The folder to save normalised and detrended light curves to. Default
-        is './final_light_curves'
+    results_output_folder : str, optional
+        Folder to save results to. TransitFit will create subfolders within
+        this if folded or batched runs are being used. Default is
+        './output_parameters'
+    fitted_lightcurve_folder : str, optional
+        The folder to save fitted light curves to. These files contain the
+        normalised and detrended light curves, as well as the best fit curve.
+        Default is './fitted_lightcurves'
     plot_folder : str, optional
         Path to folder to save plots to. Default is './plots'
-    plot_best : bool, optional
-        If True, will plot the data and the best fit model on a Figure.
+    plot_final : bool, optional
+        If True, will plot the final fitted lightcurves. Default is True
+    plot_partial : bool, optional
+        If True, will plot all lightcurves which are fitted as part of the
+        pipeline. This is relevant for folded and batched fitting routines.
         Default is True.
-    figsize : tuple, optional
-        The fig size for each plotted figure. Default is (12, 8)
-    plot_color : matplotlib color, optional
-        The base color for plots. Default is 'dimgray'
-    plot_titles : None or array_like, shape (n_filters, n_epochs), optional
-        The titles to use for each plot. If None, will default to
-        'Filter X Epoch Y'. Default is None.
-    add_plot_titles : bool, optional
-        If True, will add titles to plots. Default is True.
-    plot_fnames : None or array_like, shape (n_filters, n_epochs), optional
-        The file names to use for each plot. If None, will default to
-        'fX_eY.pdf'. Default is None.
-    cache_path : str, optional
+    marker_color : matplotlib color, optional
+        The colour to plot data points on plots. Default is 'dimgray'.
+    line_colour : matplotlib color, optional
+        The colour to plot best fit light curves on plots. Default is 'black'.
+    ldtk_cache : str, optional
         This is the path to cache LDTK files to. If not specified, will
-        default to the LDTK default
+        default to the LDTK default.
+    n_ld_samples : int, optional
+        Controls the number of samples taken by PyLDTk when calculating LDCs
+        when using 'coupled' or 'single' modes for limb darkening fitting.
+        Default is 20000
+    do_ld_mc : bool, optional
+        If True, will use MCMC sampling to more accurately estimate the
+        uncertainty on intial limb darkening parameters provided by PyLDTk.
+        Default is False.
+    data_skiprows : int, optional
+        The number of rows to skip when reading in light curve data from a .txt
+        file. Default is 0.
 
     Returns
     -------
     results : dict
         The results returned by Retriever.run_dynesty()
     '''
-    print('Loading light curve data...')
-
-    if type(data_files) == str:
-        lightcurves, detrending_index_array = read_input_file(data_files)
-    else:
-        data_path_array, detrending_index_array = parse_data_path_list(data_files)
-        lightcurves = read_data_path_array(data_path_array)
+    # Load in the data and work out number of telescopes, filters, and epochs
+    lightcurves, detrending_index_array = read_input_file(data_files)
 
     n_telescopes = lightcurves.shape[0]
     n_filters = lightcurves.shape[1]
     n_epochs = lightcurves.shape[2]
 
-    # Read in the priors
-    if type(priors) == str:
-        print('Loading priors from {}...'.format(priors))
-        priors = read_priors_file(priors, n_telescopes, n_filters, n_epochs, ld_model)
-    else:
-        print('Initialising priors...')
-        priors = parse_priors_list(priors, n_telescopes, n_filters, n_epochs, ld_model)
+    print('Initalising retriever')
+    # Set up the Retriever
+    retriever = Retriever(data_files, priors, n_telescopes, n_filters, n_epochs,
+                          filter_info, detrending_list, limb_darkening_model,
+                          host_T, host_logg, host_z, ldtk_cache, data_skiprows,
+                          n_ld_samples, do_ld_mc)
 
-    # Set up all the optional fitting modes (limb darkening, detrending,
-    # normalisation...)
-    if ld_fit_method == 'independent':
-        print('Initialising limb darkening fitting...')
-        priors.fit_limb_darkening(ld_fit_method)
-
-    elif ld_fit_method in ['coupled', 'single']:
-        if filter_info is None:
-            raise ValueError('filter_info must be provided for coupled and single ld_fit_methods')
-        if host_T is None or host_z is None or host_logg is None:
-            raise ValueError('Filter info was provided but I am missing information on the host!')
-
-        if type(filter_info) == str:
-            print('Loading filter info from {}...'.format(filter_info))
-            filters = read_filter_info(filter_info)
-        else:
-            print('Initialising filter infomation...')
-            filters = parse_filter_list(filter_info)
-
-        print('Initialising limb darkening fitting...')
-        if cache_path is not None:
-            priors.fit_limb_darkening(ld_fit_method, host_T,
-                                      host_logg, host_z, filters,
-                                      n_ld_samples, do_ld_mc, os.path.expanduser(cache_path))
-        else:
-            priors.fit_limb_darkening(ld_fit_method, host_T,
-                                      host_logg, host_z, filters,
-                                      n_ld_samples, do_ld_mc, cache_path)
-
-    print('Initialising detrending...')
-    priors.fit_detrending(lightcurves, detrending_list, detrending_index_array)
-
-    if normalise:
-        print('Initialising normalisation...')
-        priors.fit_normalisation(lightcurves)
-
-    print(priors.priors)
-
-    if not use_batches:
-        # No splitting needs to happen
-        print('The parameters we are retrieving are: {}'.format(priors.fitting_params))
-        print('Beginning retrieval of {} parameters...'.format(len(priors.fitting_params)))
-        retriever = Retriever()
-        return retriever.run_dynesty(lightcurves, priors,
-                                     maxiter=maxiter, maxcall=maxcall, nlive=nlive,
-                                     dlogz=dlogz, savefname=output_param_path,
-                                     plot=plot_best, plot_folder=plot_folder,
-                                     figsize=figsize, plot_color=plot_color,
-                                     output_folder=final_lightcurve_folder,
-                                     plot_titles=plot_titles,
-                                     add_plot_titles=add_plot_titles,
-                                     plot_fnames=plot_fnames, sample=sample)
-
-
-    print('WARNING: as of v0.10, this mode is depriciated and cannot be trusted.')
-    print('To use batched mode, please use the AdvancedRetriever module.')
-
-    print("We will be running using batches!")
-    print('Initialising batch calculation...')
-    # We are using batches.
-    splitter = RetrievalSplitter(lightcurves, priors)
-
-    batched_lightcurves, batched_priors, batches = splitter.split_retrieval(max_batch_parameters, max_batch_curves)
-
-    retriever = Retriever()
-    results = []
-    for i, batch in enumerate(batches):
-        print('Running retrieval on batch {} of {}: Filters {}'.format(i+1, len(batches), batch))
-        try:
-            result = retriever.run_dynesty(batched_lightcurves[i], batched_priors[i],
-                                           maxiter=maxiter, maxcall=maxcall, nlive=nlive,
-                                           dlogz=dlogz, savefname=output_param_path,
-                                           plot=plot_best, plot_folder=plot_folder,
-                                           figsize=figsize, plot_color=plot_color,
-                                           output_folder=final_lightcurve_folder,
-                                           plot_titles=plot_titles,
-                                           add_plot_titles=add_plot_titles,
-                                           plot_fnames=plot_fnames, sample=sample)
-            results.append(result)
-        except Exception as e:
-            print("Warning: The following exception has been raised:")
-            print(e)
+    # Run the retrieval!
+    results = retriever.run_retrieval(ld_fit_method, fitting_mode,
+                                      max_batch_parameters, maxiter, maxcall,
+                                      dynesty_sample, nlive, dlogz, plot_final,
+                                      plot_partial, results_output_folder,
+                                      final_lightcurve_folder, plot_folder,
+                                      marker_color, line_color, normalise,
+                                      batch_overlap)
 
     return results
-
-
-
-def load_priors(data_path, prior_path):
-    print('Loading light curve data...')
-
-    lightcurves, detrending_index_array = read_input_file(data_path)
-
-    n_telescopes = lightcurves.shape[0]
-    n_filters = lightcurves.shape[1]
-    n_epochs = lightcurves.shape[2]
-
-    # Read in the priors
-    print('Loading priors from {}...'.format(prior_path))
-    priors = read_priors_file(prior_path, n_telescopes, n_filters, n_epochs, 'quadratic')
-
-
-    # Set up all the optional fitting modes (limb darkening, detrending,
-    # normalisation...)
-    print('Initialising limb darkening fitting...')
-    priors.fit_limb_darkening('independent')
-
-    print('Initialising detrending...')
-    priors.fit_detrending(lightcurves, [['nth order', 2]], detrending_index_array)
-
-    print('Initialising normalisation...')
-    priors.fit_normalisation(lightcurves)
-
-    print(priors)
-
-    return priors
-
-def run_with_priors_function(data_path, prior_path):
-
-    lightcurves, detrending_index_array = read_input_file(data_path)
-
-    priors = load_priors(data_path, prior_path)
-
-    print('The parameters we are retrieving are: {}'.format(priors.fitting_params))
-    print('Beginning retrieval of {} parameters...'.format(len(priors.fitting_params)))
-    retriever = Retriever()
-    return retriever.run_dynesty(lightcurves, priors, nlive=60, dlogz=0.7, sample='rslice')
