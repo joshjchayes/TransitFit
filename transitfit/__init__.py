@@ -10,4 +10,3 @@ from .retriever import Retriever
 from .priorinfo import PriorInfo
 from ._pipeline import run_retrieval
 from ._utils import calculate_logg
-from .advanced_retriever import AdvancedRetriever

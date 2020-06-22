@@ -17,6 +17,8 @@
 
 [Detrending](#detrending)
 
+[Fitting Large Numbers of Light Curves](#lots_of_curves)
+
 
 <a name="overview"></a>
 ## Overview
@@ -42,14 +44,37 @@ Along with an installation of Python 3 (with the standard Conda distribution pac
 
 <a name="basics"></a>
 ## Basic Usage
-Using TransitFit is as simple as calling a single function! You will need to have set up some input files (see [below](#inputs))
+Using TransitFit is as simple as calling a single function! You will need to have set up some input files (see [below](#inputs)). To fit a single lightcurve with basic linear detrending, it is as simple as running
 
 ```
 import transitfit as tf
 
-results = tf.run_retrieval(path/to/data_file, path/to/priors_file, )
+results = tf.run_retrieval(path/to/data_file, path/to/priors_file)
+```
+
+TransitFit is capable of more, including simultaneous multi-wavelength, multi-epoch fitting. To use this, we still use `tf.run_retrieval()`, but have to specify a few more arguments, including information on the host and the observation filters. In this example here, we will use some arbitrary values for the host parameters. Note that they are all provided as tuples of ``(value, error)``.
 
 ```
+import transitfit as tf
+
+# Paths to data, priors, and filter info:
+data = '/path/to/data_file'
+priors = '/path/to/priors_file'
+filters = '/path/to/filter_info'
+
+# host info
+host_T = (5450, 130)
+host_z = (0.32, 0.09)
+host_logg = (4.5, 0.1)
+
+# Let's assume we want quadratic detrending - can set this with the detrending_list
+detrending = [['nth order', 2]]
+
+# Run the retrieval
+results = tf.run_retrieval(data, priors, filters, detrending, host_T=host_T, host_z=host_z, host_logg=host_logg)
+```
+
+TransitFit also offers a variety of fitting modes, which can be used when fitting large numbers of light curves. These include folding the light curves, or fitting in filter batches. For more information, see [here](#lots_of_curves)
 
 
 <a name="inputs"></a>
@@ -97,6 +122,8 @@ The priors file is used for defining which physical parameters are to be fitted,
 
     - ``w``: longitude of periastron (in degrees)
 
+    - {``q0``, ``q1``, ``q2``, ``q3``} : Kipping q parameters for limb darkening. Most of the time you will not need to set these, but if you want to run a retrieval without fitting for limb darkening (if, for example, you fitted for these another way), then you can set them here by specifying a ``'fixed'`` distribution. Note that you will also have to set ``ld_fit_method='off'`` in the arguments of ``run_retrieval()``.
+
 - **distribution**: can be any of
 
     - ``uniform``: uses a uniform prior
@@ -140,3 +167,7 @@ The filter info file defines the wavelengths of the filters that observations we
 <a name="detrending"></a>
 ## Detrending
 TransitFit offers nth-order detrending which is fitted simultaneously with other parameters. In order to
+
+
+<a name="lots_of_curves"></a>
+## Fitting large numbers of light curves
