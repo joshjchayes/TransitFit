@@ -115,6 +115,14 @@ def validate_variable_key(key):
         return 'ecc'
     if key.lower() in ['w', 'periastron', 'longitude_of_periastron', 'longitude of periastron']:
         return 'w'
+    if key.lower() in ['q0']:
+        return 'q0'
+    if key.lower() in ['q1']:
+        return 'q1'
+    if key.lower() in ['q2']:
+        return 'q2'
+    if key.lower() in ['q3']:
+        return 'q3'
 
     raise KeyError('Unable to recognise variable name {}'.format(key))
 
@@ -189,3 +197,13 @@ def weighted_avg_and_std(values, weights):
     variance = np.average((values-average)**2, weights=weights)
 
     return average, np.sqrt(variance)
+
+def AU_to_host_radii(a, R):
+    '''
+    Converts a number in AU to a value in host radii when given the host
+    radius R in Solar radii
+    '''
+    AU = 1.495978707e11
+    R_sun = 6.957e8
+
+    return (a * AU) / (R * R_sun)
