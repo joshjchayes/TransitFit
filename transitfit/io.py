@@ -10,7 +10,7 @@ from .priorinfo import PriorInfo, _prior_info_defaults, setup_priors
 import dynesty
 import csv
 import os
-from ._utils import validate_variable_key
+from ._utils import validate_variable_key, AU_to_host_radii
 from .lightcurve import LightCurve
 import batman
 import os
@@ -83,6 +83,7 @@ def parse_data_path_list(data_path_list):
     detrending_index_array = np.full((n_telescopes, n_filters, n_epochs), None, object)
 
 
+
     # Populate the blank array
     for row in data_path_list:
         p, i, j, k, l = row
@@ -94,7 +95,7 @@ def parse_data_path_list(data_path_list):
 
 def parse_priors_list(priors_list, n_telescopes, n_filters,
                       n_epochs, ld_model, filter_indices=None, folded=False,
-                      folded_P=None, folded_t0=None):
+                      folded_P=None, folded_t0=None, host_radius=None):
     '''
     Parses a list of priors to produce a PriorInfo with all fitting parameters
     initialised.
@@ -130,6 +131,10 @@ def parse_priors_list(priors_list, n_telescopes, n_filters,
     folded_t0 : float, optional
         Required if folded is True. This is the t0 that the light curves are
         folded to
+    host_radius : float, optional
+        The host radius in Solar radii. If this is provided, then will assume
+        that the orbital separation is given in AU rather than host radii and
+        will convert the values accordingly
 
     Returns
     -------
@@ -163,6 +168,11 @@ def parse_priors_list(priors_list, n_telescopes, n_filters,
                 rp_count += 1
 
         else:
+            if row[0] == 'a' and host_radius is not None:
+                # Convert the inputs to host radius units
+                row[2] = AU_to_host_radii(row[2], host_radius)
+                row[3] = AU_to_host_radii(row[3], host_radius)
+
             priors_dict[row[0]] = row[2:]
 
     ##############################
@@ -204,6 +214,11 @@ def parse_priors_list(priors_list, n_telescopes, n_filters,
     for ri, row in enumerate(priors_list):
         key, mode, inputA, inputB, filt = row
 
+        if key == 'a' and host_radius is not None:
+            # Convert the inputs to host radius units
+            row[2] = AU_to_host_radii(row[2], host_radius)
+            row[3] = AU_to_host_radii(row[3], host_radius)
+
         if key in ['P', 't0'] and folded:
             # Skip P and t0 for folded mode
             pass
@@ -237,14 +252,14 @@ def parse_priors_list(priors_list, n_telescopes, n_filters,
     return prior_info
 
 
-def _read_data_csv(path):
+def _read_data_csv(path, usecols=None):
     '''
     Given a path to a csv with columns [time, flux, errors], will get
     all the data in a way which can be used by the Retriever
 
     '''
     # Read in with pandas
-    data = pd.read_csv(path)
+    data = pd.read_csv(path, usecols=usecols)
 
     # Extract the arrays
     times, flux, errors = data.values.T
@@ -253,18 +268,18 @@ def _read_data_csv(path):
 
     return times[non_nan], flux[non_nan], errors[non_nan]
 
-def _read_data_txt(path, skiprows=0):
+def _read_data_txt(path, skiprows=0, usecols=None):
     '''
     Reads a txt data file with columns
     '''
-    times, depth, errors = np.loadtxt(path, skiprows=skiprows).T
+    times, depth, errors = np.loadtxt(path, skiprows=skiprows, usecols=usecols).T
 
     non_nan = np.invert(np.any(pd.isna(data.values.T), axis=0))
 
     return times[non_nan], flux[non_nan], errors[non_nan]
 
 
-def read_data_file(path, skiprows=0, delimiter=None, folder=None):
+def read_data_file(path, skiprows=0, folder=None, usecols=None):
     '''
     Reads a file in, assuming that it is either a:
         .csv
@@ -278,11 +293,14 @@ def read_data_file(path, skiprows=0, delimiter=None, folder=None):
         Full path to the file to be loaded
     skiprows : int, optional
         Number of rows to skip in reading txt file (to avoid headers)
-    delimiter : str, optional
-        The string used to separate values. The default is whitespace.
     folder : str or None, optional
         If not None, this folder will be prepended to all the paths. Default is
         None.
+    usecols : int or sequence, optional
+        Which columns to read, with 0 being the first. For example,
+        ``usecols = (1,4,5)`` will extract the 2nd, 5th and 6th columns.
+        These should be given in the order time, flux, uncertainty
+        The default, None, results in all columns being read.
 
     Returns
     -------
@@ -297,13 +315,13 @@ def read_data_file(path, skiprows=0, delimiter=None, folder=None):
         folder = ''
 
     if path[-4:] == '.csv':
-        times, flux, errors = _read_data_csv(os.path.join(folder, path))
+        times, flux, errors = _read_data_csv(os.path.join(folder, path), usecols)
     if path[-4:] == '.txt':
-        times, flux, errors = _read_data_txt(os.path.join(folder, path), skiprows)
+        times, flux, errors = _read_data_txt(os.path.join(folder, path), skiprows, usecols)
 
     return times, flux, errors
 
-def read_data_path_array(data_path_array, skiprows=0):
+def read_data_path_array(data_path_array, skiprows=0, usecols=None):
     '''
     If passed an array of paths, will read in to produce an array of
     `LightCurve`s
@@ -328,7 +346,7 @@ def read_data_path_array(data_path_array, skiprows=0):
 
     for i in np.ndindex(lightcurves.shape):
         if data_path_array[i] is not None:
-            times, flux, errors = read_data_file(data_path_array[i], skiprows)
+            times, flux, errors = read_data_file(data_path_array[i], skiprows, usecols=usecols)
 
             lightcurves[i] = LightCurve(times, flux, errors, i[0], i[1], i[2])
 
@@ -336,7 +354,7 @@ def read_data_path_array(data_path_array, skiprows=0):
 
 def read_priors_file(path, n_telescopes, n_filters, n_epochs,
                      limb_dark='quadratic', filter_indices=None, folded=False,
-                     folded_P=None, folded_t0=None):
+                     folded_P=None, folded_t0=None, host_radius=None):
     '''
     If given a csv file containing priors, will produce a PriorInfo object
     based off the given values
@@ -390,6 +408,10 @@ def read_priors_file(path, n_telescopes, n_filters, n_epochs,
     folded_t0 : float, optional
         Required if folded is True. This is the t0 that the light curves are
         folded to
+    host_radius : float, optional
+        The host radius in Solar radii. If this is provided, then will assume
+        that the orbital separation is given in AU rather than host radii and
+        will convert the values accordingly
 
     Notes
     -----
@@ -398,7 +420,7 @@ def read_priors_file(path, n_telescopes, n_filters, n_epochs,
     '''
     priors_list = pd.read_csv(path).values
 
-    return parse_priors_list(priors_list, n_telescopes, n_filters, n_epochs, limb_dark, filter_indices, folded, folded_P, folded_t0)
+    return parse_priors_list(priors_list, n_telescopes, n_filters, n_epochs, limb_dark, filter_indices, folded, folded_P, folded_t0, host_radius)
 
 
 def read_input_file(path, skiprows=0):

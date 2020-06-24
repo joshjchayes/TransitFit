@@ -19,8 +19,8 @@ def run_retrieval(data_files, priors, filter_info=None,
                   limb_darkening_model='quadratic',
                   ld_fit_method='independent', fitting_mode='auto',
                   max_batch_parameters=25, batch_overlap=2,
-                  host_T=None, host_logg=None, host_z=None, nlive=300,
-                  dlogz=None, maxiter=None, maxcall=None,
+                  host_T=None, host_logg=None, host_z=None, host_r=None,
+                  nlive=300, dlogz=None, maxiter=None, maxcall=None,
                   dynesty_sample='auto', normalise=True,
                   results_output_folder='./output_parameters',
                   final_lightcurve_folder='./fitted_lightcurves',
@@ -62,7 +62,8 @@ def run_retrieval(data_files, priors, filter_info=None,
             - 'P' : orbital period. Should be in the same time units as t0
             - 'rp' : planet radius (filter specific). One should be provided
                      for each filter being used
-            - 'a' : orbital radius in host radii
+            - 'a' : orbital radius in host radii, or AU. If given in AU, host_r
+                    must be provided.
             - 'inc' : orbital inclination in degrees
             - 't0' : a t0 value for one of the light curves being used. This
                      should be in the same time units as the period
@@ -135,14 +136,15 @@ def run_retrieval(data_files, priors, filter_info=None,
         being simultaneously fitted. The available modes are:
         - `'auto'` : Will calculate the number of parameters required to fit
           all the data simulataneously. If this is less than max_parameters,
-          will set to `'all'` mode, else will set to `'folded'`
+          will set to `'all'` mode, else will set to `'folded'` if at least one
+          filter has at least 3 epochs in it. Otherwise will set to `'batched'`
         - `'all'` : Fits all parameters simultaneously, with no folding or
           batching of curves. Should be used with caution when fitting very
           large (~< 30) numbers of parameters.
         - `'folded'` : Useful for fitting curves with multiple epochs for each
           filter. TransitFit will fit each filter separately and produce a
           period-folded light curve for each filter, before fitting these
-          simultaneously.
+          simultaneously, using the `'batched'` approach if required.
         - `'batched'` : Useful for large numbers of light curves with
           relatively few shared filters, so `'folded'` loses large amounts of
           multi-epoch information. This mode splits the filters into sets of
@@ -167,6 +169,9 @@ def run_retrieval(data_files, priors, filter_info=None,
     host_z : tuple or None, optional
         The metalicity of the host, given as a (value, uncertainty) pair.
         Required if ld_fit_method is `'single'` or `'coupled'`. Default is None
+    host_r : float
+        The host radius in Solar radii. Required for conversion of host-planet
+        separation from AU to host radii.
     nlive : int, optional
         The number of live points to use in the nested sampling retrieval.
     normalise : bool, optional
@@ -256,8 +261,8 @@ def run_retrieval(data_files, priors, filter_info=None,
     # Set up the Retriever
     retriever = Retriever(data_files, priors, n_telescopes, n_filters, n_epochs,
                           filter_info, detrending_list, limb_darkening_model,
-                          host_T, host_logg, host_z, ldtk_cache, data_skiprows,
-                          n_ld_samples, do_ld_mc)
+                          host_T, host_logg, host_z, host_r, ldtk_cache,
+                          data_skiprows, n_ld_samples, do_ld_mc)
 
     # Run the retrieval!
     results = retriever.run_retrieval(ld_fit_method, fitting_mode,

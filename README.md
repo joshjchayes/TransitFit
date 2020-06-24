@@ -109,15 +109,15 @@ The priors file is used for defining which physical parameters are to be fitted,
 
 - **Parameter**: The parameters which can be set using the priors file are:
 
-    - ``P``: Period of the orbit
+    - ``P``: Period of the orbit, in BJD
 
-    - ``rp``: Planet radius (in stellar radii)
+    - ``rp``: Planet radius in stellar radii (i.e. Rp/R*)
 
-    - ``t0``: time of inferior conjunction
+    - ``t0``: time of inferior conjunction in BJD
 
-    - ``a`` : semi-major axis (in units of stellar radii)
+    - ``a`` : semi-major axis. This can be given in units of either host-radii or AU. If given in AU, then `host_r` must be specified in `tf.run_retrieval()` to allow for a conversion to host-radii.
 
-    - ``inc``: inclination of the orbit
+    - ``inc``: inclination of the orbit in degrees
 
     - ``ecc``: eccentricity of the orbit
 

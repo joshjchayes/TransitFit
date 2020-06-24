@@ -34,7 +34,7 @@ class Retriever:
     def __init__(self, data_files, priors, n_telescopes, n_filters, n_epochs,
                  filter_info=None, detrending_list=[['nth order', 1]],
                  limb_darkening_model='quadratic', host_T=None, host_logg=None,
-                 host_z=None, ldtk_cache=None, data_skiprows=0,
+                 host_z=None, host_r=None, ldtk_cache=None, data_skiprows=0,
                  n_ld_samples=20000, do_ld_mc=False):
         '''
         The AdvancedRetriever handles all processes in TransitFit.
@@ -56,6 +56,7 @@ class Retriever:
         self.host_T = host_T
         self.host_logg = host_logg
         self.host_z = host_z
+        self.host_r = host_r
         self.ldtk_cache = ldtk_cache
         self.n_telescopes = n_telescopes
         self.n_filters = n_filters
@@ -72,6 +73,8 @@ class Retriever:
             self.filters = parse_filter_list(self._filter_input)
 
         self.all_lightcurves, self.detrending_index_array = read_input_file(data_files, data_skiprows)
+
+        self.n_total_lightcurves = np.sum(self.all_lightcurves!=None)
 
         # Make the all-encompassing prior to pull out some info from
         # Assume independent ld method - it doesn't actually matter
@@ -102,7 +105,7 @@ class Retriever:
 
         Parameters
         ----------
-        ld_fit_method : {`'coupled'`, `'single'`, `'independent'`}, optional
+        ld_fit_method : {`'coupled'`, `'single'`, `'independent'`, `'off'`}, optional
             Determines the mode of fitting of limb darkening parameters. The
             available modes are:
                 - `'coupled'` : all limb darkening parameters are fitted
@@ -172,7 +175,8 @@ class Retriever:
             n_params_for_complete = self._calculate_n_params(None, ld_fit_method,
                                                              normalise,
                                                              detrend)
-            if n_params_for_complete > max_parameters:
+            if n_params_for_complete > max_parameters and not self.n_total_lightcurves == 1:
+                # We have more than one lightcurve to fit - we can batch
                 # If one filter has >= 3 epochs, we can do folded mode
                 n_epochs_in_filter = np.sum(self.all_lightcurves!=None, axis=(2,0))
 
@@ -398,7 +402,7 @@ class Retriever:
                                       n_epochs,
                                       self.limb_darkening_model,
                                       filter_indices,
-                                      folded, folded_P, folded_t0)
+                                      folded, folded_P, folded_t0, self.host_r)
         else:
             # Reading in from a list
             priors = parse_priors_list(self._prior_input,
@@ -407,10 +411,10 @@ class Retriever:
                                        n_epochs,
                                        self.limb_darkening_model,
                                        filter_indices,
-                                       folded, folded_P, folded_t0)
+                                       folded, folded_P, folded_t0, self.host_r)
 
         # Set up limb darkening
-        if ld_fit_method.lower() is not 'off':
+        if not ld_fit_method.lower() == 'off':
             if ld_fit_method.lower() == 'independent':
                 priors.fit_limb_darkening(ld_fit_method)
             elif ld_fit_method.lower() in ['coupled', 'single']:
@@ -448,6 +452,8 @@ class Retriever:
 
         ndof
         '''
+        print(priors)
+
         # test having a deepcopy thing here????
         lightcurves = validate_lightcurve_array_format(lightcurves)
 
@@ -475,7 +481,14 @@ class Retriever:
             #print(priors)
             # Get the limb darkening details and coefficient values
             limb_dark = priors.limb_dark
-            u = [params[key] for key in priors.limb_dark_coeffs]
+            if priors.fit_ld:
+                q = [params[key] for key in priors.limb_dark_coeffs]
+            else:
+                q = np.array([priors.priors[key] for key in priors.limb_dark_coeffs])
+                for i in np.ndindex(q.shape):
+                    q[i] = q[i].default_value
+
+
 
             if priors.detrend:
                 # We need to combine the detrending coeff arrays into one
@@ -503,7 +516,7 @@ class Retriever:
                                                             params['ecc'],
                                                             params['w'],
                                                             limb_dark,
-                                                            np.array(u).T,
+                                                            np.array(q).T,
                                                             params['norm'],
                                                             d)
             if priors.fit_ld and not priors.ld_fit_method == 'independent':
@@ -1164,7 +1177,7 @@ class Retriever:
 
         print('Filter batches calculated:')
         print(all_batches)
-        
+
         return all_batches
 
     def save_batched_results(self, results, priors, lightcurves,
