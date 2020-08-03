@@ -9,4 +9,4 @@ __version__ = '1.0.0'
 from .retriever import Retriever
 from .priorinfo import PriorInfo
 from ._pipeline import run_retrieval
-from .utils import split_lightcurve_file, calculate_logg, AU_to_host_radii
+from ._utils import split_lightcurve_file, calculate_logg, AU_to_host_radii
