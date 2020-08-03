@@ -70,6 +70,7 @@ class PriorInfo:
         self.ld_handler = LimbDarkeningHandler(self.limb_dark)
         self.limb_dark_coeffs = self.ld_handler.get_required_coefficients()
         self.fit_ld = False
+        self.ld_fit_method = 'off'
 
         for ldc in self.limb_dark_coeffs:
             # Set up the default values for the limb darkening coeffs
@@ -78,6 +79,7 @@ class PriorInfo:
         # Initialse a bit for the detrending
         self.detrend = False
         self.detrending_coeffs = []
+        self.detrending_coeffs_fit_mode = []
 
         # Initialise normalisation things
         self.normalise=False
@@ -120,26 +122,31 @@ class PriorInfo:
         if not name in self.priors:
             raise KeyError('Unrecognised prior name {}'.format(name))
 
-        # Deal with wavelength variant parameters
-        if name in ['rp'] + self.limb_dark_coeffs:
+        # Deal with all the cases of the given indices - these will indicate
+        # how these parameters are coupled across telescope, filter, and epoch
+        if telescope_idx is None:
             if filter_idx is None:
-                raise ValueError('filter_idx must be provided for parameter {}'.format(name))
-            self.priors[name][filter_idx] = _UniformParam(low_lim, high_lim)
+                if epoch_idx is None:
+                    self.priors[name] = _UniformParam(low_lim, high_lim)
+                else:
+                    self.priors[name][epoch_idx] = _UniformParam(low_lim, high_lim)
+            else:
+                if epoch_idx is None:
+                    self.priors[name][filter_idx] = _UniformParam(low_lim, high_lim)
+                else:
+                    self.priors[name][filter_idx, epoch_idx] = _UniformParam(low_lim, high_lim)
 
-        # Deal with detrending fitting
-        elif name in self.detrending_coeffs + ['norm']:
-            if filter_idx is None:
-                raise ValueError('filter_idx must be provided for parameter {}'.format(name))
-            if epoch_idx is None:
-                raise ValueError('epoch_idx must be provided for parameter {}'.format(name))
-
-            self.priors[name][telescope_idx, filter_idx, epoch_idx] = _UniformParam(low_lim, high_lim)
-
-        # Anything else
-        # Note t0 is included in here - we just need t0 from one light curve
-        # to be able to fit that with P
         else:
-            self.priors[name] = _UniformParam(low_lim, high_lim)
+            if filter_idx is None:
+                if epoch_idx is None:
+                    self.priors[name][telescope_idx] = _UniformParam(low_lim, high_lim)
+                else:
+                    self.priors[name][telescope_idx, epoch_idx] = _UniformParam(low_lim, high_lim)
+            else:
+                if epoch_idx is None:
+                    self.priors[name][telescope_idx, filter_idx] = _UniformParam(low_lim, high_lim)
+                else:
+                    self.priors[name][telescope_idx, filter_idx, epoch_idx] = _UniformParam(low_lim, high_lim)
 
         # Store some info for later
         self.fitting_params.append(name)
@@ -214,13 +221,7 @@ class PriorInfo:
                 fidx = self._filter_idx[i]
                 eidx = self._epoch_idx[i]
 
-                if name in ['rp']:
-                    new_cube[i] = self.priors[name][fidx].from_unit_interval(cube[i])
-
-                elif name in self.detrending_coeffs + ['norm']:
-                    new_cube[i] = self.priors[name][tidx, fidx, eidx].from_unit_interval(cube[i])
-
-                elif name in self.limb_dark_coeffs:
+                if name in self.limb_dark_coeffs:
                     # Here we handle the different types of limb darkening, and
                     # enforce a physically allowed set of limb darkening coefficients
                     # following Kipping 2013 https://arxiv.org/abs/1308.0009 for
@@ -243,7 +244,29 @@ class PriorInfo:
                     skip_params = len(self.limb_dark_coeffs) - 1
 
                 else:
-                    new_cube[i] = self.priors[name].from_unit_interval(cube[i])
+                    # Go through all the possibilities of indices
+                    if tidx is None:
+                        if fidx is None:
+                            if eidx is None:
+                                new_cube[i] = self.priors[name].from_unit_interval(cube[i])
+                            else:
+                                new_cube[i] = self.priors[name][eidx].from_unit_interval(cube[i])
+                        else:
+                            if eidx is None:
+                                new_cube[i] = self.priors[name][fidx].from_unit_interval(cube[i])
+                            else:
+                                new_cube[i] = self.priors[name][fidx, eidx].from_unit_interval(cube[i])
+                    else:
+                        if fidx is None:
+                            if eidx is None:
+                                new_cube[i] = self.priors[name][tidx].from_unit_interval(cube[i])
+                            else:
+                                new_cube[i] = self.priors[name][tidx, eidx].from_unit_interval(cube[i])
+                        else:
+                            if eidx is None:
+                                new_cube[i] = self.priors[name][tidx, fidx].from_unit_interval(cube[i])
+                            else:
+                                new_cube[i] = self.priors[name][tidx, fidx, eidx].from_unit_interval(cube[i])
 
         return new_cube
 
@@ -267,7 +290,9 @@ class PriorInfo:
             result[u] = np.full(self.n_filters, None)
 
         for d in self.detrending_coeffs:
-            result[d] = np.full((self.n_telescopes, self.n_filters, self.n_epochs), None)
+            if not isinstance(self.priors[d], _Param):
+                # This is not being fitted globally - set up an array
+                result[d] = np.full(self.priors[d].shape, None)
 
         # Now we generate the results
 
@@ -277,14 +302,61 @@ class PriorInfo:
             fidx = self._filter_idx[i]
             eidx = self._epoch_idx[i]
 
-            if key in ['rp'] + self.limb_dark_coeffs:
-                result[key][fidx] = array[i]
+            param_value = array[i]
 
-            elif key in self.detrending_coeffs + ['norm']:
-                result[key][tidx, fidx, eidx] = array[i]
-
+            # Go through all the possibilities of indices
+            if tidx is None:
+                if fidx is None:
+                    if eidx is None:
+                        result[key] = param_value
+                    else:
+                        result[key][eidx] = param_value
+                else:
+                    if eidx is None:
+                        result[key][fidx] = param_value
+                    else:
+                        result[key][fidx, eidx] = param_value
             else:
-                result[key] = array[i]
+                if fidx is None:
+                    if eidx is None:
+                        result[key][tidx] = param_value
+                    else:
+                        result[key][tidx, eidx] = param_value
+                else:
+                    if eidx is None:
+                        result[key][tidx, fidx] = param_value
+                    else:
+                        result[key][tidx, fidx, eidx] = param_value
+
+        # TODO: something aboout the detrending coeffs - these need to fill up
+        # a full (n_telescopes, n_filters, n_epoch) array, even if they're
+        # being fitted globally.
+        for di, d in enumerate(self.detrending_coeffs):
+            # Check the fit mode
+            fit_mode = self.detrending_coeffs_fit_mode[di]
+
+            if not fit_mode == 3:
+                # This is not fitted by lightcurve - Need to make full array and
+                # populate it.
+                new_array = np.full((self.n_telescopes, self.n_filters, self.n_epochs), None)
+
+                if fit_mode == 0:
+                    # This is a globally fitted parameter
+                    new_array = np.full((self.n_telescopes, self.n_filters, self.n_epochs), result[d])
+                elif fit_mode == 1:
+                    # this is fitted by filter - current shape is (n_filters)
+                    for fi in range(self.n_filters):
+                        new_array[:,fi,:] = result[d][fi]
+
+                elif fit_mode == 2:
+                    # this is fitted by epoch
+                    for ei in range(self.n_epochs):
+                        new_array[:,:,ei] = result[d][ei]
+
+                else:
+                    raise ValueError('Unrecognised detrending coeff fit mode {}'.format(fit_mode))
+
+                result[d] = new_array
 
         # Now need to check if the LD params are being fitted individually or
         # if they are coupled to the first one.
@@ -320,7 +392,7 @@ class PriorInfo:
         pass
 
     def fit_detrending(self, lightcurves, method_list, method_index_array,
-                       lower_lim=-1, upper_lim=1):
+                       lower_lim=-10000, upper_lim=10000):
         '''
         Initialises detrending for the light curves.
 
@@ -333,13 +405,29 @@ class PriorInfo:
             of a method and a second parameter dependent on the method.
             Accepted methods are
                 ['nth order', order]
-                ['custom', function]
+                ['custom', function, [global fit indices, filter fit indices, epoch fit indices]]
                 ['off', ]
             function here is a custom detrending function. TransitFit assumes
             that the first argument to this function is times and that all
             other arguments are single-valued - TransitFit cannot fit
             list/array variables. If 'off' is used, no detrending will be
             applied to the `LightCurve`s using this model.
+
+            If a custom function is used, and some inputs to the function
+            should not be fitted individually for each light curve, but should
+            instead be shared either globally, within a given filter, or within
+            a given epoch, the indices of where these fall within the arguments
+            of the detrending function should be given as a list. If there are
+            no indices to be given, then use an empty list: []
+            e.g. if the detrending function is given by
+                ```
+                foo(times, a, b, c):
+                    # do something
+                ```
+            and a should be fitted globally, then the entry in the method_list
+            would be ['custom', foo, [1], [], []].
+
+
         method_index_array : array_like, shape (n_telescopes, n_filters, n_epochs)
             For each LightCurve in `lightcurves`, this array should contain the
             index of the detrending method in `method_list` to be applied to
@@ -382,16 +470,42 @@ class PriorInfo:
                     n_coeffs = lightcurves[i].n_detrending_params
 
                     for coeff_i in range(n_coeffs):
-                        coeff_name = 'd{}_{}'.format(coeff_i, method_idx)
-
+                        coeff_name = 'd{}_{}'.format(coeff_i, method_idx) 
                         # Initialise an entry in the priors dict if there isn't
                         # one already
                         if coeff_name not in self.priors:
-                            self.priors[coeff_name] = np.full((self.n_telescopes, self.n_filters, self.n_epochs), None, object)
+                            if coeff_i + 1 in method[2]:
+                                # Fit globally
+                                self.priors[coeff_name] = None
+                                self.detrending_coeffs_fit_mode.append(0)
+                            elif coeff_i + 1 in method[3]:
+                                # Fit across filter
+                                self.priors[coeff_name] = np.full((self.n_filters), None, object)
+                                self.detrending_coeffs_fit_mode.append(1)
+                            elif coeff_i + 1 in method[4]:
+                                # Fit across epoch
+                                self.priors[coeff_name] = np.full((self.n_epochs), None, object)
+                                self.detrending_coeffs_fit_mode.append(2)
+                            else:
+                                # Fitting for each lightcurve
+                                self.priors[coeff_name] = np.full((self.n_telescopes, self.n_filters, self.n_epochs), None, object)
+                                self.detrending_coeffs_fit_mode.append(3)
 
                             self.detrending_coeffs.append(coeff_name)
 
-                        self.add_uniform_fit_param(coeff_name, lower_lim, upper_lim, telescope_idx, filter_idx, epoch_idx)
+                        # Now we set up the fitting
+                        if coeff_i + 1 in method[2]:
+                            # Fit globally
+                            self.add_uniform_fit_param(coeff_name, lower_lim, upper_lim)
+                        elif coeff_i + 1 in method[3]:
+                            # Fit across filter
+                            self.add_uniform_fit_param(coeff_name, lower_lim, upper_lim, filter_idx=filter_idx)
+                        elif coeff_i + 1 in method[4]:
+                            # Fit across epoch
+                            self.add_uniform_fit_param(coeff_name, lower_lim, upper_lim, epoch_idx=epoch_idx)
+                        else:
+                            # Fitting for each lightcurve
+                            self.add_uniform_fit_param(coeff_name, lower_lim, upper_lim, telescope_idx, filter_idx, epoch_idx)
 
         self.detrend=True
 
@@ -531,7 +645,9 @@ class PriorInfo:
         '''
         Sets the print behaviour for a PriorInfo
         '''
-        print_str = ''
+        print(self.priors)
+
+        print_str = 'Priors information:'
 
         # Add info on memory location of object
         print_str += self.__repr__() + '\n'

@@ -93,14 +93,27 @@ def run_retrieval(data_files, priors, filter_info=None,
         of a method and a second parameter dependent on the method.
         Accepted methods are
             ['nth order', order]
-            ['custom', function]
+            ['custom', function, [global fit indices, filter fit indices, epoch fit indices]]
             ['off', ]
         function here is a custom detrending function. TransitFit assumes
         that the first argument to this function is times and that all
         other arguments are single-valued - TransitFit cannot fit
         list/array variables. If 'off' is used, no detrending will be
-        applied to the light curves using this model. The default is
-        [['nth order', 1]], giving linear detrending.
+        applied to the `LightCurve`s using this model.
+
+        If a custom function is used, and some inputs to the function
+        should not be fitted individually for each light curve, but should
+        instead be shared either globally, within a given filter, or within
+        a given epoch, the indices of where these fall within the arguments
+        of the detrending function should be given as a list. If there are
+        no indices to be given, then use an empty list: []
+        e.g. if the detrending function is given by
+            ```
+            foo(times, a, b, c):
+                # do something
+            ```
+        and a should be fitted globally, then the entry in the method_list
+        would be ['custom', foo, [1], [], []].
     ld_model : str, optional
         The limb darkening model to use. Allowed models are
             - 'linear'

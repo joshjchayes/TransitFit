@@ -81,8 +81,7 @@ def parse_data_path_list(data_path_list):
     # Initialise a blank array, filling it with None.
     data_path_array = np.full((n_telescopes, n_filters, n_epochs), None, object)
     detrending_index_array = np.full((n_telescopes, n_filters, n_epochs), None, object)
-
-
+    column_array = np.full((n_telescopes, n_filters, n_epochs), None, object)
 
     # Populate the blank array
     for row in data_path_list:
@@ -214,6 +213,8 @@ def parse_priors_list(priors_list, n_telescopes, n_filters,
     for ri, row in enumerate(priors_list):
         key, mode, inputA, inputB, filt = row
 
+        mode = mode.strip()
+
         if key == 'a' and host_radius is not None:
             # Convert the inputs to host radius units
             row[2] = AU_to_host_radii(row[2], host_radius)
@@ -321,7 +322,7 @@ def read_data_file(path, skiprows=0, folder=None, usecols=None):
 
     return times, flux, errors
 
-def read_data_path_array(data_path_array, skiprows=0, usecols=None):
+def read_data_path_array(data_path_array, skiprows=0):
     '''
     If passed an array of paths, will read in to produce an array of
     `LightCurve`s
@@ -346,7 +347,7 @@ def read_data_path_array(data_path_array, skiprows=0, usecols=None):
 
     for i in np.ndindex(lightcurves.shape):
         if data_path_array[i] is not None:
-            times, flux, errors = read_data_file(data_path_array[i], skiprows, usecols=usecols)
+            times, flux, errors = read_data_file(data_path_array[i], skiprows)
 
             lightcurves[i] = LightCurve(times, flux, errors, i[0], i[1], i[2])
 
@@ -705,6 +706,7 @@ def save_final_light_curves(lightcurves, priorinfo, results,
     # Loop over each light curve and apply detrending and normalisation
     for i in np.ndindex(lightcurves.shape):
         if lightcurves[i] is not None:
+
             telescope_idx = lightcurves[i].telescope_idx
             filter_idx = lightcurves[i].filter_idx
             epoch_idx = lightcurves[i].epoch_idx
@@ -728,14 +730,23 @@ def save_final_light_curves(lightcurves, priorinfo, results,
             params.ecc = best_dict['ecc']
             params.w = best_dict['w']
             params.limb_dark = priorinfo.limb_dark
-            params.u = np.array([best_dict[key] for key in priorinfo.limb_dark_coeffs]).T[i[1]]
+
+            if priorinfo.fit_ld:
+                # NOTE needs converting from q to u
+                best_q = np.array([best_dict[key] for key in priorinfo.limb_dark_coeffs]).T[i[1]]
+            else:
+                q = np.array([priorinfo.priors[key] for key in priorinfo.limb_dark_coeffs])
+                for j in np.ndindex(q.shape):
+                    q[j] = q[j].default_value
+                best_q = q.T[i[1]]
+
+            params.u = priorinfo.ld_handler.convert_qtou(*best_q)
 
             m_sample_times = batman.TransitModel(params, lightcurves[i].times)
             time_wise_best_curve = m_sample_times.light_curve(params)
 
             write_dict = []
             for j, tj in enumerate(lightcurves[i].times):
-                #print(i)
                 write_dict.append({'Time' : tj,
                                    'Normalised flux' : detrended_flux[j],
                                    'Uncertainty' : detrended_errors[j],

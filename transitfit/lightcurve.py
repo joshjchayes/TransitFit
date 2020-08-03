@@ -8,6 +8,7 @@ import numpy as np
 from .detrending_funcs import NthOrderDetrendingFunction
 from .detrender import DetrendingFunction
 from copy import deepcopy
+import csv
 
 class LightCurve:
     def __init__(self, times, flux, errors, telescope_idx=None,
@@ -137,7 +138,7 @@ class LightCurve:
         return median_factor, low_factor, high_factor
 
 
-    def detrend_flux(self, d, norm=1):
+    def detrend_flux(self, d, norm=1, use_full_times=False):
         '''
         When given a normalisation constant and some detrending parameters,
         will return the detrended flux and errors
@@ -148,6 +149,10 @@ class LightCurve:
             Array of the detrending parameters to use
         norm : float, optional
             The normalisation constant to use. Default is 1
+        use_full_times : bool, optional
+            If True, will use the full BJD value of the times. If False, will
+            subtract the integer part of self.times[0] from all the time values
+            before passing to the detrending function. Default is False
 
         Returns
         -------
@@ -159,13 +164,18 @@ class LightCurve:
         detrended_flux = deepcopy(self.flux)
         detrended_errors = deepcopy(self.errors)
 
-        # Since times are in BJD, the detrending function results are MASSIVE.
-        # We detrend using only the fractional part of the times as this
-        # significantly reduces the range of each of the detrending
-        # coefficients
+
 
         if self.detrend and d is not None:
-            subtract_val = np.floor(self.times[0])
+            if use_full_times:
+                subtract_val = 0
+            else:
+                # Since times are in BJD, the detrending function results are
+                # MASSIVE. We detrend using only the fractional part of the
+                # times as this significantly reduces the range of each of the
+                # detrending coefficients
+                subtract_val = np.floor(self.times[0])
+
             detrend_values = self.detrending_function(self.times - subtract_val, *d)
 
             detrended_flux -= detrend_values
@@ -216,6 +226,84 @@ class LightCurve:
 
         return LightCurve(times, flux, errors, telescope_idx, filter_idx,
                           epoch_idx)
+
+    def split(self, t0, P):
+        '''
+        Splits the LightCurve into multiple LightCurves containing a single
+        transit. This is useful for dealing with multi-epoch observations which
+        contain TTVs, or have long term periodic trends, since single-epoch
+        observation trends can be approximated with polynomial fits.
+
+        Parameters
+        ----------
+        t0 : float
+            The centre of a transit
+        P : float
+            The estimated period of the planet
+
+        Returns
+        -------
+        lightcurves : list
+            A list of LightCurve objects
+
+        Notes
+        -----
+        Will reset the telescope, filter and epoch indices to None.
+        '''
+        # Work out how many periods are contained in the current LightCurve
+        n_periods = np.ceil((self.times.max() - self.times.min())/P)
+        n_periods = int(n_periods)
+
+        # Make sure that t0 will fall in the first new epoch
+        t0 = t0 - ((t0 - self.times.min())//P * P)
+
+
+        # Work out the times, flux, and errors for each epoch
+        t_new = [[] for i in range(n_periods)]
+        f_new = [[] for i in range(n_periods)]
+        err_new = [[] for i in range(n_periods)]
+
+        # Loop through each data point and assign to the correct epoch
+        for i in range(len(self.times)):
+            t = self.times[i]
+            f = self.flux[i]
+            err = self.errors[i]
+
+            for j in range(n_periods):
+                if t < t0 + (2 * j + 1) * P/2:
+                    t_new[j].append(t)
+                    f_new[j].append(f)
+                    err_new[j].append(err)
+                    break
+
+        # Now we have all the data for the epochs, make the new LightCurves
+        lightcurves = []
+        for i in range(n_periods):
+            if not t_new[i] == []:
+                # Make sure we don't produce empty curves
+                new_curve = LightCurve(t_new[i], f_new[i], err_new[i])
+                lightcurves.append(new_curve)
+
+        return lightcurves
+
+    def save(self, filepath):
+        '''
+        Saves the LightCurve to a .csv file
+        '''
+        if not filepath[-4:] == '.csv':
+            filepath += '.csv'
+
+        write_dict = []
+        for j, tj in enumerate(self.times):
+            write_dict.append({'Time' : tj,
+                               'Flux' : self.flux[j],
+                               'Flux_err' : self.errors[j]})
+
+        with open(filepath, 'w') as f:
+            columns = ['Time', 'Flux', 'Flux_err']
+            writer = csv.DictWriter(f, columns)
+            writer.writeheader()
+            writer.writerows(write_dict)
 
     def __eq__(self, other):
         '''

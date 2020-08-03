@@ -134,17 +134,29 @@ def calculate_logg(host_mass, host_radius):
 
     Parameters
     ----------
-    host_mass : float
-        The host mass in solar masses
-    host_radius : float
-        The host radius in solar radii
+    host_mass : tuple
+        The host mass in solar masses and the uncertainty
+    host_radius : tuple
+        The host radius in solar radii and the uncertainty
     '''
+
 
     m_sun = 1.989e30
     r_sun = 6.957e8
     G = 6.674e-11
 
-    return np.log10((host_mass * m_sun * G)/((host_radius * r_sun) ** 2) * 100)
+    m = host_mass[0] * m_sun
+    err_m = host_mass[1] * m_sun
+    r = host_radius[0] * r_sun
+    err_r = host_radius[1] * r_sun
+
+    g = m * G * r ** -2 * 100 # factor 100 converts to cm s^-2
+    err_g = G/(r ** 2) * np.sqrt(err_m ** 2 + (4 * m**2 * err_r ** 2)/r**2) * 100
+
+    logg = np.log10(g)
+    err_logg = err_g / (g * np.log(10))
+
+    return logg, err_logg
 
 
 def get_normalised_weights(results):
@@ -207,3 +219,27 @@ def AU_to_host_radii(a, R):
     R_sun = 6.957e8
 
     return (a * AU) / (R * R_sun)
+
+
+def split_lightcurve_file(path, t0, P, new_base_fname=None):
+    '''
+    Splits a multi-epoch lightcurve data file into multiple single-epoch files
+    and saves these.
+    '''
+    from .io import read_data_file
+    
+    # Load the full data file as a LightCurve
+    full_lightcurve = LightCurve(*read_data_file(path))
+
+    # Split the full curve into individual epochs
+    single_epoch_curves = full_lightcurve.split(t0, P)
+
+    # Now save all the new curves
+    if new_base_fname is None:
+        new_base_fname = 'split_curve'
+
+    for i, curve in enumerate(single_epoch_curves):
+        fname = new_base_fname + '_{}'.format(i)
+        curve.save(fname)
+
+    return single_epoch_curves

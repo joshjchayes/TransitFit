@@ -104,7 +104,17 @@ def plot_individual_lightcurves(lightcurves, priorinfo, results,
             params.ecc = best_dict['ecc']
             params.w = best_dict['w']
             params.limb_dark = priorinfo.limb_dark
-            params.u = np.array([best_dict[key] for key in priorinfo.limb_dark_coeffs]).T[i[1]]
+
+            if priorinfo.fit_ld:
+                # NOTE needs converting from q to u
+                best_q = np.array([best_dict[key] for key in priorinfo.limb_dark_coeffs]).T[i[1]]
+            else:
+                q = np.array([priorinfo.priors[key] for key in priorinfo.limb_dark_coeffs])
+                for j in np.ndindex(q.shape):
+                    q[j] = q[j].default_value
+                best_q = q.T[i[1]]
+
+            params.u = priorinfo.ld_handler.convert_qtou(*best_q)
 
             plot_times = np.linspace(lightcurves[i].times.min(), lightcurves[i].times.max(), 1000 )
 

@@ -15,6 +15,8 @@ from ._utils import get_normalised_weights, get_covariance_matrix, validate_ligh
 from . import io
 from .plotting import plot_individual_lightcurves
 from .lightcurve import LightCurve
+from .detrending_funcs import NthOrderDetrendingFunction
+from .detrender import DetrendingFunction
 
 import numpy as np
 from dynesty import NestedSampler
@@ -49,8 +51,17 @@ class Retriever:
         self._prior_input = priors
         self._filter_input = filter_info
 
-        # TODO: set up custom inputs as DetrendingFunctions
         self.detrending_info = detrending_list
+        self.detrending_models = []
+        for mode in self.detrending_info:
+            if mode[0] == 'nth order':
+                function = NthOrderDetrendingFunction(mode[1])
+                self.detrending_models.append(DetrendingFunction(function))
+            elif mode[0] == 'custom':
+                function = mode[1]
+                self.detrending_models.append(DetrendingFunction(function))
+            elif mode[0] == 'off':
+                self.detrending_models.append(None)
 
         self.limb_darkening_model = limb_darkening_model
         self.host_T = host_T
@@ -202,9 +213,12 @@ class Retriever:
                                               dlogz)
 
             # Print results to terminal
-            io.print_results(results, priors, ndof)
+            try:
+                io.print_results(results, priors, ndof)
+            except Exception as e:
+                print(e)
 
-            self.save_batched_results([results], [priors], [lightcurves], output_folder='./output_parameters')
+            self.save_batched_results([results], [priors], [lightcurves], output_folder='./output_parameters', fit_ld=ld_fit_method!='off')
 
             return results
 
@@ -245,7 +259,7 @@ class Retriever:
                     results_list[fi].append(results)
 
                 # Save output
-                _, _ = self.save_batched_results(results_list[fi], priorinfo_list[fi], lightcurve_list[fi], output_folder='./output_parameters', summary_file='filter_{}_summary.csv'.format(fi), full_output_file='filter_{}_full_output.csv'.format(fi), lightcurve_folder='./fitted_lightcurves/filter-fitted_curves/filter_{}'.format(fi), plot_folder='./plots/filter-fitted_curves/filter_{}'.format(fi))
+                _, _ = self.save_batched_results(results_list[fi], priorinfo_list[fi], lightcurve_list[fi], output_folder='./output_parameters', summary_file='filter_{}_summary.csv'.format(fi), full_output_file='filter_{}_full_output.csv'.format(fi), lightcurve_folder='./fitted_lightcurves/filter-fitted_curves/filter_{}'.format(fi), plot_folder='./plots/filter-fitted_curves/filter_{}'.format(fi), fit_ld=ld_fit_method!='off')
 
             # Once we have run all the batches, we need to combine the results
             # to produce some folded lightcurves for each filter, and then
@@ -288,7 +302,7 @@ class Retriever:
             #return folded_results, folded_priors, folded_lightcurves
 
             # Make outputs etc
-            full_result, summary_result = self.save_batched_results(folded_results, folded_priors, folded_lightcurves, lightcurve_folder='./fitted_lightcurves/final_curves', plot_folder='./plots/final_folded_lightcurves')
+            full_result, summary_result = self.save_batched_results(folded_results, folded_priors, folded_lightcurves, lightcurve_folder='./fitted_lightcurves/final_curves', plot_folder='./plots/final_folded_lightcurves', fit_ld=ld_fit_method!='off')
 
             return folded_results
 
@@ -300,7 +314,6 @@ class Retriever:
             batches = self.get_filter_batches(self.all_lightcurves, max_parameters, ld_fit_method,
                                                      True, True, overlap)
 
-            print(batches)
             all_results = []
             all_priors = []
             all_lightcurves = []
@@ -318,7 +331,7 @@ class Retriever:
                 all_lightcurves.append(lightcurves)
 
             # Make outputs etc
-            full_result, summary_result = self.save_batched_results(all_results, all_priors, all_lightcurves, lightcurve_folder='./fitted_lightcurves/final_curves')
+            full_result, summary_result = self.save_batched_results(all_results, all_priors, all_lightcurves, lightcurve_folder='./fitted_lightcurves/final_curves', fit_ld=ld_fit_method!='off')
 
             return all_results
 
@@ -452,8 +465,6 @@ class Retriever:
 
         ndof
         '''
-        print(priors)
-
         # test having a deepcopy thing here????
         lightcurves = validate_lightcurve_array_format(lightcurves)
 
@@ -478,7 +489,6 @@ class Retriever:
 
         def lnlike(cube):
             params = priors._interpret_param_array(cube)
-            #print(priors)
             # Get the limb darkening details and coefficient values
             limb_dark = priors.limb_dark
             if priors.fit_ld:
@@ -487,7 +497,6 @@ class Retriever:
                 q = np.array([priors.priors[key] for key in priors.limb_dark_coeffs])
                 for i in np.ndindex(q.shape):
                     q[i] = q[i].default_value
-
 
 
             if priors.detrend:
@@ -530,12 +539,6 @@ class Retriever:
         sampler = NestedSampler(lnlike, prior_transform, n_dims, bound='multi',
                                 sample=sample, #update_interval=float(n_dims),
                                 nlive=nlive)
-
-        #print('Our priors are:')
-        #print(priors)
-
-        #print('Beginning retrieval of {} parameters:'.format(n_dims))
-        #print(priors.fitting_params)
 
         try:
             print('Beginning retrieval of {} parameters'.format(n_dims))
@@ -657,10 +660,9 @@ class Retriever:
                 if lightcurves[subset_i][0] is not None:
                     detrending_index = detrending_indices[subset_i][0]
                     detrending_info = self.detrending_info[detrending_index]
-                    if detrending_info[0] == 'nth order':
-                        n_params += detrending_info[1]
-                    elif detrending_info[0] == 'custom':
-                        n_params += detrending_info[1].n_params
+                    detrending_model = self.detrending_models[detrending_index]
+                    if detrending_info[0] in ['nth order', 'custom']:
+                        n_params += detrending_model.n_params
                     elif detrending_info[0] == 'off':
                         pass
                     else:
@@ -682,7 +684,6 @@ class Retriever:
         '''
         if indices is None:
             return tuple(np.array(list(np.ndindex(self.all_lightcurves.shape))).T)
-            print(indices)
 
         return indices
 
@@ -793,9 +794,6 @@ class Retriever:
                 prior = priors[fi][ri]
                 lcs = lightcurves[fi][ri]
 
-                #print(lightcurves)
-                #print(lcs)
-
                 # Make the fitting params a np array
                 fitting_params = np.array(prior.fitting_params)
 
@@ -854,8 +852,6 @@ class Retriever:
                     if lcs[idx] is not None:
                         # Detrend/normalise and fold to t0/P. Then combine with
                         # the final curve
-                        #all_batch_lightcurves.append(lightcurves[idx].created_detrended_LightCurve(detrending[idx], normalisation[idx]).fold(best_t0, best_P))
-                        #print(final_batch_lightcurve)
 
                         if final_batch_lightcurve is None:
                             final_batch_lightcurve = lcs[idx].create_detrended_LightCurve(detrending[idx], normalisation[idx]).fold(best_t0, best_P)
@@ -865,8 +861,6 @@ class Retriever:
 
                 # Store the final batched lightcurves
                 final_batched_lightcurves[fi].append(final_batch_lightcurve)
-
-            #print(final_batched_lightcurves)
 
         # Now that all batches have been folded, we can go through each
         # filter to produce the final lightcurves!!
@@ -895,6 +889,7 @@ class Retriever:
         # Save output
         try:
             save_fname = os.path.join(result_folder, output_fname)
+            os.makedirs(result_folder, exist_ok=True)
             io.save_results(results, priors, save_fname)
             print('Best fit parameters saved to {}'.format(os.path.abspath(save_fname)))
         except Exception as e:
@@ -904,6 +899,7 @@ class Retriever:
         # Save final light curves
         try:
             output_folder = os.path.join(final_lightcurve_base_folder, light_curve_specific_folder)
+            os.makedirs(output_folder, exist_ok=True)
             io.save_final_light_curves(lightcurves, priors,
                                        results, output_folder)
             print('Fitted light curves saved to {}'.format(os.path.abspath(output_folder)))
@@ -914,6 +910,7 @@ class Retriever:
         # Plot the final curves!
         try:
             save_folder = os.path.join(plot_base_folder, plot_specific_folder)
+            os.makedirs(save_folder, exist_ok=True)
             plot_individual_lightcurves(lightcurves, priors,
                                         results, folder_path=save_folder,
                                         marker_color=marker_color,
@@ -979,10 +976,7 @@ class Retriever:
             while not done:
                 # A single batch - telescope, filter, epoch indices
                 single_batch = ([], [], [])
-                #print('Start:', start_idx)
-                #print('Curves:', n_curves)
                 for i in range(start_idx, n_curves):
-                    #print('i:', i)
                     idx = (indices[0][i], indices[1][i], indices[2][i])
                     # Make the test batch by appending this lightcurve to the
                     # current single_batch
@@ -1007,7 +1001,6 @@ class Retriever:
                         # Is this the only lightcurve in the batch?
                         # If so, we just want to add this curve and move on
                         if len(test_batch[0]) == 1:
-                            #print('Case A')
                             single_batch = deepcopy(test_batch)
                             start_idx = i + 1
 
@@ -1017,20 +1010,16 @@ class Retriever:
 
                             # Do we have enough to ensure an overlap?
                             if len(single_batch[0]) > overlap:
-                                #print('Case Bi')
                                 start_idx = i - overlap
 
                             else:
-                                #print('Case Bii')
                                 print('Unable to ensure overlap of {} between batch {} and {} for filter {}'.format(overlap, len(filter_batches), len(filter_batches) + 1, fi))
 
                                 if len(single_batch[0]) > 1:
-                                    #print('Case Bii-i')
                                     # We can at least try for an overlap of 1
                                     start_idx = i - 1
 
                                 else:
-                                    #print('Case Bii-ii')
                                     # We just can't overlap
                                     start_idx = i
 
@@ -1041,9 +1030,6 @@ class Retriever:
                         # for the filter
                         done = start_idx == n_curves
 
-                        #print(single_batch)
-                        #print('start_idx:', start_idx)
-                        #print('done:', done)
                         break
 
             all_batches.append(filter_batches)
@@ -1188,7 +1174,7 @@ class Retriever:
                              plot=True, plot_folder='./plots',
                              marker_color='dimgrey', line_color='black',
                              folded_P=None, folded_P_err=None, folded_t0=None,
-                             folded_t0_err=None):
+                             folded_t0_err=None, fit_ld=True):
         '''
         Saves the parameters, as well as the detrended lightcurves and the
         best fit.
@@ -1338,68 +1324,70 @@ class Retriever:
                     best_vals[param][i] = val
                     best_vals_errors[param][i] = err
 
-        # We have to deal here with the limb darkening
-        # Since we fit for the Kipping q parameters, we should give
-        # these and the physical values (denoted as u)
-        for param in self.ld_coeffs:
-            # Initialise each of the u params
-            ldc = 'u{}'.format(param[-1])
+        if fit_ld:
+            # We have to deal here with the limb darkening
+            # Since we fit for the Kipping q parameters, we should give
+            # these and the physical values (denoted as u)
+            for param in self.ld_coeffs:
+                # Initialise each of the u params
+                ldc = 'u{}'.format(param[-1])
 
-            best_vals = initialise_dict_entry(best_vals, ldc)
-            best_vals_errors = initialise_dict_entry(best_vals_errors, ldc)
-            values = initialise_dict_entry(values, ldc)
-            errors = initialise_dict_entry(errors, ldc)
+                best_vals = initialise_dict_entry(best_vals, ldc)
+                best_vals_errors = initialise_dict_entry(best_vals_errors, ldc)
+                values = initialise_dict_entry(values, ldc)
+                errors = initialise_dict_entry(errors, ldc)
 
-        # For each filter, pull out all the q values and errors
-        for i in np.ndindex(best_vals['q0'].shape):
-            if values['q0'][i] is not None:
+            # For each filter, pull out all the q values and errors
 
-                best_q = []
-                best_q_err = []
+            for i in np.ndindex(best_vals['q0'].shape):
+                if values['q0'][i] is not None:
 
-                all_q = []
-                all_q_err = []
+                    best_q = []
+                    best_q_err = []
 
-                for param in self.ld_coeffs:
-                    best_q.append(best_vals[param][i])
-                    best_q_err.append(best_vals_errors[param][i])
+                    all_q = []
+                    all_q_err = []
 
-                    all_q.append(values[param][i])
-                    all_q_err.append(errors[param][i])
+                    for param in self.ld_coeffs:
+                        best_q.append(best_vals[param][i])
+                        best_q_err.append(best_vals_errors[param][i])
 
-                # Now we have all the best q vals, convert them
-                # first the best values
-                best_u, best_u_err = self._full_prior.ld_handler.convert_qtou_with_errors(best_q, best_q_err, self.limb_darkening_model)
+                        all_q.append(values[param][i])
+                        all_q_err.append(errors[param][i])
 
-                # Now all the separate u values:
-                all_u = [[] for param in self.ld_coeffs]
-                all_u_err = [[] for param in self.ld_coeffs]
+                    # Now we have all the best q vals, convert them
+                    # first the best values
+                    best_u, best_u_err = self._full_prior.ld_handler.convert_qtou_with_errors(best_q, best_q_err, self.limb_darkening_model)
 
-                # Now we have to pull out all the q values for a given run and
-                # convert them to u, then put into all_u and all_u_err
-                for j in range(len(all_q[0])):
-                    batch_q = [all_q[k][j] for k in range(self.n_ld_params)]
-                    batch_q_err = [all_q_err[k][j] for k in range(self.n_ld_params)]
+                    # Now all the separate u values:
+                    all_u = [[] for param in self.ld_coeffs]
+                    all_u_err = [[] for param in self.ld_coeffs]
 
-                    batch_u, batch_u_err = self._full_prior.ld_handler.convert_qtou_with_errors(batch_q, batch_q_err, self.limb_darkening_model)
+                    # Now we have to pull out all the q values for a given run and
+                    # convert them to u, then put into all_u and all_u_err
+                    for j in range(len(all_q[0])):
+                        batch_q = [all_q[k][j] for k in range(self.n_ld_params)]
+                        batch_q_err = [all_q_err[k][j] for k in range(self.n_ld_params)]
 
-                    for k in range(self.n_ld_params):
-                        all_u[k].append(batch_u[k])
-                        all_u_err[k].append(batch_u_err[k])
+                        batch_u, batch_u_err = self._full_prior.ld_handler.convert_qtou_with_errors(batch_q, batch_q_err, self.limb_darkening_model)
 
-                for j in range(len(best_u)):
-                    best_vals['u{}'.format(j)][i] = best_u[j]
-                    best_vals_errors['u{}'.format(j)][i] = best_u_err[j]
+                        for k in range(self.n_ld_params):
+                            all_u[k].append(batch_u[k])
+                            all_u_err[k].append(batch_u_err[k])
 
-                    if values['u{}'.format(j)][i] is None:
-                        values['u{}'.format(j)][i] = []
-                    if errors['u{}'.format(j)][i] is None:
-                        errors['u{}'.format(j)][i] = []
+                    for j in range(len(best_u)):
+                        best_vals['u{}'.format(j)][i] = best_u[j]
+                        best_vals_errors['u{}'.format(j)][i] = best_u_err[j]
 
-                    values['u{}'.format(j)][i] += all_u[j]
-                    errors['u{}'.format(j)][i] += all_u_err[j]
+                        if values['u{}'.format(j)][i] is None:
+                            values['u{}'.format(j)][i] = []
+                        if errors['u{}'.format(j)][i] is None:
+                            errors['u{}'.format(j)][i] = []
 
-        # Detrending:
+                        values['u{}'.format(j)][i] += all_u[j]
+                        errors['u{}'.format(j)][i] += all_u_err[j]
+
+        # TODO - Detrending:
         # Sometimes detrending is done with batches, and this is outputting
         # fits for detrended lightcurves. We want to pull out the detrending
         # parameter fit results from the runs where detrending took place and
@@ -1462,6 +1450,7 @@ class Retriever:
 
         # Save the outputs!
         # First the full one:
+        os.makedirs(output_folder, exist_ok=True)
         with open(os.path.join(output_folder, full_output_file), 'w') as f:
             columns = ['Parameter', 'Telescope', 'Filter', 'Epoch', 'Batch',
                        'Best value', 'Uncertainty']

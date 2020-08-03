@@ -67,7 +67,7 @@ class LikelihoodCalculator:
 
 
     def find_likelihood(self, t0, per, rp, a, inc, ecc, w, limb_dark, q,
-                        norm, d=None):
+                        norm, d=None, use_full_times=False):
         '''
         Calculates the ln likelihood of a set of parameters matching the given
         model
@@ -97,6 +97,10 @@ class LikelihoodCalculator:
         d : array_like, shape(n_telescopes, n_filters, n_epochs)
             Each entry should be a list containing all the detrending
             coefficients to trial.
+        use_full_times : bool, optional
+            If True, will use the full BJD value of the times. If False, will
+            subtract the integer part of self.times[0] from all the time values
+            before passing to the detrending function. Default is False
 
         Returns
         -------
@@ -127,9 +131,9 @@ class LikelihoodCalculator:
 
                 # Get the detrended/normalised flux from the LightCurves
                 if d is None:
-                    comparison_flux, err = self.lightcurves[i].detrend_flux(d, norm[i])
+                    comparison_flux, err = self.lightcurves[i].detrend_flux(d, norm[i], use_full_times)
                 else:
-                    comparison_flux, err = self.lightcurves[i].detrend_flux(d[i], norm[i])
+                    comparison_flux, err = self.lightcurves[i].detrend_flux(d[i], norm[i], use_full_times)
 
                 # Work out the chi2
                 chi2 = sum((model_flux - comparison_flux)**2 / err**2)
