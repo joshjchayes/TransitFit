@@ -94,7 +94,8 @@ def parse_data_path_list(data_path_list):
 
 def parse_priors_list(priors_list, n_telescopes, n_filters,
                       n_epochs, ld_model, filter_indices=None, folded=False,
-                      folded_P=None, folded_t0=None, host_radius=None):
+                      folded_P=None, folded_t0=None, host_radius=None,
+                      fit_ttv=False, lightcurves=None):
     '''
     Parses a list of priors to produce a PriorInfo with all fitting parameters
     initialised.
@@ -194,7 +195,8 @@ def parse_priors_list(priors_list, n_telescopes, n_filters,
                                   folded_t0,
                                   priors_dict['ecc'][0],
                                   priors_dict['w'][0],
-                                  ld_model, n_telescopes, n_filters, n_epochs)
+                                  ld_model, n_telescopes, n_filters, n_epochs,
+                                  fit_ttv)
     else:
         # setup using the file values of t0 and P
         prior_info = setup_priors(priors_dict['P'][0],
@@ -204,7 +206,8 @@ def parse_priors_list(priors_list, n_telescopes, n_filters,
                                   priors_dict['t0'][0],
                                   priors_dict['ecc'][0],
                                   priors_dict['w'][0],
-                                  ld_model, n_telescopes, n_filters, n_epochs)
+                                  ld_model, n_telescopes, n_filters, n_epochs,
+                                  fit_ttv)
 
     ##########################
     # Initialise the fitting #
@@ -235,6 +238,12 @@ def parse_priors_list(priors_list, n_telescopes, n_filters,
                 if filt in filter_indices:
                     prior_info.add_uniform_fit_param(key, inputA, inputB, filter_idx=int(rp_count))
                     rp_count += 1
+            elif key in ['t0'] and fit_ttv:
+                if lightcurves is None:
+                    raise ValueError('lightcurves must be provided if fit_ttv is True')
+                for li in np.ndindex(lightcurves.shape):
+                    # Loop through each lightcurve and initialise t0
+                    prior_info.add_uniform_fit_param(key, inputA, inputB, li[0], li[1], li[2])
             else:
                 prior_info.add_uniform_fit_param(key, inputA, inputB)
 
@@ -244,6 +253,12 @@ def parse_priors_list(priors_list, n_telescopes, n_filters,
                 if filt in filter_indices:
                     prior_info.add_gaussian_fit_param(key, inputA, inputB, filter_idx=int(rp_count))
                     rp_count += 1
+            elif key in ['t0'] and fit_ttv:
+                if lightcurves is None:
+                    raise ValueError('lightcurves must be provided if fit_ttv is True')
+                for li in np.ndindex(lightcurves.shape):
+                    # Loop through each lightcurve and initialise t0
+                    prior_info.add_gaussian_fit_param(key, inputA, inputB, li[0], li[1], li[2])
             else:
                 prior_info.add_gaussian_fit_param(key, inputA, inputB)
 
@@ -355,7 +370,8 @@ def read_data_path_array(data_path_array, skiprows=0):
 
 def read_priors_file(path, n_telescopes, n_filters, n_epochs,
                      limb_dark='quadratic', filter_indices=None, folded=False,
-                     folded_P=None, folded_t0=None, host_radius=None):
+                     folded_P=None, folded_t0=None, host_radius=None,
+                     fit_ttv=None, lightcurves=None):
     '''
     If given a csv file containing priors, will produce a PriorInfo object
     based off the given values
@@ -421,7 +437,7 @@ def read_priors_file(path, n_telescopes, n_filters, n_epochs,
     '''
     priors_list = pd.read_csv(path).values
 
-    return parse_priors_list(priors_list, n_telescopes, n_filters, n_epochs, limb_dark, filter_indices, folded, folded_P, folded_t0, host_radius)
+    return parse_priors_list(priors_list, n_telescopes, n_filters, n_epochs, limb_dark, filter_indices, folded, folded_P, folded_t0, host_radius, fit_ttv, lightcurves)
 
 
 def read_input_file(path, skiprows=0):
@@ -617,7 +633,7 @@ def print_results(results, priorinfo, n_dof):
                 param = param +'_{}:\t'.format(int(priorinfo._filter_idx[i]))
             #elif param in ['t0']:
             #    param = param +'_{}'.format(int(priorinfo._epoch_idx[i]))
-            elif param in priorinfo.detrending_coeffs + ['norm']:
+            elif (param in priorinfo.detrending_coeffs + ['norm']) or (param in['t0'] and priorinfo.fit_ttv):
                 param = param + '_t{}_f{}_e{}:'.format(int(priorinfo._telescope_idx[i]),int(priorinfo._filter_idx[i]), int(priorinfo._epoch_idx[i]))
             elif param in priorinfo.limb_dark_coeffs and priorinfo.ld_fit_method in ['independent', 'coupled']:
                 # All the LD coeffs are fitted separately and will write out
@@ -722,7 +738,10 @@ def save_final_light_curves(lightcurves, priorinfo, results,
             # Calculate the value of the best fit light curve at the same times
             # First we set up the parameters
             params = batman.TransitParams()
-            params.t0 = best_dict['t0']
+            if priorinfo.fit_ttv:
+                params.t0 = best_dict['t0'][telescope_idx, filter_idx, epoch_idx]
+            else:
+                params.t0 = best_dict['t0']
             params.per = best_dict['P']
             params.rp = best_dict['rp'][i[1]]
             params.a = best_dict['a']

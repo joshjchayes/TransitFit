@@ -51,7 +51,10 @@ class LikelihoodCalculator:
                 # Set up the TransitModels
                 # Make some realistic parameters to setup the models with
                 default_params = batman.TransitParams()
-                default_params.t0 = priorinfo.priors['t0'].default_value
+                if self.priors.fit_ttv:
+                    default_params.t0 = priorinfo.priors['t0'][0,0,0].default_value
+                else:
+                    default_params.t0 = priorinfo.priors['t0'].default_value
                 default_params.per = priorinfo.priors['P'].default_value
                 default_params.rp = priorinfo.priors['rp'][i[1]].default_value
                 default_params.a = priorinfo.priors['a'].default_value
@@ -123,7 +126,10 @@ class LikelihoodCalculator:
                 # update the parameters to the testing ones
                 u = self.priors.ld_handler.convert_qtou(*q[filter_idx])
 
-                self.update_params(telescope_idx, filter_idx, epoch_idx, t0, per, rp[filter_idx], a, inc, ecc, w, limb_dark, u)
+                if self.priors.fit_ttv:
+                    self.update_params(telescope_idx, filter_idx, epoch_idx, t0[telescope_idx, filter_idx, epoch_idx], per, rp[filter_idx], a, inc, ecc, w, limb_dark, u)
+                else:
+                    self.update_params(telescope_idx, filter_idx, epoch_idx, t0, per, rp[filter_idx], a, inc, ecc, w, limb_dark, u)
 
                 # Calculate the model transits
                 model = self.batman_models[i]

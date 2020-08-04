@@ -18,7 +18,7 @@ _prior_info_defaults = {'P':1, 'a':10, 'inc':90, 'rp':0.05, 't0':0, 'ecc':0,
                         'n_epochs':1, 'norm':1}
 
 
-def setup_priors(P, rp, a, inc, t0, ecc, w, ld_model, n_telescopes, n_filters, n_epochs):
+def setup_priors(P, rp, a, inc, t0, ecc, w, ld_model, n_telescopes, n_filters, n_epochs, fit_ttv=False):
     '''
     Initialises a PriorInfo object with default parameter values.
     '''
@@ -34,10 +34,10 @@ def setup_priors(P, rp, a, inc, t0, ecc, w, ld_model, n_telescopes, n_filters, n
                     'n_filters' : n_filters,
                     'limb_dark' : ld_model}
 
-    return PriorInfo(default_dict, warn=False)
+    return PriorInfo(default_dict, fit_ttv=fit_ttv, warn=False)
 
 class PriorInfo:
-    def __init__(self, default_dict, warn=True):
+    def __init__(self, default_dict, fit_ttv=False, warn=True):
         '''
         Contains all the info to be used in fitting, both the variable and
         fixed parameters.
@@ -65,6 +65,8 @@ class PriorInfo:
         self.n_filters = default_dict['n_filters']
         self.n_telescopes = default_dict['n_telescopes']
         self.limb_dark = default_dict['limb_dark']
+
+        self.fit_ttv = fit_ttv
 
         # Initialise limb darkening
         self.ld_handler = LimbDarkeningHandler(self.limb_dark)
@@ -103,7 +105,12 @@ class PriorInfo:
                 # The 'do nothing' keys
                 pass
             else:
-                self.priors[key] = _Param(default_dict[key])
+                if fit_ttv and key in ['t0']:
+                    # Set up t0 so it can be fitted for each lightcurve
+                    # independently
+                    self.priors[key] = np.full((self.n_telescopes, self.n_filters, self.n_epochs), _Param(default_dict[key]), object)
+                else:
+                    self.priors[key] = _Param(default_dict[key])
 
 
     def add_uniform_fit_param(self, name, low_lim, high_lim,
@@ -167,30 +174,36 @@ class PriorInfo:
         '''
 
         # Check that the parameter was initialised
+        # Check that the parameter was initialised
         if not name in self.priors:
             raise KeyError('Unrecognised prior name {}'.format(name))
 
-        # Deal with wavelength variant parameters
-        if name in ['rp'] + self.limb_dark_coeffs:
+        # Deal with all the cases of the given indices - these will indicate
+        # how these parameters are coupled across telescope, filter, and epoch
+        if telescope_idx is None:
             if filter_idx is None:
-                raise ValueError('filter_idx must be provided for parameter {}'.format(name))
-            self.priors[name][filter_idx] = _GaussianParam(mean, stdev)
+                if epoch_idx is None:
+                    self.priors[name] = _GaussianParam(mean, stdev)
+                else:
+                    self.priors[name][epoch_idx] = _GaussianParam(mean, stdev)
+            else:
+                if epoch_idx is None:
+                    self.priors[name][filter_idx] = _GaussianParam(mean, stdev)
+                else:
+                    self.priors[name][filter_idx, epoch_idx] = _GaussianParam(mean, stdev)
 
-        # Deal with detrending fitting
-        elif name in self.detrending_coeffs + ['norm']:
-            if filter_idx is None:
-                raise ValueError('filter_idx must be provided for parameter {}'.format(name))
-            if epoch_idx is None:
-                raise ValueError('epoch_idx must be provided for parameter {}'.format(name))
-
-            self.priors[name][telescope_idx, filter_idx, epoch_idx] = _GaussianParam(mean, stdev)
-
-        # Anything else
-        # Note t0 is included in here - we just need t0 from one light curve
-        # to be able to fit that with P
         else:
-            self.priors[name] = _GaussianParam(mean, stdev)
-
+            if filter_idx is None:
+                if epoch_idx is None:
+                    self.priors[name][telescope_idx] = _GaussianParam(mean, stdev)
+                else:
+                    self.priors[name][telescope_idx, epoch_idx] = _GaussianParam(mean, stdev)
+            else:
+                if epoch_idx is None:
+                    self.priors[name][telescope_idx, filter_idx] = _GaussianParam(mean, stdev)
+                else:
+                    self.priors[name][telescope_idx, filter_idx, epoch_idx] = _GaussianParam(mean, stdev)
+                    
         # Store some info for later
         self.fitting_params.append(name)
         self._filter_idx.append(filter_idx)
@@ -292,7 +305,13 @@ class PriorInfo:
         for d in self.detrending_coeffs:
             if not isinstance(self.priors[d], _Param):
                 # This is not being fitted globally - set up an array
+                # We know this as if this is not a _Param instance, it must be
+                # an array of _Params
                 result[d] = np.full(self.priors[d].shape, None)
+
+        if self.fit_ttv:
+            # We need individual t0 for each light curve
+            result['t0'] = np.full((self.n_telescopes, self.n_filters, self.n_epochs), None)
 
         # Now we generate the results
 
@@ -470,42 +489,56 @@ class PriorInfo:
                     n_coeffs = lightcurves[i].n_detrending_params
 
                     for coeff_i in range(n_coeffs):
-                        coeff_name = 'd{}_{}'.format(coeff_i, method_idx) 
-                        # Initialise an entry in the priors dict if there isn't
-                        # one already
-                        if coeff_name not in self.priors:
-                            if coeff_i + 1 in method[2]:
-                                # Fit globally
-                                self.priors[coeff_name] = None
-                                self.detrending_coeffs_fit_mode.append(0)
-                            elif coeff_i + 1 in method[3]:
-                                # Fit across filter
-                                self.priors[coeff_name] = np.full((self.n_filters), None, object)
-                                self.detrending_coeffs_fit_mode.append(1)
-                            elif coeff_i + 1 in method[4]:
-                                # Fit across epoch
-                                self.priors[coeff_name] = np.full((self.n_epochs), None, object)
-                                self.detrending_coeffs_fit_mode.append(2)
-                            else:
+                        coeff_name = 'd{}_{}'.format(coeff_i, method_idx)
+
+                        # NOTE: Deal separately with nth order and custom modes
+                        if method[0] == 'nth order':
+                            # Initialise an entry in the priors dict if there isn't
+                            # one already
+                            if coeff_name not in self.priors:
                                 # Fitting for each lightcurve
                                 self.priors[coeff_name] = np.full((self.n_telescopes, self.n_filters, self.n_epochs), None, object)
                                 self.detrending_coeffs_fit_mode.append(3)
 
-                            self.detrending_coeffs.append(coeff_name)
+                                self.detrending_coeffs.append(coeff_name)
 
-                        # Now we set up the fitting
-                        if coeff_i + 1 in method[2]:
-                            # Fit globally
-                            self.add_uniform_fit_param(coeff_name, lower_lim, upper_lim)
-                        elif coeff_i + 1 in method[3]:
-                            # Fit across filter
-                            self.add_uniform_fit_param(coeff_name, lower_lim, upper_lim, filter_idx=filter_idx)
-                        elif coeff_i + 1 in method[4]:
-                            # Fit across epoch
-                            self.add_uniform_fit_param(coeff_name, lower_lim, upper_lim, epoch_idx=epoch_idx)
-                        else:
-                            # Fitting for each lightcurve
+                            # Set up the fitting
                             self.add_uniform_fit_param(coeff_name, lower_lim, upper_lim, telescope_idx, filter_idx, epoch_idx)
+
+                        elif method[0] == 'custom':
+                            if coeff_name not in self.priors:
+                                if coeff_i + 1 in method[2]:
+                                    # Fit globally
+                                    self.priors[coeff_name] = None
+                                    self.detrending_coeffs_fit_mode.append(0)
+                                elif coeff_i + 1 in method[3]:
+                                    # Fit across filter
+                                    self.priors[coeff_name] = np.full((self.n_filters), None, object)
+                                    self.detrending_coeffs_fit_mode.append(1)
+                                elif coeff_i + 1 in method[4]:
+                                    # Fit across epoch
+                                    self.priors[coeff_name] = np.full((self.n_epochs), None, object)
+                                    self.detrending_coeffs_fit_mode.append(2)
+                                else:
+                                    # Fitting for each lightcurve
+                                    self.priors[coeff_name] = np.full((self.n_telescopes, self.n_filters, self.n_epochs), None, object)
+                                    self.detrending_coeffs_fit_mode.append(3)
+
+                                self.detrending_coeffs.append(coeff_name)
+
+                            # Now we set up the fitting
+                            if coeff_i + 1 in method[2]:
+                                # Fit globally
+                                self.add_uniform_fit_param(coeff_name, lower_lim, upper_lim)
+                            elif coeff_i + 1 in method[3]:
+                                # Fit across filter
+                                self.add_uniform_fit_param(coeff_name, lower_lim, upper_lim, filter_idx=filter_idx)
+                            elif coeff_i + 1 in method[4]:
+                                # Fit across epoch
+                                self.add_uniform_fit_param(coeff_name, lower_lim, upper_lim, epoch_idx=epoch_idx)
+                            else:
+                                # Fitting for each lightcurve
+                                self.add_uniform_fit_param(coeff_name, lower_lim, upper_lim, telescope_idx, filter_idx, epoch_idx)
 
         self.detrend=True
 

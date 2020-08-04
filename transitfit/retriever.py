@@ -23,6 +23,7 @@ from dynesty import NestedSampler
 import os
 import csv
 from copy import deepcopy
+import multiprocessing as mp
 
 # Parameters and if they are global, filter-specific or lightcurve-specific
 global_params = ['P', 't0', 'ecc', 'a', 'inc', 'w']
@@ -37,7 +38,7 @@ class Retriever:
                  filter_info=None, detrending_list=[['nth order', 1]],
                  limb_darkening_model='quadratic', host_T=None, host_logg=None,
                  host_z=None, host_r=None, ldtk_cache=None, data_skiprows=0,
-                 n_ld_samples=20000, do_ld_mc=False):
+                 n_ld_samples=20000, do_ld_mc=False, fit_ttv=False):
         '''
         The AdvancedRetriever handles all processes in TransitFit.
 
@@ -74,6 +75,7 @@ class Retriever:
         self.n_epochs = n_epochs
         self.n_ld_samples = n_ld_samples
         self.do_ld_mc = do_ld_mc
+        self.fit_ttv = fit_ttv
 
         # Read in the filters
         if self._filter_input is None:
@@ -324,7 +326,8 @@ class Retriever:
                 priors, lightcurves = self._get_priors_and_curves(ld_fit_method, batch)
 
                 results, ndof = self._run_dynesty(lightcurves, priors, maxiter,
-                                                  maxcall, sample, nlive, dlogz)
+                                                  maxcall, sample, nlive,
+                                                  dlogz)
 
                 all_results.append(results)
                 all_priors.append(priors)
@@ -415,7 +418,8 @@ class Retriever:
                                       n_epochs,
                                       self.limb_darkening_model,
                                       filter_indices,
-                                      folded, folded_P, folded_t0, self.host_r)
+                                      folded, folded_P, folded_t0, self.host_r,
+                                      self.fit_ttv, lightcurves)
         else:
             # Reading in from a list
             priors = parse_priors_list(self._prior_input,
@@ -424,7 +428,8 @@ class Retriever:
                                        n_epochs,
                                        self.limb_darkening_model,
                                        filter_indices,
-                                       folded, folded_P, folded_t0, self.host_r)
+                                       folded, folded_P, folded_t0,
+                                       self.host_r, self.fit_ttv, lightcurves)
 
         # Set up limb darkening
         if not ld_fit_method.lower() == 'off':

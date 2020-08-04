@@ -26,7 +26,8 @@ def run_retrieval(data_files, priors, filter_info=None,
                   final_lightcurve_folder='./fitted_lightcurves',
                   plot_folder='./plots', plot_final=True, plot_partial=True,
                   marker_color='dimgrey', line_color='black', ldtk_cache=None,
-                  n_ld_samples=20000, do_ld_mc=False, data_skiprows=0):
+                  n_ld_samples=20000, do_ld_mc=False, data_skiprows=0,
+                  fit_ttv=False):
     '''
     Runs a full retrieval of posteriors using nested sampling on a transit
     light curve or a set of transit light curves. For more guidance on the use
@@ -275,7 +276,7 @@ def run_retrieval(data_files, priors, filter_info=None,
     retriever = Retriever(data_files, priors, n_telescopes, n_filters, n_epochs,
                           filter_info, detrending_list, limb_darkening_model,
                           host_T, host_logg, host_z, host_r, ldtk_cache,
-                          data_skiprows, n_ld_samples, do_ld_mc)
+                          data_skiprows, n_ld_samples, do_ld_mc, fit_ttv=fit_ttv)
 
     # Run the retrieval!
     results = retriever.run_retrieval(ld_fit_method, fitting_mode,
@@ -284,6 +285,6 @@ def run_retrieval(data_files, priors, filter_info=None,
                                       plot_partial, results_output_folder,
                                       final_lightcurve_folder, plot_folder,
                                       marker_color, line_color, normalise,
-                                      batch_overlap)
+                                      overlap=batch_overlap)
 
     return results
