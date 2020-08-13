@@ -67,7 +67,7 @@ def plot_individual_lightcurves(lightcurves, priorinfo, results,
         d = np.full(lightcurves.shape, None, object)
 
         for i in np.ndindex(d.shape):
-            for coeff in priorinfo.detrending_coeffs:
+            for coeff in np.ravel(priorinfo.detrending_coeffs):
                 if best_dict[coeff][i] is not None:
                     if d[i] is None:
                         d[i] = [best_dict[coeff][i]]
@@ -96,23 +96,23 @@ def plot_individual_lightcurves(lightcurves, priorinfo, results,
 
             # First we set up the parameters
             params = batman.TransitParams()
-            params.t0 = best_dict['t0']
-            params.per = best_dict['P']
-            params.rp = best_dict['rp'][i[1]]
-            params.a = best_dict['a']
-            params.inc = best_dict['inc']
-            params.ecc = best_dict['ecc']
-            params.w = best_dict['w']
+            params.t0 = best_dict['t0'][i]
+            params.per = best_dict['P'][i]
+            params.rp = best_dict['rp'][i]
+            params.a = best_dict['a'][i]
+            params.inc = best_dict['inc'][i]
+            params.ecc = best_dict['ecc'][i]
+            params.w = best_dict['w'][i]
             params.limb_dark = priorinfo.limb_dark
 
             if priorinfo.fit_ld:
                 # NOTE needs converting from q to u
-                best_q = np.array([best_dict[key] for key in priorinfo.limb_dark_coeffs]).T[i[1]]
+                best_q = np.array([best_dict[key][i] for key in priorinfo.limb_dark_coeffs])
             else:
-                q = np.array([priorinfo.priors[key] for key in priorinfo.limb_dark_coeffs])
+                q = np.array([priorinfo.priors[key][i] for key in priorinfo.limb_dark_coeffs])
                 for j in np.ndindex(q.shape):
                     q[j] = q[j].default_value
-                best_q = q.T[i[1]]
+                best_q = q
 
             params.u = priorinfo.ld_handler.convert_qtou(*best_q)
 
@@ -188,7 +188,7 @@ def plot_individual_lightcurves(lightcurves, priorinfo, results,
 
             if add_titles:
                 if titles is None:
-                    main_ax.set_title('Telescope {} Filter {}, Epoch {}'.format(i[0], i[1], i[2]))
+                    main_ax.set_title('Telescope {} Filter {}, Epoch {}'.format(telescope_idx, filter_idx, epoch_idx))
                 else:
                     main_ax.set_title(titles[i])
 

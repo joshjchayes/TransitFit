@@ -10,7 +10,7 @@ then fitting these across filters
 '''
 
 from .io import read_input_file, read_priors_file, parse_priors_list, read_filter_info, parse_filter_list
-from ._likelihood import LikelihoodCalculator
+from ._likelihood_new import LikelihoodCalculator
 from ._utils import get_normalised_weights, get_covariance_matrix, validate_lightcurve_array_format, weighted_avg_and_std
 from . import io
 from .plotting import plot_individual_lightcurves
@@ -26,11 +26,11 @@ from copy import deepcopy
 import multiprocessing as mp
 
 # Parameters and if they are global, filter-specific or lightcurve-specific
-global_params = ['P', 't0', 'ecc', 'a', 'inc', 'w']
+global_params = ['P', 'ecc', 'a', 'inc', 'w']
 
 filter_dependent_params = ['rp', 'q0', 'q1', 'q2', 'q3', 'u0', 'u1', 'u2', 'u3']
 
-lightcurve_dependent_params = ['norm','d0','d2','d3','d4','d5','d6','d7', 'd8']
+lightcurve_dependent_params = ['norm','d0','d1','d2','d3','d4','d5','d6','d7','d8']
 
 
 class Retriever:
@@ -494,45 +494,9 @@ class Retriever:
 
         def lnlike(cube):
             params = priors._interpret_param_array(cube)
-            # Get the limb darkening details and coefficient values
-            limb_dark = priors.limb_dark
-            if priors.fit_ld:
-                q = [params[key] for key in priors.limb_dark_coeffs]
-            else:
-                q = np.array([priors.priors[key] for key in priors.limb_dark_coeffs])
-                for i in np.ndindex(q.shape):
-                    q[i] = q[i].default_value
 
+            ln_likelihood = likelihood_calc.find_likelihood(params)
 
-            if priors.detrend:
-                # We need to combine the detrending coeff arrays into one
-                # Each entry should be a list containing all the detrending
-                # coefficients to trial.
-                d = np.full(lightcurves.shape, None, object)
-
-                for i in np.ndindex(d.shape):
-                    for coeff in priors.detrending_coeffs:
-                        if params[coeff][i] is not None:
-                            if d[i] is None:
-                                d[i] = [params[coeff][i]]
-                            else:
-                                d[i].append(params[coeff][i])
-
-            else:
-                # Don't detrend
-                d = None
-
-            ln_likelihood = likelihood_calc.find_likelihood(params['t0'],
-                                                            params['P'],
-                                                            params['rp'],
-                                                            params['a'],
-                                                            params['inc'],
-                                                            params['ecc'],
-                                                            params['w'],
-                                                            limb_dark,
-                                                            np.array(q).T,
-                                                            params['norm'],
-                                                            d)
             if priors.fit_ld and not priors.ld_fit_method == 'independent':
                 return ln_likelihood + priors.ld_handler.ldtk_lnlike(np.array(u).T, limb_dark)
             else:
@@ -1190,6 +1154,9 @@ class Retriever:
             The results for each of the runs
         priors : array_like, shape (n_batches, )
             The priors for each of the runs
+        lightcurves : array_like, shape (n_batches, )
+            Each entry should be the (n_telescopes, n_filters, n_epochs)
+            lightcurvearray for the batch
         filepath : str, optional
             The path to save the results to
         folded_P : float, optional
@@ -1212,17 +1179,8 @@ class Retriever:
             '''
             Initialises param in results dictionaries
             '''
-            if param in global_params:
-                if not param in d:
-                    d[param] = np.full(n_batches, None, object)
-            elif param in filter_dependent_params:
-                if not param in d:
-                    #d[param] = np.full(n_filters, None, object)
-                    d[param] = np.full(self.n_filters, None, object)
-            else:
-                if not param in d:
-                    #d[param] = np.full(lightcurves_shape, None, object)
-                    d[param] = np.full(self.all_lightcurves.shape, None, object)
+            if param not in d:
+                d[param] = self._full_prior.priors[param].generate_blank_ParamArray()
             return d
 
         # We pull out the results for all the variables into two dictionaries
@@ -1249,68 +1207,45 @@ class Retriever:
                     print(e)
 
             # We will pull things out of the prior info
-            for j, param in enumerate(priors[i].fitting_params):
-                values = initialise_dict_entry(values, param)
-                errors = initialise_dict_entry(errors, param)
+            for j, param_info in enumerate(priors[i].fitting_params):
+                param_name, batch_tidx, batch_fidx, batch_eidx = param_info
 
-                # First, global parameters
-                if param in global_params:
-                    # indexing is done by batch
-                    if values[param][i] is None:
-                        values[param][i] = []
-                    if errors[param][i] is None:
-                        errors[param][i] = []
+                # The fidx, tidx, eidx in param_info are for the batch. We want
+                # the global values, so pull out of the lightcurves
 
-                    values[param][i].append(ri.best[j])
-                    errors[param][i].append(ri.uncertainties[j])
+                # for global params, these are all None
+                if param_name in global_params or (param_name in 't0' and not priors[i].fit_ttv):
+                    tidx, fidx, eidx = None, None, None
 
-                # Now filter-specific and lightcurve-specific params
+                # For filter dependent parameters, batch_tidx and
+                # batch_eidx are None, so we need to go through the
+                # lightcurves to find the filter index
+                elif param_name in filter_dependent_params:
+                    # Find the filter index
+                    for k in np.ndindex(lightcurves[i].shape):
+                        if k[1] == batch_fidx and lightcurves[i][k] is not None:
+                            tidx = None
+                            fidx = lightcurves[i][k].filter_idx
+                            eidx = None
+                            break
                 else:
-                    # The indexing here comes from the lightcurves themselves
-                    # Pull out the indices which point to the lightcurve within
-                    # the batch
-                    telescope_sub_idx = priors[i]._telescope_idx[j]
-                    filter_sub_idx = priors[i]._filter_idx[j]
-                    epoch_sub_idx = priors[i]._epoch_idx[j]
+                    # Lightcurve specific, we can just pull it straight out.
+                    tidx = lightcurves[i][batch_tidx, batch_fidx, batch_eidx].telescope_idx
+                    fidx = lightcurves[i][batch_tidx, batch_fidx, batch_eidx].filter_idx
+                    eidx = lightcurves[i][batch_tidx, batch_fidx, batch_eidx].epoch_idx
 
-                    # For filter dependent parameters, telescope_sub_idx and
-                    # epoch_sub_idx are None, so we need to go through the
-                    # lightcurves to find the filter index
-                    if param in filter_dependent_params:
-                        # Find the filter index
-                        for k in np.ndindex(lightcurves[i].shape):
-                            if k[1] == filter_sub_idx and lightcurves[i][k] is not None:
-                                filter_idx = lightcurves[i][k].filter_idx
-                                break
+                # Check that the parameter has been initialised
+                values = initialise_dict_entry(values, param_name)
+                errors = initialise_dict_entry(errors, param_name)
 
-                        # Now update the values and errors dicts
-                        if values[param][filter_idx] is None:
-                            values[param][filter_idx] = []
-                        if errors[param][filter_idx] is None:
-                            errors[param][filter_idx] = []
+                if values[param_name][tidx, fidx, eidx] is None:
+                    values[param_name][tidx, fidx, eidx] = []
+                if errors[param_name][tidx, fidx, eidx] is None:
+                    errors[param_name][tidx, fidx, eidx] = []
 
-                        values[param][filter_idx].append(ri.best[j])
-                        errors[param][filter_idx].append(ri.uncertainties[j])
-
-                    # Now lightcurve-specific params
-                    # The param[:2] is here because the detrending coeffs have the
-                    # method index on the end and it's easier to remove it here
-                    else:
-                        # Get the lightcurve
-                        lc = lightcurves[i][telescope_sub_idx, filter_sub_idx, epoch_sub_idx]
-
-                        # Now get the global level indices from the lightcurve
-                        telescope_idx = lc.telescope_idx
-                        filter_idx = lc.filter_idx
-                        epoch_idx = lc.epoch_idx
-
-                        if values[param][telescope_idx, filter_idx, epoch_idx] is None:
-                            values[param][telescope_idx, filter_idx, epoch_idx] = []
-                        if errors[param][telescope_idx, filter_idx, epoch_idx] is None:
-                            errors[param][telescope_idx, filter_idx, epoch_idx] = []
-
-                        values[param][telescope_idx, filter_idx, epoch_idx].append(ri.best[j])
-                        errors[param][telescope_idx, filter_idx, epoch_idx].append(ri.uncertainties[j])
+                # Now pull out the best values
+                values[param_name][tidx, fidx, eidx].append(ri.best[j])
+                errors[param_name][tidx, fidx, eidx].append(ri.uncertainties[j])
 
         # Now we have collated all of the results from each run, we can take
         # weighted averages to get the final values for each parameter
@@ -1333,64 +1268,54 @@ class Retriever:
             # We have to deal here with the limb darkening
             # Since we fit for the Kipping q parameters, we should give
             # these and the physical values (denoted as u)
+            # We put these in both the values and best_vals arrays
+
+            # Intialise entries
+            u_coeffs = []
             for param in self.ld_coeffs:
                 # Initialise each of the u params
-                ldc = 'u{}'.format(param[-1])
+                ldc_q = 'q{}'.format(param[-1])
+                ldc_u = 'u{}'.format(param[-1])
+                u_coeffs.append(ldc_u)
 
-                best_vals = initialise_dict_entry(best_vals, ldc)
-                best_vals_errors = initialise_dict_entry(best_vals_errors, ldc)
-                values = initialise_dict_entry(values, ldc)
-                errors = initialise_dict_entry(errors, ldc)
+                if ldc_u not in best_vals:
+                    best_vals[ldc_u] = values[ldc_q].generate_blank_ParamArray()
+                    values[ldc_u] = values[ldc_q].generate_blank_ParamArray()
+                if ldc_u not in best_vals_errors:
+                    best_vals_errors[ldc_u] = errors[ldc_q].generate_blank_ParamArray()
+                    errors[ldc_u] = errors[ldc_q].generate_blank_ParamArray()
 
-            # For each filter, pull out all the q values and errors
 
-            for i in np.ndindex(best_vals['q0'].shape):
+            for i in np.ndindex(values['q0'].shape):
                 if values['q0'][i] is not None:
+                    # Initialise empty lists
+                    for u in u_coeffs:
+                        values[u][i] = []
+                        errors[u][i] = []
 
-                    best_q = []
-                    best_q_err = []
+                    # Put all the q values for a given filter into one place so we
+                    # can access q0, q1 simultaneously for converting to u
+                    # All values
+                    filter_q = np.vstack((values[q][i] for q in self.ld_coeffs)).T
+                    filter_q_errors = np.vstack((errors[q][i] for q in self.ld_coeffs)).T
 
-                    all_q = []
-                    all_q_err = []
+                    # Best (averaged) values
+                    best_filter_q = np.vstack((best_vals[q][i] for q in self.ld_coeffs)).T[0]
+                    best_filter_q_errors = np.vstack((best_vals_errors[q][i] for q in self.ld_coeffs)).T[0]
 
-                    for param in self.ld_coeffs:
-                        best_q.append(best_vals[param][i])
-                        best_q_err.append(best_vals_errors[param][i])
+                    # First do all values
+                    for j, qj in enumerate(filter_q):
+                        u, u_err = self._full_prior.ld_handler.convert_qtou_with_errors(qj, filter_q_errors[j], self.limb_darkening_model)
 
-                        all_q.append(values[param][i])
-                        all_q_err.append(errors[param][i])
+                        for k, uk in enumerate(u_coeffs):
+                            values[uk][i].append(u[k])
+                            errors[uk][i].append(u_err[k])
 
-                    # Now we have all the best q vals, convert them
-                    # first the best values
-                    best_u, best_u_err = self._full_prior.ld_handler.convert_qtou_with_errors(best_q, best_q_err, self.limb_darkening_model)
-
-                    # Now all the separate u values:
-                    all_u = [[] for param in self.ld_coeffs]
-                    all_u_err = [[] for param in self.ld_coeffs]
-
-                    # Now we have to pull out all the q values for a given run and
-                    # convert them to u, then put into all_u and all_u_err
-                    for j in range(len(all_q[0])):
-                        batch_q = [all_q[k][j] for k in range(self.n_ld_params)]
-                        batch_q_err = [all_q_err[k][j] for k in range(self.n_ld_params)]
-
-                        batch_u, batch_u_err = self._full_prior.ld_handler.convert_qtou_with_errors(batch_q, batch_q_err, self.limb_darkening_model)
-
-                        for k in range(self.n_ld_params):
-                            all_u[k].append(batch_u[k])
-                            all_u_err[k].append(batch_u_err[k])
-
-                    for j in range(len(best_u)):
-                        best_vals['u{}'.format(j)][i] = best_u[j]
-                        best_vals_errors['u{}'.format(j)][i] = best_u_err[j]
-
-                        if values['u{}'.format(j)][i] is None:
-                            values['u{}'.format(j)][i] = []
-                        if errors['u{}'.format(j)][i] is None:
-                            errors['u{}'.format(j)][i] = []
-
-                        values['u{}'.format(j)][i] += all_u[j]
-                        errors['u{}'.format(j)][i] += all_u_err[j]
+                    # Now do best values
+                    u, u_err = self._full_prior.ld_handler.convert_qtou_with_errors(best_filter_q, best_filter_q_errors, self.limb_darkening_model)
+                    for k, uk in enumerate(u_coeffs):
+                        best_vals[uk][i] = u[k]
+                        best_vals_errors[uk][i] = u_err[k]
 
         # TODO - Detrending:
         # Sometimes detrending is done with batches, and this is outputting
@@ -1426,7 +1351,7 @@ class Retriever:
                         epoch_idx = '-'
                     elif param in filter_dependent_params:
                         telescope_idx = '-'
-                        filter_idx = i[0]
+                        filter_idx = i[1]
                         epoch_idx = '-'
                     else:
                         telescope_idx = i[0]

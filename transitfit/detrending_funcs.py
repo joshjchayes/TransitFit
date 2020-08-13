@@ -28,7 +28,7 @@ class NthOrderDetrendingFunction:
 
         vals = np.zeros(len(times))
         for i in range(0, self.order):
-            vals += args[i] * (times ** (i+1) - sum(times ** (i+1))/len(times))
+            vals += args[i] * (times ** (i+1) - np.sum(times ** (i+1))/len(times))
 
         return vals
 

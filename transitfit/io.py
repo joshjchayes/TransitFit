@@ -138,16 +138,19 @@ def parse_priors_list(priors_list, n_telescopes, n_filters,
 
     Returns
     -------
-    prior_info : PriorInfo
+    priors : PriorInfo
         The fully initialised PriorInfo which can then be used in fitting.
     '''
-
     if folded:
         if folded_P is None:
             raise ValueError('folded_P must be provided for folded prior mode')
         if folded_t0 is None:
             raise ValueError('folded_t0 must be provided for folded prior mode')
 
+    if fit_ttv and lightcurves is None:
+        raise ValueError('lightcurves must be provided if fit_ttv is True')
+
+    # Make a dictionary of the defaults
     priors_dict = {}
 
     if filter_indices is None:
@@ -155,6 +158,7 @@ def parse_priors_list(priors_list, n_telescopes, n_filters,
         filter_indices = np.arange(n_filters)
 
     rp_count = 0
+    used_filters = []
     for row in priors_list:
         # First check the key and correct if possible
         row[0] = validate_variable_key(row[0])
@@ -166,6 +170,7 @@ def parse_priors_list(priors_list, n_telescopes, n_filters,
             if row[-1] in filter_indices:
                 priors_dict[row[0]] = np.append(row[2:-1], rp_count)
                 rp_count += 1
+                used_filters.append(row[-1])
 
         else:
             if row[0] == 'a' and host_radius is not None:
@@ -174,6 +179,11 @@ def parse_priors_list(priors_list, n_telescopes, n_filters,
                 row[3] = AU_to_host_radii(row[3], host_radius)
 
             priors_dict[row[0]] = row[2:]
+
+    # We  have to convert between the global filter indexing and an
+    # internal filter indexing here.
+    filter_conversion = {ai : i for i, ai in enumerate(used_filters)}
+    # Each key is the global value, and converts to the internal value.
 
     ##############################
     # Make the default PriorInfo #
@@ -185,87 +195,83 @@ def parse_priors_list(priors_list, n_telescopes, n_filters,
             # Has not been specified in the priors list
             priors_dict[key] = [_prior_info_defaults[key]]
 
-    # Now make the basic PriorInfo
+    # Update priors_dict values if using folded curves
     if folded:
-        # Use the given folded_P and folded_t0
-        prior_info = setup_priors(folded_P,
-                                  priors_dict['rp'][0],
-                                  priors_dict['a'][0],
-                                  priors_dict['inc'][0],
-                                  folded_t0,
-                                  priors_dict['ecc'][0],
-                                  priors_dict['w'][0],
-                                  ld_model, n_telescopes, n_filters, n_epochs,
-                                  fit_ttv)
-    else:
-        # setup using the file values of t0 and P
-        prior_info = setup_priors(priors_dict['P'][0],
-                                  priors_dict['rp'][0],
-                                  priors_dict['a'][0],
-                                  priors_dict['inc'][0],
-                                  priors_dict['t0'][0],
-                                  priors_dict['ecc'][0],
-                                  priors_dict['w'][0],
-                                  ld_model, n_telescopes, n_filters, n_epochs,
-                                  fit_ttv)
+        priors_dict['P'] = [folded_P]
+        priors_dict['t0'] = [folded_t0]
+
+    # Now make the basic PriorInfo
+    priors = setup_priors(priors_dict['P'][0],
+                          priors_dict['t0'][0],
+                          priors_dict['a'][0],
+                          priors_dict['rp'][0],
+                          priors_dict['inc'][0],
+                          priors_dict['ecc'][0],
+                          priors_dict['w'][0],
+                          ld_model, n_telescopes, n_filters, n_epochs,
+                          priors_dict['q0'][0],
+                          priors_dict['q1'][0],
+                          priors_dict['q2'][0],
+                          priors_dict['q3'][0],
+                          fit_ttv)
 
     ##########################
     # Initialise the fitting #
     ##########################
-    rp_count = 0
     for ri, row in enumerate(priors_list):
         key, mode, inputA, inputB, filt = row
-
         mode = mode.strip()
 
-        if key == 'a' and host_radius is not None:
-            # Convert the inputs to host radius units
-            row[2] = AU_to_host_radii(row[2], host_radius)
-            row[3] = AU_to_host_radii(row[3], host_radius)
-
-        if key in ['P', 't0'] and folded:
-            # Skip P and t0 for folded mode
+        if np.isfinite(filt) and filt not in filter_indices:
+            # Skip this parameter since it's not in the filters we are
+            # interested in
             pass
-
-        if mode.lower() in ['fixed', 'f', 'constant', 'c']:
-            # Not being fitted. Default value was specified.
-            pass
-
-        elif mode.lower() in ['uniform', 'unif', 'u']:
-            # Uniform fitting
-            if key in ['rp']:
-                # NOTE: this assumes that the rp values are provided in filter index order.
-                if filt in filter_indices:
-                    prior_info.add_uniform_fit_param(key, inputA, inputB, filter_idx=int(rp_count))
-                    rp_count += 1
-            elif key in ['t0'] and fit_ttv:
-                if lightcurves is None:
-                    raise ValueError('lightcurves must be provided if fit_ttv is True')
-                for li in np.ndindex(lightcurves.shape):
-                    # Loop through each lightcurve and initialise t0
-                    prior_info.add_uniform_fit_param(key, inputA, inputB, li[0], li[1], li[2])
-            else:
-                prior_info.add_uniform_fit_param(key, inputA, inputB)
-
-        elif mode.lower() in ['gaussian', 'gauss', 'normal', 'norm', 'g']:
-            # Gaussian fitting
-            if key in ['rp']:
-                if filt in filter_indices:
-                    prior_info.add_gaussian_fit_param(key, inputA, inputB, filter_idx=int(rp_count))
-                    rp_count += 1
-            elif key in ['t0'] and fit_ttv:
-                if lightcurves is None:
-                    raise ValueError('lightcurves must be provided if fit_ttv is True')
-                for li in np.ndindex(lightcurves.shape):
-                    # Loop through each lightcurve and initialise t0
-                    prior_info.add_gaussian_fit_param(key, inputA, inputB, li[0], li[1], li[2])
-            else:
-                prior_info.add_gaussian_fit_param(key, inputA, inputB)
 
         else:
-            raise ValueError('Unrecognised fiting mode {} in input row {}. Must be any of "uniform", "gaussian", or "fixed"'.format(mode, ri))
+            # Convert the filter index
+            try:
+                filt = filter_conversion[filt]
+            except KeyError:
+                if not np.isfinite(filt):
+                    # This was excepted because filt was not specified
+                    pass
+                else: raise
 
-    return prior_info
+            if key == 'a' and host_radius is not None:
+                # Convert the inputs to host radius units
+                row[2] = AU_to_host_radii(row[2], host_radius)
+                row[3] = AU_to_host_radii(row[3], host_radius)
+
+            if key in ['P', 't0'] and folded:
+                # Skip P and t0 for folded mode
+                pass
+
+            if mode.lower() in ['fixed', 'f', 'constant', 'c']:
+                # Not being fitted. Default value was specified.
+                pass
+
+            elif mode.lower() in ['uniform', 'unif', 'u']:
+                # Uniform fitting
+                if key in ['t0'] and fit_ttv:
+                    for li in np.ndindex(lightcurves.shape):
+                        # Loop through each lightcurve and initialise t0
+                        priors.add_uniform_fit_param(key, inputA, inputB, li[0], li[1], li[2])
+                else:
+                    priors.add_uniform_fit_param(key, inputA, inputB, filter_idx=filt)
+
+            elif mode.lower() in ['gaussian', 'gauss', 'normal', 'norm', 'g']:
+                # Gaussian fitting
+                if key in ['t0'] and fit_ttv:
+                    for li in np.ndindex(lightcurves.shape):
+                        # Loop through each lightcurve and initialise t0
+                        priors.add_gaussian_fit_param(key, inputA, inputB, li[0], li[1], li[2])
+                else:
+                    priors.add_gaussian_fit_param(key, inputA, inputB, filter_idx=filt)
+
+            else:
+                raise ValueError('Unrecognised fiting mode {} in input row {}. Must be any of "uniform", "gaussian", or "fixed"'.format(mode, ri))
+
+    return priors
 
 
 def _read_data_csv(path, usecols=None):
@@ -615,7 +621,8 @@ def print_results(results, priorinfo, n_dof):
     print('\nBest fit results:')
 
     # We need to print out the results. Loop over each fitted
-    for i, param in enumerate(priorinfo.fitting_params):
+    for i, param_info in enumerate(priorinfo.fitting_params):
+        param, tidx, fidx, eidx = param_info
         if not (param in priorinfo.limb_dark_coeffs and priorinfo.ld_fit_method == 'single'):
             if param in priorinfo.limb_dark_coeffs:
                 # We need to convert the LDCs
@@ -630,14 +637,14 @@ def print_results(results, priorinfo, n_dof):
                 unc = round(results.uncertainties[i], 6)
 
             if param in ['rp']:
-                param = param +'_{}:\t'.format(int(priorinfo._filter_idx[i]))
+                param = param +'_{}:\t'.format(int(fidx))
             #elif param in ['t0']:
             #    param = param +'_{}'.format(int(priorinfo._epoch_idx[i]))
             elif (param in priorinfo.detrending_coeffs + ['norm']) or (param in['t0'] and priorinfo.fit_ttv):
-                param = param + '_t{}_f{}_e{}:'.format(int(priorinfo._telescope_idx[i]),int(priorinfo._filter_idx[i]), int(priorinfo._epoch_idx[i]))
+                param = param + '_t{}_f{}_e{}:'.format(int(tidx),int(fidx), int(eidx))
             elif param in priorinfo.limb_dark_coeffs and priorinfo.ld_fit_method in ['independent', 'coupled']:
                 # All the LD coeffs are fitted separately and will write out
-                param = param +'_{}:\t'.format(int(priorinfo._filter_idx[i]))
+                param = param +'_{}:\t'.format(int(fidx))
             else:
                 param += ':\t'
             print('{}\t {} ± {}'.format(param, value, unc))
@@ -710,7 +717,7 @@ def save_final_light_curves(lightcurves, priorinfo, results,
         d = np.full(lightcurves.shape, None, object)
 
         for i in np.ndindex(d.shape):
-            for coeff in priorinfo.detrending_coeffs:
+            for coeff in np.ravel(priorinfo.detrending_coeffs):
                 if best_dict[coeff][i] is not None:
                     if d[i] is None:
                         d[i] = [best_dict[coeff][i]]
@@ -738,27 +745,24 @@ def save_final_light_curves(lightcurves, priorinfo, results,
             # Calculate the value of the best fit light curve at the same times
             # First we set up the parameters
             params = batman.TransitParams()
-            if priorinfo.fit_ttv:
-                params.t0 = best_dict['t0'][telescope_idx, filter_idx, epoch_idx]
-            else:
-                params.t0 = best_dict['t0']
-            params.per = best_dict['P']
-            params.rp = best_dict['rp'][i[1]]
-            params.a = best_dict['a']
-            params.inc = best_dict['inc']
-            params.ecc = best_dict['ecc']
-            params.w = best_dict['w']
+            params.t0 = best_dict['t0'][i]
+            params.per = best_dict['P'][i]
+            params.rp = best_dict['rp'][i]
+            params.a = best_dict['a'][i]
+            params.inc = best_dict['inc'][i]
+            params.ecc = best_dict['ecc'][i]
+            params.w = best_dict['w'][i]
             params.limb_dark = priorinfo.limb_dark
 
             if priorinfo.fit_ld:
-                # NOTE needs converting from q to u
-                best_q = np.array([best_dict[key] for key in priorinfo.limb_dark_coeffs]).T[i[1]]
+                best_q = np.array([best_dict[key][i] for key in priorinfo.limb_dark_coeffs])
             else:
-                q = np.array([priorinfo.priors[key] for key in priorinfo.limb_dark_coeffs])
+                q = np.array([priorinfo.priors[key][i] for key in priorinfo.limb_dark_coeffs])
                 for j in np.ndindex(q.shape):
                     q[j] = q[j].default_value
-                best_q = q.T[i[1]]
+                best_q = q
 
+            # Convert from q to u
             params.u = priorinfo.ld_handler.convert_qtou(*best_q)
 
             m_sample_times = batman.TransitModel(params, lightcurves[i].times)

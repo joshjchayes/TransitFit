@@ -5,8 +5,8 @@ A class for parameters in TransitFit which can be retrieved. These are used
 by the PriorInfo to determine dimensionality etc.
 
 '''
-
-from scipy.stats import norm
+from scipy.special import erfinv
+import numpy as np
 
 class _Param:
     def __init__(self, value):
@@ -47,7 +47,6 @@ class _GaussianParam(_Param):
         super().__init__(best)
         self.mean = best
         self.stdev = sigma
-        self.distribution = norm(best, sigma)
 
     def from_unit_interval(self, u):
         '''
@@ -56,4 +55,4 @@ class _GaussianParam(_Param):
         '''
         if u > 1 or u < 0:
             raise ValueError('u must satisfy 0 < u < 1')
-        return self.distribution.ppf(u)
+        return self.mean + self.stdev * np.sqrt(2) * erfinv(2 * u - 1)
