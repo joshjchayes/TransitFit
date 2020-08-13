@@ -10,7 +10,7 @@ then fitting these across filters
 '''
 
 from .io import read_input_file, read_priors_file, parse_priors_list, read_filter_info, parse_filter_list
-from ._likelihood_new import LikelihoodCalculator
+from ._likelihood import LikelihoodCalculator
 from ._utils import get_normalised_weights, get_covariance_matrix, validate_lightcurve_array_format, weighted_avg_and_std
 from . import io
 from .plotting import plot_individual_lightcurves
