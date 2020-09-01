@@ -754,60 +754,6 @@ class Retriever:
 
         return np.array(final_lightcurves).reshape(1, self.n_filters, 1), best_P, best_t0[0]
 
-    def _get_curves_and_detrending(self, indices, set_detrending=False,
-                                   set_normalisation=False):
-        '''
-        NOTE: DEPRECIATED
-
-        Returns the light curves and detrending indices for the given
-        telescope, filter and epoch indices (given as tuple).
-
-        NOTE - this currently only works for the full set of lightcurves, not
-        any alternative arrays for (eg) folded curves.
-
-        Parameters:
-        -----------
-        indices :
-
-        set_detrending : bool, optional
-            If True, will initialise detrending for the lightcurves. Default is
-            False
-        set_normalisation : bool, optional
-            If True, will initialise normalisation for the lightcurves. Default
-            is False
-        '''
-        # Get the unique indices
-        unique_indices = self._get_unique_indices(indices)
-        # Make some empty arrays for us to populate
-        lightcurves = np.full(tuple(len(idx) for idx in unique_indices), None)
-        detrending_indices = np.full(tuple(len(idx) for idx in unique_indices), None)
-
-        # Go through each index being used and put in the relevant info
-        # deepcopy is used here to ensure we don't end up with clashing
-        # attributes (e.g. from detrending twice)
-        for index in np.array(indices).T:
-            subset_index = self._full_to_subset_index(indices, index)
-            lightcurves[subset_index] = deepcopy(self.all_lightcurves[tuple(index)])
-            detrending_indices[subset_index] = deepcopy(self.detrending_index_array[tuple(index)])
-
-            if set_detrending:
-                detrending_index = detrending_indices[subset_index]
-                model = self.detrending_info[detrending_index][0]
-                if not model == 'off':
-                    if model == 'nth order':
-                        order = self.detrending_info[detrending_index][1]
-                        lightcurves[subset_index].set_detrending(model, order=order)
-                    elif mode == 'custom':
-                        function = self.detrending_info[detrending_index][1]
-                        lightcurves[subset_index].set_detrending(model, function=function)
-                    else:
-                        print('WARNING: unrecognised detrending method {}. Detrending for lightcurve {} not set'.format(subset_index))
-
-            if set_normalisation:
-                lightcurves[subset_index].set_normalisation()
-
-        return lightcurves, detrending_indices
-
     def _get_lightcurve_subset(self, lightcurves, indices):
         '''
         Pulls out the subset of lightcurves given by the indices.
