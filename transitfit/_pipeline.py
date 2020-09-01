@@ -21,10 +21,12 @@ def run_retrieval(data_files, priors, filter_info=None,
                   max_batch_parameters=25, batch_overlap=2,
                   host_T=None, host_logg=None, host_z=None, host_r=None,
                   nlive=300, dlogz=None, maxiter=None, maxcall=None,
-                  dynesty_sample='auto', normalise=True,
+                  dynesty_sample='auto', normalise=True, detrend=True,
                   results_output_folder='./output_parameters',
                   final_lightcurve_folder='./fitted_lightcurves',
-                  plot_folder='./plots', plot_final=True, plot_partial=True,
+                  summary_file='summary_output.csv',
+                  full_output_file='full_output.csv',
+                  plot_folder='./plots', plot=True,
                   marker_color='dimgrey', line_color='black', ldtk_cache=None,
                   n_ld_samples=20000, do_ld_mc=False, data_skiprows=0,
                   fit_ttv=False):
@@ -195,6 +197,9 @@ def run_retrieval(data_files, priors, filter_info=None,
             ``1/f_min <= c_n <= 1/f_max``
         as the default range, where f_min and f_max are the minimum and maximum
         flux values for a given light curve. Default is True.
+    detrend : bool, optional
+        If False, no detrending will be attempted, even if specified by
+        detrending list. Default is True
     dlogz : float, optional
         Retrieval iteration will stop when the estimated contribution of the
         remaining prior volume to the total evidence falls below this
@@ -232,14 +237,20 @@ def run_retrieval(data_files, priors, filter_info=None,
         The folder to save fitted light curves to. These files contain the
         normalised and detrended light curves, as well as the best fit curve.
         Default is './fitted_lightcurves'
+    sumary_file : str, optional
+        The file to save the summarised final parameter results to. These are
+        calculated by taking weighted averages over any batched fitting.
+        Default is 'summary_output.csv'
+    full_output_file : str, optional
+        The file to save the full, non-summarised results to. This file gives
+        the results for each batch, without averaging over batches to get
+        summaried results. Default is 'full_output.csv'
     plot_folder : str, optional
         Path to folder to save plots to. Default is './plots'
-    plot_final : bool, optional
-        If True, will plot the final fitted lightcurves. Default is True
-    plot_partial : bool, optional
-        If True, will plot all lightcurves which are fitted as part of the
-        pipeline. This is relevant for folded and batched fitting routines.
-        Default is True.
+    plot : bool, optional
+        If True, will plot all fitted light curves within the fitting routine,
+        including any from partial fitting (eg, single filter modes). Default
+        is True.
     marker_color : matplotlib color, optional
         The colour to plot data points on plots. Default is 'dimgray'.
     line_colour : matplotlib color, optional
@@ -271,7 +282,6 @@ def run_retrieval(data_files, priors, filter_info=None,
     n_filters = lightcurves.shape[1]
     n_epochs = lightcurves.shape[2]
 
-    print('Initalising retriever')
     # Set up the Retriever
     retriever = Retriever(data_files, priors, n_telescopes, n_filters, n_epochs,
                           filter_info, detrending_list, limb_darkening_model,
@@ -281,10 +291,11 @@ def run_retrieval(data_files, priors, filter_info=None,
     # Run the retrieval!
     results = retriever.run_retrieval(ld_fit_method, fitting_mode,
                                       max_batch_parameters, maxiter, maxcall,
-                                      dynesty_sample, nlive, dlogz, plot_final,
-                                      plot_partial, results_output_folder,
-                                      final_lightcurve_folder, plot_folder,
+                                      dynesty_sample, nlive, dlogz, plot,
+                                      results_output_folder,
+                                      final_lightcurve_folder, summary_file,
+                                      full_output_file, plot_folder,
                                       marker_color, line_color, normalise,
-                                      overlap=batch_overlap)
+                                      detrend, overlap=batch_overlap)
 
     return results

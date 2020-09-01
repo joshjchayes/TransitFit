@@ -40,7 +40,7 @@ class LightCurve:
         self.detrend = False
         self.normalise = False
 
-    def set_detrending(self, method, order=None, function=None):
+    def set_detrending(self, method, order=None, function=None, method_idx=None):
         '''
         Sets detrending method
 
@@ -72,6 +72,7 @@ class LightCurve:
         else:
             raise ValueError('Unrecognised method {}'.format(method))
 
+        self.detrending_method_idx = method_idx
         self.detrend = True
 
     def set_normalisation(self):
@@ -164,8 +165,6 @@ class LightCurve:
         detrended_flux = deepcopy(self.flux)
         detrended_errors = deepcopy(self.errors)
 
-
-
         if self.detrend and d is not None:
             if use_full_times:
                 subtract_val = 0
@@ -195,21 +194,33 @@ class LightCurve:
         return LightCurve(self.times, detrended_flux, detrended_errors,
                           self.telescope_idx, self.filter_idx, self.epoch_idx)
 
-    def fold(self, t0, period):
+    def fold(self, t0, period, base_t0=None):
         '''
         Folds the LightCurve so that all times are between t0 - period/2 and
-        t0 + period/2
+        t0 + period/2.
+
+        If base_t0 is provided, this will ensure that the folded lightcurve is
+        centred on base_t0. This is to allow for ttv mode where the differences
+        between the retrieved t0 for each empoch must be accounted for.
 
         returns a new LightCurve
         '''
-        times = self.times + (((t0 + period/2) - self.times)//period) * period
+        if base_t0 is None:
+            base_t0 = t0
+
+
+        ttv_term = t0 - ((t0 - (base_t0+period/2))//period) * period - base_t0
+        #ttv_term = self.times - ((self.times - (t0 + period/2))//period) * period - base_t0
+
+        times = self.times - ((self.times - (t0 + period/2))//period) * period - ttv_term
+
         return LightCurve(times, self.flux, self.errors, self.telescope_idx,
                           self.filter_idx, self.epoch_idx)
 
-    def combine(self, *lightcurves, telescope_idx=None, filter_idx=None,
+    def combine(self, lightcurves, telescope_idx=None, filter_idx=None,
                 epoch_idx=None):
         '''
-        Combines the LightCurve with other lightcurves which are passed to it
+        Combines the LightCurve with a list of other lightcurves which are passed to it
         and returns a new lightcurve containing all the data of the input
         curves. Note that you should probably only do this with lightcurves
         which have already been detrended, otherwise you might struggle

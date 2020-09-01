@@ -141,7 +141,6 @@ class LDTKHandler:
 
         return coeff, err
 
-
     def lnlike(self, coeffs, ld_model):
         '''
         Evaluates the log likelihood for a set of coefficients

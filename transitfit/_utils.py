@@ -6,6 +6,7 @@ This is a series of utility functions for TransitFit, including input validation
 
 import numpy as np
 from .lightcurve import LightCurve
+from collections.abc import Iterable
 
 def validate_lightcurve_array_format(arr):
     '''
@@ -197,16 +198,32 @@ def get_covariance_matrix(results):
 
     return cov
 
-def weighted_avg_and_std(values, weights):
+def weighted_avg_and_std(values, weights, axis=-1):
     '''
-    Calculates the weigted average and error on some data.
+    Calculates the weighted average and error on some data.
+
+    axis defaults to the last one (-1)
     '''
-    if len(values) == 1:
+    if not isinstance(values, Iterable):
+        values = [values]
+    if not isinstance(weights, Iterable):
+        weights = [weights]
+
+    values = np.array(values)
+    weights = np.array(weights)
+
+    shape = values.shape
+    if len(shape) == 1:
         # We have only been given one value - return it
         return values[0], weights[0]
 
-    average = np.average(values, weights=weights)
-    variance = np.average((values-average)**2, weights=weights)
+    average = np.average(values, weights=weights, axis=axis)
+    # Reshape average
+    shape = shape[:-1] + (1,)
+    average = average.reshape(shape)
+
+    variance = np.average((values-average)**2, weights=weights, axis=axis).reshape(shape)
+
 
     return average, np.sqrt(variance)
 
@@ -227,7 +244,7 @@ def split_lightcurve_file(path, t0, P, new_base_fname=None):
     and saves these.
     '''
     from .io import read_data_file
-    
+
     # Load the full data file as a LightCurve
     full_lightcurve = LightCurve(*read_data_file(path))
 

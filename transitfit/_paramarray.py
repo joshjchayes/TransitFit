@@ -101,6 +101,12 @@ class ParamArray:
         return ParamArray(self.name, self.shape, self.telescope_dependent,
                           self.filter_dependent, self.epoch_dependent)
 
+    def get_flat_array(self):
+        '''
+        Returns the array as a flat list. Useful for getting average values
+        '''
+        return self.array.flatten()
+
     def _generate_idx(self, telescope_idx, filter_idx, epoch_idx):
         '''
         Takes the given indices and converts them into a usable index, omitting
@@ -143,3 +149,20 @@ class ParamArray:
         telescope_idx, filter_idx, epoch_idx = idx
         idx = self._generate_idx(telescope_idx, filter_idx, epoch_idx)
         self.array[idx] = value
+
+    def __str__(self):
+        print_str = ''
+        for i in np.ndindex(self.shape):
+            if self[i] is not None:
+                if type(self[i]) is _Param:
+                    print_str += '{}, {}: Fixed - value: {}\n'.format(self.name, i, self[i].default_value)
+                elif type(self[i]) is float or type(self[i]) is int:
+                    print_str += '{}, {}: Fixed - value: {}\n'.format(self.name, i, self[i])
+                elif type(self[i]) is _UniformParam:
+                    print_str += '{}, {}: Uniform - min: {} - max: {}\n'.format(self.name, i, self[i].low_lim, self[i].high_lim)
+                elif type(self[i]) is _GaussianParam:
+                    print_str += '{}, {}: Gaussian - mean: {} - stdev: {}\n'.format(self.name, i, self[i].mean, self[i].stdev)
+                else:
+                    print_str += '{}, {}: Unrecognised type - {}\n'.format(self.name, i, self[i].__str__())
+
+        return print_str

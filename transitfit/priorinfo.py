@@ -126,7 +126,7 @@ class PriorInfo:
         # We also need a list for keeping track of what is being fitted
         # Each entry in this will be
         # [param name, telescope index, filter index, epoch index]
-        self.fitting_params = []
+        self.fitting_params = None
 
         #for p in self.priors.keys():
         #    print(p, self.priors[p].array)
@@ -146,7 +146,11 @@ class PriorInfo:
                                                 epoch_idx)
 
         # Store some info for later
-        self.fitting_params.append([name, telescope_idx, filter_idx, epoch_idx])
+        if self.fitting_params is None:
+            self.fitting_params = np.array([[name, telescope_idx, filter_idx, epoch_idx]], dtype=object)
+        else:
+            self.fitting_params = np.append(self.fitting_params, np.array([[name, telescope_idx, filter_idx, epoch_idx]], object), axis=0)
+        #self.fitting_params.append([name, telescope_idx, filter_idx, epoch_idx])
 
     def add_gaussian_fit_param(self, name, mean, stdev,
                                telescope_idx=None, filter_idx=None, epoch_idx=None):
@@ -158,7 +162,11 @@ class PriorInfo:
                                                  epoch_idx)
 
         # Store some info for later
-        self.fitting_params.append([name, telescope_idx, filter_idx, epoch_idx])
+        if self.fitting_params is None:
+            self.fitting_params = np.array([[name, telescope_idx, filter_idx, epoch_idx]], dtype=object)
+        else:
+            self.fitting_params = np.append(self.fitting_params, np.array([[name, telescope_idx, filter_idx, epoch_idx]], object), axis=0)
+
 
     ###############################################################
     #         ADDING DETRENDING/NORMALISATION/LDC FITTING         #
@@ -192,9 +200,9 @@ class PriorInfo:
                 else:
                     # First we set up the detrending for the lightcurve
                     if method[0] == 'nth order':
-                        lightcurves[i].set_detrending(method[0], order=method[1])
+                        lightcurves[i].set_detrending(method[0], order=method[1], method_idx=method_idx)
                     elif method[0] == 'custom':
-                        lightcurves[i].set_detrending(method[0], function=method[1])
+                        lightcurves[i].set_detrending(method[0], function=method[1], method_idx=method_idx)
 
                     # Now set up the required parameters to be fitted
                     n_coeffs = lightcurves[i].n_detrending_params
@@ -395,3 +403,54 @@ class PriorInfo:
                     result[name][i] = self.priors[name][i]
 
         return result
+
+    def _interpret_final_results(self, results):
+        '''
+        Generates a dictionary of results and a dictionary of errors from the
+        final results of a run
+        '''
+        best_results = results.best
+        best_result_errors = results.uncertainties
+
+        result_dict = {}
+        errors_dict = {}
+
+        # Initialise the entries in the dictionaries
+        for name in self.priors.keys():
+            # First we initialise the entry in the results dictionary
+            result_dict[name] = self.priors[name].generate_blank_ParamArray()
+            errors_dict[name] = self.priors[name].generate_blank_ParamArray()
+
+        initialised_params = []
+        # Go through the results object and add in the results - only includes
+        # fitted parameters
+        for i, param_info in enumerate(self.fitting_params):
+            name, tidx, fidx, eidx = param_info
+            result_dict[name][tidx, fidx, eidx] = best_results[i]
+            errors_dict[name][tidx, fidx, eidx] = best_result_errors[i]
+            initialised_params.append(name)
+
+        # Now go through and fill in any non-fitted parameters
+        for name in result_dict.keys():
+            if name not in initialised_params:
+                for i in np.ndindex(self.priors[name].shape):
+                    result_dict[name][i] = self.priors[name][i]
+                    errors_dict[name][i] = 0
+
+        return result_dict, errors_dict
+
+
+    ###############################################################
+    #                          MISC                               #
+    ###############################################################
+    def __str__(self):
+        print_str = 'Priors:\n'
+        print_str += 'Limb darkening model: {}\n'.format(self.limb_dark)
+        print_str += 'n telescopes: {}\n'.format(self.n_telescopes)
+        print_str += 'n filters: {}\n'.format(self.n_filters)
+        print_str += 'n epochs: {}\n'.format(self.n_epochs)
+
+        for var in self.priors:
+            print_str += self.priors[var].__str__()
+
+        return print_str

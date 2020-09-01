@@ -91,7 +91,7 @@ class LikelihoodCalculator:
                 # GENERATE THE MODEL LIGHT CURVE
 
                 # Convert the LDC q values to u:
-                u = self.priors.ld_handler.convert_qtou(*[params[qX].get_value(*i) for qX in self.priors.limb_dark_coeffs])
+                u = self.priors.ld_handler.convert_qtou(*[params[qX][i] for qX in self.priors.limb_dark_coeffs])
 
                 # Need to update the parameters
                 self.update_params(tidx, fidx, eidx,

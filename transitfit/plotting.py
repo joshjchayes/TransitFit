@@ -211,3 +211,27 @@ def plot_individual_lightcurves(lightcurves, priorinfo, results,
                                 bbox_inches='tight')
 
             plt.close()
+
+
+def quick_plot(lightcurve, fname, folder_path, t0=None):
+    '''
+    Quickly plots a single lightcurve on some axes
+    '''
+    fig, ax = plt.subplots()
+
+    ax.errorbar(lightcurve.times, lightcurve.flux, lightcurve.errors, zorder=1,
+        linestyle='', marker='x', color='dimgrey', elinewidth=0.8, alpha=0.6)
+
+    if t0 is not None:
+        ax.axvline(t0, linestyle='dashed', color='gray',
+                        linewidth=1, zorder=1)
+
+    ax.set_xlabel('Time (BJD)')
+    ax.set_ylabel('Flux')
+
+    os.makedirs(folder_path, exist_ok=True)
+
+    if not fname[-4:] == '.pdf':
+        fname += '.pdf'
+    fig.savefig(os.path.join(folder_path, fname),
+                bbox_inches='tight')

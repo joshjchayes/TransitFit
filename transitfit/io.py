@@ -15,82 +15,79 @@ from .lightcurve import LightCurve
 import batman
 import os
 
-def parse_filter_list(filter_list):
+#############################################################
+#                         PRIORS                            #
+#############################################################
+def read_priors_file(path, n_telescopes, n_filters, n_epochs,
+                     limb_dark='quadratic', filter_indices=None, folded=False,
+                     folded_P=None, folded_t0=None, host_radius=None,
+                     fit_ttv=None, lightcurves=None):
     '''
-    Parses a list of filter information into a usable form for the `'filters'`
-    argument in PriorInfo.fit_limb_darkening.
+    If given a csv file containing priors, will produce a PriorInfo object
+    based off the given values
 
     Parameters
     ----------
-    filter_list : array_like, shape (n_filters, 3)
-        The information on the filters. Each row should contain
-        [filter_index, low wavelength, high wavelength]
-        The filter indices should refer to the indices used in the priors file.
-        Wavelengths should be in nm.
+    path : str
+        Path to .csv file containing the priors.
 
-    Returns
-    -------
-    filter_info : np.array, shape (n_filters, 2)
-        The filter information pass to PriorInfo.fit_limb_darkening.
+        Columns should me in the order
+        --------------------------------------------------------
+        |  key  |   mode  |  input_A  |   input_B   |  filter  |
+        --------------------------------------------------------
+
+        The available modes and the expected values of inputs A and B are:
+
+        - 'uniform': input A should be lower limit, input B should be upper
+                     limit
+        - 'gaussian': input_A should be mean, input_B should be standard
+                      deviation.
+        - 'fixed': input_A should be the fixed value. input_B is not used and
+                   should be left blank.
+
+    n_telescopes : int
+        The number of different telescopes being used. Required so that
+        simultaneous observations from different observatories can be used by
+        TransitFit
+    n_filters : int
+        The number of different filters being used
+    n_epochs : int
+        The number of different epochs being used
+    limb_dark : str, optional
+        The model of limb darkening you want to use. Accepted are
+            - linear
+            - quadratic
+            - squareroot
+            - power2
+            - nonlinear
+        Default is quadratic
+    filter_indices : array_like, optional
+        If provided, will only initialise fitting for parameters which are
+        relevant to the filter indices given. Note that this will result in
+        a difference between the filter indices used at the top, user level and
+        those used within this PriorInfo
+    folded : bool, optional
+        If True, will not initialise P or t0 from the priors list. Instead will
+        use folded_P and folded_t0 to set fixed values. Default is False
+    folded_P : float, optional
+        Required if folded is True. This is the period that the light curves
+        are folded to
+    folded_t0 : float, optional
+        Required if folded is True. This is the t0 that the light curves are
+        folded to
+    host_radius : float, optional
+        The host radius in Solar radii. If this is provided, then will assume
+        that the orbital separation is given in AU rather than host radii and
+        will convert the values accordingly
+
+    Notes
+    -----
+    Detrending currently cannot be initialised in the prior file. It will be
+    available as a kwarg in the pipeline function
     '''
-    filter_list = np.array(filter_list)
+    priors_list = pd.read_csv(path).values
 
-    # How many filters are there?
-    n_filters = int(filter_list[:,0].max() + 1)
-
-    # Make a blank array to populate with the filter limits
-    filter_info = np.zeros((n_filters, 2))
-
-    # Now populate!
-    for i in range(n_filters):
-        filter_info[i] = filter_list[i, 1:]
-
-    return filter_info
-
-
-def parse_data_path_list(data_path_list):
-    '''
-    Parses a list of paths to data files and places them into an array which
-    can be passed to read_data_file_array
-
-    Parameters
-    ----------
-    data_path_list : array_like, shape (n_light_curves, 5)
-        The list of paths. Each row should contain
-        [data path, telescope idx, filter idx, epoch idx, detrending idx]
-
-    Returns
-    -------
-    data_path_array : array_like, shape (num_filters, num_epochs, num_telescopes)
-        The paths inserted into an array which can be used by TransitFit
-    detrending_index_array : array_like, shape (num_filters, num_epochs, num_telescopes)
-        The array of detrending model indices for each light curve
-    '''
-    data_path_list = np.array(data_path_list, dtype=object)
-
-    if data_path_list.ndim == 1:
-        data_path_list = np.array([data_path_list])
-
-    # Work out how many epochs and filters we have
-    n_telescopes = data_path_list[:,1].max() + 1
-    n_filters = data_path_list[:,2].max() + 1
-    n_epochs = data_path_list[:,3].max() + 1
-
-    n_detrending_models = data_path_list[:,4].max() + 1
-
-    # Initialise a blank array, filling it with None.
-    data_path_array = np.full((n_telescopes, n_filters, n_epochs), None, object)
-    detrending_index_array = np.full((n_telescopes, n_filters, n_epochs), None, object)
-    column_array = np.full((n_telescopes, n_filters, n_epochs), None, object)
-
-    # Populate the blank array
-    for row in data_path_list:
-        p, i, j, k, l = row
-        data_path_array[i, j, k] = p
-        detrending_index_array[i, j, k] = l
-
-    return data_path_array, detrending_index_array
-
+    return parse_priors_list(priors_list, n_telescopes, n_filters, n_epochs, limb_dark, filter_indices, folded, folded_P, folded_t0, host_radius, fit_ttv, lightcurves)
 
 def parse_priors_list(priors_list, n_telescopes, n_filters,
                       n_epochs, ld_model, filter_indices=None, folded=False,
@@ -197,6 +194,7 @@ def parse_priors_list(priors_list, n_telescopes, n_filters,
 
     # Update priors_dict values if using folded curves
     if folded:
+        #
         priors_dict['P'] = [folded_P]
         priors_dict['t0'] = [folded_t0]
 
@@ -243,7 +241,7 @@ def parse_priors_list(priors_list, n_telescopes, n_filters,
                 row[3] = AU_to_host_radii(row[3], host_radius)
 
             if key in ['P', 't0'] and folded:
-                # Skip P and t0 for folded mode
+                # Skip P and t0 for folded mode - we aren't fitting them
                 pass
 
             if mode.lower() in ['fixed', 'f', 'constant', 'c']:
@@ -255,7 +253,8 @@ def parse_priors_list(priors_list, n_telescopes, n_filters,
                 if key in ['t0'] and fit_ttv:
                     for li in np.ndindex(lightcurves.shape):
                         # Loop through each lightcurve and initialise t0
-                        priors.add_uniform_fit_param(key, inputA, inputB, li[0], li[1], li[2])
+                        if lightcurves[li] is not None:
+                            priors.add_uniform_fit_param(key, inputA, inputB, li[0], li[1], li[2])
                 else:
                     priors.add_uniform_fit_param(key, inputA, inputB, filter_idx=filt)
 
@@ -264,7 +263,8 @@ def parse_priors_list(priors_list, n_telescopes, n_filters,
                 if key in ['t0'] and fit_ttv:
                     for li in np.ndindex(lightcurves.shape):
                         # Loop through each lightcurve and initialise t0
-                        priors.add_gaussian_fit_param(key, inputA, inputB, li[0], li[1], li[2])
+                        if lightcurves[li] is not None:
+                            priors.add_gaussian_fit_param(key, inputA, inputB, li[0], li[1], li[2])
                 else:
                     priors.add_gaussian_fit_param(key, inputA, inputB, filter_idx=filt)
 
@@ -273,6 +273,39 @@ def parse_priors_list(priors_list, n_telescopes, n_filters,
 
     return priors
 
+#############################################################
+#                       DATA FILES                          #
+#############################################################
+def read_input_file(path, skiprows=0):
+    '''
+    Reads in a file with listed inputs and produces data arrays for use in
+    retrieval.
+
+    Parameters
+    ----------
+    path : str
+        The path to the .csv file with the paths to input parameters and
+        their telescope, filter, epoch, and detrending indices.
+
+        Columns should be in the order
+        ------------------------------------------------------------
+        |  path  |  telescope  |  filter  |  epoch  |  detrending  |
+        ------------------------------------------------------------
+
+    Returns
+    -------
+    lightcurves  : np.array of `LightCurve`s, shape (n_telescopes, n_filters, n_epochs)
+        The data loaded and stored as an array of LightCurves
+    detrending_index_array : array_like, shape (n_telescopes, n_filters, n_epochs)
+        The detrending indices for each lightcurve
+    '''
+    info = pd.read_csv(path).values
+
+    data_path_array, detrending_index_array = parse_data_path_list(info)
+
+    lightcurves = read_data_path_array(data_path_array, skiprows=skiprows)
+
+    return lightcurves, detrending_index_array
 
 def _read_data_csv(path, usecols=None):
     '''
@@ -299,7 +332,6 @@ def _read_data_txt(path, skiprows=0, usecols=None):
     non_nan = np.invert(np.any(pd.isna(data.values.T), axis=0))
 
     return times[non_nan], flux[non_nan], errors[non_nan]
-
 
 def read_data_file(path, skiprows=0, folder=None, usecols=None):
     '''
@@ -374,108 +406,83 @@ def read_data_path_array(data_path_array, skiprows=0):
 
     return lightcurves
 
-def read_priors_file(path, n_telescopes, n_filters, n_epochs,
-                     limb_dark='quadratic', filter_indices=None, folded=False,
-                     folded_P=None, folded_t0=None, host_radius=None,
-                     fit_ttv=None, lightcurves=None):
+def parse_data_path_list(data_path_list):
     '''
-    If given a csv file containing priors, will produce a PriorInfo object
-    based off the given values
+    Parses a list of paths to data files and places them into an array which
+    can be passed to read_data_file_array
 
     Parameters
     ----------
-    path : str
-        Path to .csv file containing the priors.
-
-        Columns should me in the order
-        --------------------------------------------------------
-        |  key  |   mode  |  input_A  |   input_B   |  filter  |
-        --------------------------------------------------------
-
-        The available modes and the expected values of inputs A and B are:
-
-        - 'uniform': input A should be lower limit, input B should be upper
-                     limit
-        - 'gaussian': input_A should be mean, input_B should be standard
-                      deviation.
-        - 'fixed': input_A should be the fixed value. input_B is not used and
-                   should be left blank.
-
-    n_telescopes : int
-        The number of different telescopes being used. Required so that
-        simultaneous observations from different observatories can be used by
-        TransitFit
-    n_filters : int
-        The number of different filters being used
-    n_epochs : int
-        The number of different epochs being used
-    limb_dark : str, optional
-        The model of limb darkening you want to use. Accepted are
-            - linear
-            - quadratic
-            - squareroot
-            - power2
-            - nonlinear
-        Default is quadratic
-    filter_indices : array_like, optional
-        If provided, will only initialise fitting for parameters which are
-        relevant to the filter indices given. Note that this will result in
-        a difference between the filter indices used at the top, user level and
-        those used within this PriorInfo
-    folded : bool, optional
-        If True, will not initialise P or t0 from the priors list. Instead will
-        use folded_P and folded_t0 to set fixed values. Default is False
-    folded_P : float, optional
-        Required if folded is True. This is the period that the light curves
-        are folded to
-    folded_t0 : float, optional
-        Required if folded is True. This is the t0 that the light curves are
-        folded to
-    host_radius : float, optional
-        The host radius in Solar radii. If this is provided, then will assume
-        that the orbital separation is given in AU rather than host radii and
-        will convert the values accordingly
-
-    Notes
-    -----
-    Detrending currently cannot be initialised in the prior file. It will be
-    available as a kwarg in the pipeline function
-    '''
-    priors_list = pd.read_csv(path).values
-
-    return parse_priors_list(priors_list, n_telescopes, n_filters, n_epochs, limb_dark, filter_indices, folded, folded_P, folded_t0, host_radius, fit_ttv, lightcurves)
-
-
-def read_input_file(path, skiprows=0):
-    '''
-    Reads in a file with listed inputs and produces data arrays for use in
-    retrieval.
-
-    Parameters
-    ----------
-    path : str
-        The path to the .csv file with the paths to input parameters and
-        their telescope, filter, epoch, and detrending indices.
-
-        Columns should be in the order
-        ------------------------------------------------------------
-        |  path  |  telescope  |  filter  |  epoch  |  detrending  |
-        ------------------------------------------------------------
+    data_path_list : array_like, shape (n_light_curves, 5)
+        The list of paths. Each row should contain
+        [data path, telescope idx, filter idx, epoch idx, detrending idx]
 
     Returns
     -------
-    lightcurves  : np.array of `LightCurve`s, shape (n_telescopes, n_filters, n_epochs)
-        The data loaded and stored as an array of LightCurves
-    detrending_index_array : array_like, shape (n_telescopes, n_filters, n_epochs)
-        The detrending indices for each lightcurve
+    data_path_array : array_like, shape (num_filters, num_epochs, num_telescopes)
+        The paths inserted into an array which can be used by TransitFit
+    detrending_index_array : array_like, shape (num_filters, num_epochs, num_telescopes)
+        The array of detrending model indices for each light curve
     '''
-    info = pd.read_csv(path).values
+    data_path_list = np.array(data_path_list, dtype=object)
 
-    data_path_array, detrending_index_array = parse_data_path_list(info)
+    if data_path_list.ndim == 1:
+        data_path_list = np.array([data_path_list])
 
-    lightcurves = read_data_path_array(data_path_array, skiprows=skiprows)
+    # Work out how many epochs and filters we have
+    n_telescopes = data_path_list[:,1].max() + 1
+    n_filters = data_path_list[:,2].max() + 1
+    n_epochs = data_path_list[:,3].max() + 1
 
-    return lightcurves, detrending_index_array
+    n_detrending_models = data_path_list[:,4].max() + 1
+
+    # Initialise a blank array, filling it with None.
+    data_path_array = np.full((n_telescopes, n_filters, n_epochs), None, object)
+    detrending_index_array = np.full((n_telescopes, n_filters, n_epochs), None, object)
+    column_array = np.full((n_telescopes, n_filters, n_epochs), None, object)
+
+    # Populate the blank array
+    for row in data_path_list:
+        p, i, j, k, l = row
+        data_path_array[i, j, k] = p
+        detrending_index_array[i, j, k] = l
+
+    return data_path_array, detrending_index_array
+
+#############################################################
+#                         FILTERS                           #
+#############################################################
+def parse_filter_list(filter_list):
+    '''
+    Parses a list of filter information into a usable form for the `'filters'`
+    argument in PriorInfo.fit_limb_darkening.
+
+    Parameters
+    ----------
+    filter_list : array_like, shape (n_filters, 3)
+        The information on the filters. Each row should contain
+        [filter_index, low wavelength, high wavelength]
+        The filter indices should refer to the indices used in the priors file.
+        Wavelengths should be in nm.
+
+    Returns
+    -------
+    filter_info : np.array, shape (n_filters, 2)
+        The filter information pass to PriorInfo.fit_limb_darkening.
+    '''
+    filter_list = np.array(filter_list)
+
+    # How many filters are there?
+    n_filters = int(filter_list[:,0].max() + 1)
+
+    # Make a blank array to populate with the filter limits
+    filter_info = np.zeros((n_filters, 2))
+
+    # Now populate!
+    for i in range(n_filters):
+        filter_info[i] = filter_list[i, 1:]
+
+    return filter_info
 
 def read_filter_info(path):
     '''
@@ -507,103 +514,9 @@ def read_filter_info(path):
 
     return parse_filter_list(info)
 
-
-def save_results(results, priorinfo, filepath='outputs.csv'):
-    '''
-    Saves results from a retrieval to csv file
-
-    Parameters
-    ----------
-    results : dict
-        A results dictionary as returned by Retriever.run_dynesty()
-    priorinfo : PriorInfo
-        The PriorInfo that the run used
-    filepath : str, optional
-        The path to save the output to. Default is a file called outputs.csv in
-        the current directory.
-    '''
-
-    if not filepath[-4:] =='.csv':
-        filepath += '.csv'
-
-    best = results.samples[np.argmax(results.logl)]
-
-    #resampled = dynesty.utils.resample_equal(results.samples, results.weights)
-
-    # Put the output into a dictionary that's nice to deal with
-    out_dict = {}
-    write_dict = []
-
-    for i, param in enumerate(priorinfo.fitting_params):
-        if not (param in priorinfo.limb_dark_coeffs and priorinfo.ld_fit_method == 'single'):
-            if param in priorinfo.limb_dark_coeffs:
-                LDC_index = int(param[-1])
-                LDC_vals = best[i - LDC_index : i + len(priorinfo.limb_dark_coeffs) - LDC_index]
-                LDC_uncs = results.uncertainties[i - LDC_index : i + len(priorinfo.limb_dark_coeffs) - LDC_index]
-                value = LDC_vals[LDC_index]
-                unc = LDC_uncs[LDC_index]
-
-            else:
-                value = best[i]
-                unc = results.uncertainties[i]
-
-            if param in ['rp']:
-                param = param +'_{}'.format(int(priorinfo._filter_idx[i]))
-            #elif param in ['t0']:
-            #    param = param +'_{}'.format(int(priorinfo._epoch_idx[i]))
-            elif param in priorinfo.detrending_coeffs + ['norm']:
-                param = param + '_t{}_f{}_e{}'.format(int(priorinfo._telescope_idx[i]),int(priorinfo._filter_idx[i]), int(priorinfo._epoch_idx[i]))
-            elif param in priorinfo.limb_dark_coeffs and priorinfo.ld_fit_method in ['independent', 'coupled']:
-                # All the LD coeffs are fitted separately and will write out
-                param = param +'_{}'.format(int(priorinfo._filter_idx[i]))
-
-            out_dict[param] = value
-
-            write_dict.append({'Parameter': param, 'Best value':value,
-                               'Uncertainty' : unc})
-
-    # Deal with 'single' fitting LD param mode
-    if priorinfo.ld_fit_method == 'single':
-        # We've only fitted one wavelengths' LD coeffs:
-        # Estimate the rest of the limb darkening values and write.
-
-        # Get the fitted values in a usable format
-        best_single_ld = np.zeros(len(priorinfo.limb_dark_coeffs))
-        single_uncertainty = np.zeros(len(priorinfo.limb_dark_coeffs))
-
-        for i, ui in enumerate(priorinfo.limb_dark_coeffs):
-            x = np.where(np.array(priorinfo.fitting_params) == ui)[0]
-            best_single_ld[i] = best[x]
-            single_uncertainty = results.uncertainties[x]
-
-        # Now do the estimation
-        best_ld_params = priorinfo.ld_handler.ldtk_estimate(best_single_ld)
-
-        # We estimate the errors by using the ratios
-        estim_errors = priorinfo.ld_handler.ldtk_estimate(single_uncertainty)
-
-        # Loop through each filter and write out the values
-        for i, fi in enumerate(best_ld_params):
-            for j, qj in enumerate(priorinfo.limb_dark_coeffs):
-                param = qj + '_{}'.format(i)
-                value = fi[j]
-                unc = estim_errors[i, j]
-
-                write_dict.append({'Parameter': param, 'Best value':value,
-                                   'Uncertainty' : unc})
-        # Now that we have the values, we can write out.
-
-    os.makedirs(os.path.dirname(filepath), exist_ok=True)
-
-    # Now output to a .csv
-    with open(filepath, 'w') as f:
-        #columns = ['Parameter', 'Best value', 'Lower error', 'Upper error', 'Median']
-        columns = ['Parameter', 'Best value', 'Uncertainty']
-        writer = csv.DictWriter(f, columns)
-        writer.writeheader()
-        writer.writerows(write_dict)
-
-
+#############################################################
+#                         OUTPUTS                           #
+#############################################################
 def print_results(results, priorinfo, n_dof):
     '''
     Prints the results nicely to terminal
@@ -682,7 +595,6 @@ def print_results(results, priorinfo, n_dof):
 
     print('chi2:\t\t {}'.format(round(best_chi2, 5)))
     print('red chi2:\t {}'.format(round(best_chi2/n_dof, 5)))
-
 
 def save_final_light_curves(lightcurves, priorinfo, results,
                             folder='./final_light_curves', folded=False):
