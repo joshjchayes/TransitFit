@@ -336,8 +336,11 @@ class Retriever:
         print('Folding lightcurves...')
         folded_curves, folded_P, folded_t0 = self._fold_lightcurves(results_list, priors_list, lightcurve_list)
 
+        print(folded_curves, folded_curves.shape)
+
         # Plot the folded lightcurves so we can check them
         for lci, lc in np.ndenumerate(folded_curves):
+            print(lci, lc)
             quick_plot(lc, 'folded_curve_filter_{}.pdf'.format(lci[1]), os.path.join(plot_folder, 'folded_curves'), folded_t0[lci[1]])
 
         # Get the batches, and remember that now we are not detrending or
@@ -676,22 +679,27 @@ class Retriever:
                     retrieved_t0[eidx].append(results_dict['t0'][i])
                     retrieved_t0_err[eidx].append(errors_dict['t0'][i])
 
+        single_val = not self.fit_ttv
+
         # Find the weighted average to get the best fit values of P and t0
-        best_P, P_err = weighted_avg_and_std(retrieved_P, retrieved_P_err)
-        best_t0, t0_err = weighted_avg_and_std(retrieved_t0, retrieved_t0_err)
+        best_P, P_err = weighted_avg_and_std(retrieved_P, retrieved_P_err, single_val=True)
+        best_t0, t0_err = weighted_avg_and_std(retrieved_t0, retrieved_t0_err, single_val=single_val)
+
+        print(best_t0, t0_err)
 
         if not self.fit_ttv:
             # Put the t0 values and errors into an array just for simplicity
             # in dealing with the two modes
             best_t0 = best_t0 * np.ones(self.n_epochs)
             t0_err = t0_err * np.ones(self.n_epochs)
+        print(best_t0, t0_err)
 
         print('P = {} ± {}'.format(round(best_P, 8),  round(P_err, 8)))
         if self.fit_ttv:
             for i, t0i in enumerate(best_t0):
-                print('t0 = {} ± {} (epoch {})'.format(t0i.round(3)[0],  t0_err[i].round(3)[0], i))
+                print('t0 = {} ± {} (epoch {})'.format(round(t01, 3),  round(t0_err[i], 3), i))
         else:
-            print('t0 = {} ± {}'.format(best_t0.round(3)[0,0],  t0_err.round(3)[0,0]))
+            print('t0 = {} ± {}'.format(best_t0.round(3)[0],  t0_err.round(3)[0]))
 
         ###############################################################
         ###            NORMALISATION/DETRENDING/FOLDING             ###
@@ -752,7 +760,7 @@ class Retriever:
                 # Need to loop and combine
                 final_lightcurves.append(filter_curves[0].combine(filter_curves[1:]))
 
-        return np.array(final_lightcurves).reshape(1, self.n_filters, 1), best_P, best_t0[0]
+        return np.array(final_lightcurves).reshape(1, self.n_filters, 1), best_P, best_t0
 
     def _get_lightcurve_subset(self, lightcurves, indices):
         '''

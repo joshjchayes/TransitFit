@@ -198,7 +198,7 @@ def get_covariance_matrix(results):
 
     return cov
 
-def weighted_avg_and_std(values, weights, axis=-1):
+def weighted_avg_and_std(values, weights, axis=-1, single_val=False):
     '''
     Calculates the weighted average and error on some data.
 
@@ -212,6 +212,12 @@ def weighted_avg_and_std(values, weights, axis=-1):
     values = np.array(values)
     weights = np.array(weights)
 
+    if single_val:
+        average = np.average(values, weights=weights)
+        variance = np.average((values-average)**2, weights=weights)
+
+        return average, np.sqrt(variance)
+
     shape = values.shape
     if len(shape) == 1:
         # We have only been given one value - return it
@@ -219,11 +225,10 @@ def weighted_avg_and_std(values, weights, axis=-1):
 
     average = np.average(values, weights=weights, axis=axis)
     # Reshape average
-    shape = shape[:-1] + (1,)
+    shape = shape[:-1]
     average = average.reshape(shape)
 
     variance = np.average((values-average)**2, weights=weights, axis=axis).reshape(shape)
-
 
     return average, np.sqrt(variance)
 
