@@ -681,6 +681,9 @@ class Retriever:
 
         single_val = not self.fit_ttv
 
+        print(retrieved_t0)
+        print(retrieved_t0_err)
+
         # Find the weighted average to get the best fit values of P and t0
         best_P, P_err = weighted_avg_and_std(retrieved_P, retrieved_P_err, single_val=True)
         best_t0, t0_err = weighted_avg_and_std(retrieved_t0, retrieved_t0_err, single_val=single_val)

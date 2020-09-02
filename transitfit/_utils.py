@@ -212,6 +212,9 @@ def weighted_avg_and_std(values, weights, axis=-1, single_val=False):
     values = np.array(values)
     weights = np.array(weights)
 
+    print(values, values.shape)
+    print(weights, weights.shape)
+
     if single_val:
         average = np.average(values, weights=weights)
         variance = np.average((values-average)**2, weights=weights)
