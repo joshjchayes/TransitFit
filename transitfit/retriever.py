@@ -673,9 +673,9 @@ class Retriever:
 
                 for i in np.ndindex(lightcurves[fi][ri].shape):
 
-                    tidx = lightcurves[i].telescope_idx
-                    fidx = lightcurves[i].filter_idx
-                    eidx = lightcurves[i].epoch_idx
+                    tidx = lightcurves[fi][ri][i].telescope_idx
+                    fidx = lightcurves[fi][ri][i].filter_idx
+                    eidx = lightcurves[fi][ri][i].epoch_idx
 
                     retrieved_P.append(results_dict['P'][i])
                     retrieved_P_err.append(errors_dict['P'][i])
