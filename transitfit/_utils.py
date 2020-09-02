@@ -222,7 +222,7 @@ def weighted_avg_and_std(values, weights, axis=-1, single_val=False):
             flat_weights = [i for epoch_vals in weights for i in epoch_vals]
         except:
             flat_vals = values
-            falt_weights = weights
+            flat_weights = weights
         average = np.average(flat_vals, weights=flat_weights)
         variance = np.average((flat_vals-average)**2, weights=flat_weights)
 
