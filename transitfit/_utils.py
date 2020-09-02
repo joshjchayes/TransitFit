@@ -216,24 +216,30 @@ def weighted_avg_and_std(values, weights, axis=-1, single_val=False):
     print(weights, weights.shape)
 
     if single_val:
+        # Flatten the values and weights
+        flat_vals = [i for epoch_vals in values for i in epoch_vals]
+        flat_weights = [i for epoch_vals in weights for i in epoch_vals]
         average = np.average(values, weights=weights)
         variance = np.average((values-average)**2, weights=weights)
 
         return average, np.sqrt(variance)
 
-    shape = values.shape
-    if len(shape) == 1:
-        # We have only been given one value - return it
-        return values[0], weights[0]
+    if not isinstance(values[0], Iterable):
+        # This is globally fitted, not fitted over either epoch or filter
+        average = np.average(values, weights=weights, axis=axis)
+        variance = np.average((values-average)**2, weights=weights, axis=axis)
 
-    average = np.average(values, weights=weights, axis=axis)
-    # Reshape average
-    shape = shape[:-1]
-    average = average.reshape(shape)
+        return average, np.sqrt(variance)
 
-    variance = np.average((values-average)**2, weights=weights, axis=axis).reshape(shape)
+    # Make blank arrays to loop over the entries in values and weights
+    average = []
+    variance = []
 
-    return average, np.sqrt(variance)
+    for i in range(len(values)):
+        average.append(np.average(values[i], weights=weights[i]))
+        variance.append(np.average((values[i]-average[i])**2, weights=weights[i]))
+
+    return np.array(average), np.sqrt(variance)
 
 def AU_to_host_radii(a, R):
     '''

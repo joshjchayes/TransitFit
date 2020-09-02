@@ -672,7 +672,11 @@ class Retriever:
                 results_dict, errors_dict = prior._interpret_final_results(result)
 
                 for i in np.ndindex(lightcurves[fi][ri].shape):
-                    tidx, fidx, eidx = i
+
+                    tidx = lightcurves[i].telescope_idx
+                    fidx = lightcurves[i].filter_idx
+                    eidx = lightcurves[i].epoch_idx
+
                     retrieved_P.append(results_dict['P'][i])
                     retrieved_P_err.append(errors_dict['P'][i])
 
