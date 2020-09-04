@@ -240,7 +240,7 @@ def parse_priors_list(priors_list, n_telescopes, n_filters,
                 row[2] = AU_to_host_radii(row[2], host_radius)
                 row[3] = AU_to_host_radii(row[3], host_radius)
 
-            elif key in ['P', 't0'] and folded:
+            if key in ['P', 't0'] and folded:
                 # Skip P and t0 for folded mode - we aren't fitting them
                 pass
 
