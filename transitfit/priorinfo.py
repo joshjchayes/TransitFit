@@ -451,5 +451,5 @@ class PriorInfo:
         print_str += 'n epochs: {}\n'.format(self.n_epochs)
         for var in self.priors:
             print_str += self.priors[var].__str__()
-
+        print_str += 'Total {} fitting parameters'.format(len(self.fitting_params))
         return print_str

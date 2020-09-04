@@ -20,12 +20,22 @@ import os
 def plot_individual_lightcurves(lightcurves, priorinfo, results,
                                 folder_path='./plots', figsize=(12,8),
                                 marker_color='dimgrey', line_color='black',
-                                titles=None, add_titles=True, fnames=None):
+                                titles=None, add_titles=True, fnames=None,
+                                plot_phase=False, t0=None, period=None):
     '''
     Once you have run retrieval, use this to plot things!
 
     Will make a figure for each light curve, and save with filenames reflecting
     telescope, filter, and epoch number
+
+    plot_phase : bool, optional
+        If True and t0 and period are provided, will plot using phase rather
+        than time on x axis. This is useful for folded curves.
+    t0 : float, optional
+        The value of t0 that the lightcurves are folded to. This is treated as
+        phase 0.5 (centred in plot).
+    period : float, optional
+        The period that lightcurves are folded with.
     '''
     # Get some numbers for loop purposes
     n_epochs = priorinfo.n_epochs
@@ -133,7 +143,26 @@ def plot_individual_lightcurves(lightcurves, priorinfo, results,
             else:
                 plot_fluxes, plot_errors = lightcurves[i].detrend_flux(None, norm)
 
-            main_ax.errorbar(lightcurves[i].times, plot_fluxes,
+
+            if not plot_phase:
+                # x axis is time, not phase
+                x_vals = lightcurves[i].times
+                x_label = 'Time (BJD)'
+            else:
+                # x axis is time, need to calculate phase
+                try:
+                    x_vals = (lightcurves[i].times - t0 + (period/2))/period
+                    x_label = 'Phase'
+                except Exception as e:
+                    print('Exception raised when calculating phase. Reverting to plotting time')
+                    print(e)
+                    x_vals = lightcurves[i].times
+                    x_label= 'Time (BJD)'
+
+            plot_times = np.linspace(x_vals.min(), x_vals.max(), 1000 )
+
+
+            main_ax.errorbar(x_vals, plot_fluxes,
                         plot_errors, zorder=1,
                         linestyle='', marker='x', color=marker_color,
                         elinewidth=0.8, alpha=0.6)
@@ -145,7 +174,7 @@ def plot_individual_lightcurves(lightcurves, priorinfo, results,
             # plot the residuals
             residuals = plot_fluxes - time_wise_best_curve
 
-            residual_ax.errorbar(lightcurves[i].times, residuals,
+            residual_ax.errorbar(x_vals, residuals,
                         plot_errors, linestyle='',
                         color=marker_color, marker='x', elinewidth=0.8, alpha=0.6)
 
@@ -169,28 +198,33 @@ def plot_individual_lightcurves(lightcurves, priorinfo, results,
             residual_ax.yaxis.set_major_locator(MaxNLocator(4, prune='upper'))
             residual_ax.xaxis.set_major_locator(MaxNLocator(8, prune='upper'))
 
+            # Add labels
+            main_ax.set_ylabel('Normalised flux')
+            residual_ax.set_ylabel('Residual')
+            residual_ax.set_xlabel(x_label)
+
             # Format the axes
             main_ax.tick_params('both', which='both', direction='in',
                                 labelbottom='off', top='on', right='on')
 
-
             residual_ax.tick_params('both', which='both', direction='in',
                                     top='on', right='on')
-
 
             hist_ax.tick_params('both', which='both', direction='in',
                                  labelleft='off', labelbottom='off',
                                  right='on', top='on')
 
-            main_ax.set_ylabel('Normalised flux')
-            residual_ax.set_ylabel('Residual')
-            residual_ax.set_xlabel('Time (BJD)')
 
             if add_titles:
                 if titles is None:
-                    main_ax.set_title('Telescope {} Filter {}, Epoch {}'.format(telescope_idx, filter_idx, epoch_idx))
+                    if plot_phase:
+                        title = 'Phase plot for filter {}'.format(filter_idx)
+                    else:
+                        title = 'Fitted curve: Telescope {} Filter {}, Epoch {}'.format(telescope_idx, filter_idx, epoch_idx)
                 else:
-                    main_ax.set_title(titles[i])
+                    title = titles[i]
+
+                main_ax.set_title(title)
 
             fig.tight_layout()
             fig.subplots_adjust(hspace=0, wspace=0)
@@ -200,15 +234,19 @@ def plot_individual_lightcurves(lightcurves, priorinfo, results,
             os.makedirs(folder_path, exist_ok=True)
 
             if fnames is None:
-                fig.savefig('{}/t{}_f{}_e{}.pdf'.format(folder_path, telescope_idx, filter_idx, epoch_idx), bbox_inches='tight')
+                if plot_phase:
+                    fname = 'f{}_phase_plot.pdf'.format(filter_idx)
+                else:
+                    fname = 't{}_f{}_e{}.pdf'.format(telescope_idx, filter_idx, epoch_idx)
             else:
                 if fnames[i] is None:
-                    fig.savefig('{}/t{}_f{}_e{}.pdf'.format(folder_path, telescope_idx, filter_idx, epoch_idx), bbox_inches='tight')
+                    fname = 't{}_f{}_e{}.pdf'.format(telescope_idx, filter_idx, epoch_idx)
                 else:
                     if not fnames[i][-4:] == '.pdf':
                         fnames[i] += '.pdf'
-                    fig.savefig(os.path.join(folder_path, fnames[i]),
-                                bbox_inches='tight')
+                    fname = fnames[i]
+
+            fig.savefig(os.path.join(folder_path, fname), bbox_inches='tight')
 
             plt.close()
 

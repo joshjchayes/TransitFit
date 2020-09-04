@@ -167,7 +167,6 @@ class Retriever:
                                 nlive=nlive)
 
         try:
-            print('Retrieving {} parameters:'.format(n_dims))
             sampler.run_nested(maxiter=maxiter, maxcall=maxcall, dlogz=dlogz)
         except:
             raise
@@ -268,7 +267,8 @@ class Retriever:
         self._save_results(all_results, all_priors, all_lightcurves,
                           output_folder, summary_file, full_output_file,
                           lightcurve_folder, plot, plot_folder, marker_color,
-                          line_color)
+                          line_color, folded_P=folded_P,
+                          folded_t0=folded_t0)
 
         if full_return:
             return all_results, all_priors, all_lightcurves
@@ -686,7 +686,6 @@ class Retriever:
             # in dealing with the two modes
             best_t0 = best_t0 * np.ones(self.n_epochs)
             t0_err = t0_err * np.ones(self.n_epochs)
-        print(best_t0, t0_err)
 
         print('P = {} ± {}'.format(round(best_P, 8),  round(P_err, 8)))
         if self.fit_ttv:
@@ -704,7 +703,7 @@ class Retriever:
         final_batched_lightcurves = [[] for i in range(self.n_filters)]
         #final_batched_lightcurves = []
         for fi, filter_results in enumerate(results):
-            # Loop through each filter        
+            # Loop through each filter
             for ri, result in enumerate(filter_results):
                 # Loop through each batch within a filter
 
@@ -1096,7 +1095,7 @@ class Retriever:
         '''
         n_batches = len(results)
 
-        folded = folded_P is None
+        folded = folded_P is not None
 
         def initialise_dict_entry(d, param):
             '''
@@ -1122,9 +1121,11 @@ class Retriever:
             if plot:
                 try:
                     plot_individual_lightcurves(lightcurves[i], priors[i],
-                                                results[i], folder_path=plot_folder,
-                                                marker_color=marker_color,
-                                                line_color=line_color)
+                                                    results[i], folder_path=plot_folder,
+                                                    marker_color=marker_color,
+                                                    line_color=line_color,
+                                                    plot_phase=folded, t0=folded_t0,
+                                                    period=folded_P)
                 except Exception as e:
                     print('Exception raised while plotting:')
                     print(e)
