@@ -449,7 +449,6 @@ class PriorInfo:
         print_str += 'n telescopes: {}\n'.format(self.n_telescopes)
         print_str += 'n filters: {}\n'.format(self.n_filters)
         print_str += 'n epochs: {}\n'.format(self.n_epochs)
-
         for var in self.priors:
             print_str += self.priors[var].__str__()
 

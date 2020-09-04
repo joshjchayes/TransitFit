@@ -154,15 +154,31 @@ class ParamArray:
         print_str = ''
         for i in np.ndindex(self.shape):
             if self[i] is not None:
-                if type(self[i]) is _Param:
-                    print_str += '{}, {}: Fixed - value: {}\n'.format(self.name, i, self[i].default_value)
-                elif type(self[i]) is float or type(self[i]) is int:
-                    print_str += '{}, {}: Fixed - value: {}\n'.format(self.name, i, self[i])
-                elif type(self[i]) is _UniformParam:
-                    print_str += '{}, {}: Uniform - min: {} - max: {}\n'.format(self.name, i, self[i].low_lim, self[i].high_lim)
-                elif type(self[i]) is _GaussianParam:
-                    print_str += '{}, {}: Gaussian - mean: {} - stdev: {}\n'.format(self.name, i, self[i].mean, self[i].stdev)
+                line = '{}:\t'.format(self.name)
+                if self.telescope_dependent:
+                    line += 't {}\t'.format(i[0])
                 else:
-                    print_str += '{}, {}: Unrecognised type - {}\n'.format(self.name, i, self[i].__str__())
+                    line += 't -\t'
 
+                if self.filter_dependent:
+                    line += 'f {}\t'.format(i[1])
+                else:
+                    line += 'f -\t'
+
+                if self.telescope_dependent:
+                    line += 'e {}\t'.format(i[2])
+                else:
+                    line += 'e -\t'
+
+                if type(self[i]) is _Param:
+                    line += 'Fitting: Fixed - value: {}\n'.format( self[i].default_value)
+                elif type(self[i]) is float or type(self[i]) is int:
+                    line += 'Fitting: Fixed - value: {}\n'.format(self[i])
+                elif type(self[i]) is _UniformParam:
+                    line += 'Fitting: Uniform - min: {} - max: {}\n'.format(self[i].low_lim, self[i].high_lim)
+                elif type(self[i]) is _GaussianParam:
+                    line += 'Fitting: Gaussian - mean: {} - stdev: {}\n'.format(self[i].mean, self[i].stdev)
+                else:
+                    line += 'Fitting: Unrecognised type - {}\n'.format( self[i].__str__())
+                print_str += line
         return print_str
