@@ -292,12 +292,7 @@ class Retriever:
 
         prefolded_batches = self._get_folding_batches(max_parameters, detrend, normalise, overlap)
 
-        print('Prefolded_batches:', prefolded_batches)
-
         # Blank lists to fill with results etc
-        #results_list = [[] for i in range(self.n_filters)]
-        #priors_list = [[] for i in range(self.n_filters)]
-        #lightcurve_list = [[] for i in range(self.n_filters)]
         results_list = []
         priors_list = []
         lightcurve_list = []
@@ -336,12 +331,9 @@ class Retriever:
         print('Folding lightcurves...')
         folded_curves, folded_P, folded_t0 = self._fold_lightcurves(results_list, priors_list, lightcurve_list)
 
-        print(folded_curves, folded_curves.shape)
-
         # Plot the folded lightcurves so we can check them
         for lci, lc in np.ndenumerate(folded_curves):
-            print(lci, lc)
-            quick_plot(lc, 'folded_curve_filter_{}.pdf'.format(lci[1]), os.path.join(plot_folder, 'folded_curves'), folded_t0[lci[1]])
+            quick_plot(lc, 'folded_curve_filter_{}.pdf'.format(lci[1]), os.path.join(plot_folder, 'folded_curves'), folded_t0)
 
         # Get the batches, and remember that now we are not detrending or
         # normalising since that was done in the first stage
@@ -685,14 +677,9 @@ class Retriever:
 
         single_val = not self.fit_ttv
 
-        print(retrieved_t0)
-        print(retrieved_t0_err)
-
         # Find the weighted average to get the best fit values of P and t0
         best_P, P_err = weighted_avg_and_std(retrieved_P, retrieved_P_err, single_val=True)
         best_t0, t0_err = weighted_avg_and_std(retrieved_t0, retrieved_t0_err, single_val=single_val)
-
-        print(best_t0, t0_err)
 
         if not self.fit_ttv:
             # Put the t0 values and errors into an array just for simplicity
@@ -715,9 +702,9 @@ class Retriever:
         # Remember that each batch will only contain one filter
 
         final_batched_lightcurves = [[] for i in range(self.n_filters)]
-
+        #final_batched_lightcurves = []
         for fi, filter_results in enumerate(results):
-            # Loop through each filter
+            # Loop through each filter        
             for ri, result in enumerate(filter_results):
                 # Loop through each batch within a filter
 
@@ -728,7 +715,6 @@ class Retriever:
                 results_dict, errors_dict = prior._interpret_final_results(result)
 
                 # Loop through lightcurves and detrend/normalise
-                batch_detrended_curves = []
                 for i, lc in np.ndenumerate(lcs):
                     # Get some sub indices.
                     tidx, fidx, eidx = i
@@ -749,14 +735,10 @@ class Retriever:
                     # Fold the curve using the best t0 for the epoch and P
                     # We are folding each curve to be centred on best_t0[0]
                     folded_curve = detrended_curve.fold(best_t0[eidx], best_P, best_t0[0])
-
-                    batch_detrended_curves.append(folded_curve)
-
-            final_batched_lightcurves[fi].append(batch_detrended_curves)
+                    final_batched_lightcurves[fi].append(folded_curve)
 
         # Now we go through detrended and folded lightcurve, and combine them
         # into one lightcurve per filter
-        # TODO - complete this function
         final_lightcurves = []
         for fi, filter_curves in enumerate(final_batched_lightcurves):
             # Go through each filter and combine the curves!
@@ -764,10 +746,12 @@ class Retriever:
                 # No need to combine
                 final_lightcurves.append(filter_curves[0])
             else:
+                print('Combining curves')
+                combined_curve = filter_curves[0].combine(filter_curves[1:], filter_idx=fi)
                 # Need to loop and combine
-                final_lightcurves.append(filter_curves[0].combine(filter_curves[1:]))
+                final_lightcurves.append(combined_curve)
 
-        return np.array(final_lightcurves).reshape(1, self.n_filters, 1), best_P, best_t0
+        return np.array(final_lightcurves).reshape(1, self.n_filters, 1), best_P, best_t0[0]
 
     def _get_lightcurve_subset(self, lightcurves, indices):
         '''
