@@ -247,7 +247,7 @@ def parse_priors_list(priors_list, n_telescopes, n_filters,
             elif key in ['P'] and fit_ttv:
                 # We can't fit period if we are using ttv mode - skip it
                 if not suppress_warnings:
-                    print("WARNING: Ignoring P fitting due to ttv mode. It is recommended to specify P as 'Fixed' in the input file, else TransitFit will default to the value given with Input A.")  
+                    print("WARNING: Ignoring P fitting due to ttv mode. It is recommended to specify P as 'Fixed' in the input file, else TransitFit will default to the value given with Input A.")
                 pass
 
             elif mode.lower() in ['fixed', 'f', 'constant', 'c']:
@@ -686,12 +686,8 @@ def save_final_light_curves(lightcurves, priorinfo, results,
             m_sample_times = batman.TransitModel(params, lightcurves[i].times)
             time_wise_best_curve = m_sample_times.light_curve(params)
 
-            # Calculate phase for each pont in the curve
-            #TODO - fix phase calculation
-            print(best_dict['t0'][i], best_dict['P'][i])
+            # Calculate phase for each point in the curve
             phase = lightcurves[i].get_phases(best_dict['t0'][i], best_dict['P'][i])
-
-            print(phase.min(), phase.max()) 
 
             write_dict = []
             for j, tj in enumerate(lightcurves[i].times):

@@ -132,6 +132,8 @@ class LDTKHandler:
         elif ld_model == 'nonlinear':
             coeff, err = self.profile_set.coeffs_nl()
         elif ld_model == 'power2':
+            if not not self._power2_available:
+                raise ValueError('power2 model is not available. If you want to use this, please use the development version of ldtk available on https://github.com/hpparvi/ldtk, rather than the pypi version.')
             coeff, err = self.profile_set.coeffs_p2()
         elif ld_model == 'squareroot':
             coeff, err = self.profile_set.coeffs_sq()

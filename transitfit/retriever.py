@@ -487,7 +487,7 @@ class Retriever:
     ##########################################################
     def _get_priors_and_curves(self, lightcurves, ld_fit_method, indices=None,
                                detrend=True, normalise=True, folded=False,
-                               folded_P=None, folded_t0=None, 
+                               folded_P=None, folded_t0=None,
                                suppress_warnings=False):
         '''
         Generates a prior info for a particular run:
@@ -678,12 +678,16 @@ class Retriever:
                     retrieved_t0[eidx].append(results_dict['t0'][i])
                     retrieved_t0_err[eidx].append(errors_dict['t0'][i])
 
-        
+
 
         single_val = not self.fit_ttv
 
         # Find the weighted average to get the best fit values of P and t0
-        best_P, P_err = weighted_avg_and_std(retrieved_P, retrieved_P_err, single_val=True)
+        if self.fit_ttv:
+            # We aren't fitting P, so don't actually have a value to average§
+            best_P, P_err = retrieved_P[0], 0
+        else:
+            best_P, P_err = weighted_avg_and_std(retrieved_P, retrieved_P_err, single_val=True)
         best_t0, t0_err = weighted_avg_and_std(retrieved_t0, retrieved_t0_err, single_val=single_val)
 
         if not self.fit_ttv:

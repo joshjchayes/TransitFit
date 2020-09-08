@@ -236,9 +236,6 @@ def weighted_avg_and_std(values, weights, axis=-1, single_val=False):
     average = []
     variance = []
 
-    print(values)
-    print(weights)
-
     for i in range(len(values)):
         average.append(np.average(values[i], weights=weights[i]))
         variance.append(np.average((values[i]-average[i])**2, weights=weights[i]))

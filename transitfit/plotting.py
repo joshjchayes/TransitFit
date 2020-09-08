@@ -119,7 +119,7 @@ def plot_individual_lightcurves(lightcurves, priorinfo, results,
                     x_vals = lightcurves[i].times
                     x_label= 'Time (BJD)'
 
-            plot_times = np.linspace(x_vals.min(), x_vals.max(), 1000 )
+            plot_times = np.linspace(lightcurves[i].times.min(), lightcurves[i].times.max(), 1000 )
 
             # Now make the best fit light curve
 
@@ -166,6 +166,10 @@ def plot_individual_lightcurves(lightcurves, priorinfo, results,
                         elinewidth=0.8, alpha=0.6)
 
             # Plot the curve
+            # Convert to phase if needed:
+            if plot_phase:
+                plot_times = (plot_times - t0 + (period/2))/period
+
             main_ax.plot(plot_times, best_curve, linewidth=2,
                         color=line_color)
 
@@ -273,7 +277,7 @@ def quick_plot(lightcurve, fname, folder_path, t0=None, period=None):
         # x axis is time, not phase
         x_vals = lightcurve[i].times
         x_label = 'Time (BJD)'
-        
+
 
     ax.errorbar(x_vals, lightcurve.flux, lightcurve.errors, zorder=1,
         linestyle='', marker='x', color='dimgrey', elinewidth=0.8, alpha=0.6)
@@ -296,16 +300,16 @@ def quick_plot(lightcurve, fname, folder_path, t0=None, period=None):
                 bbox_inches='tight')
 
 
-def plot_from_file(path, phase_plot=True, folder_path='./plots', 
-                   figsize=(12,8), marker_color='dimgrey', 
+def plot_from_file(path, phase_plot=True, folder_path='./plots',
+                   figsize=(12,8), marker_color='dimgrey',
                    line_color='black', title=None, save_path=None):
     '''
-    Plots a light curve from a file. 
+    Plots a light curve from a file.
 
-    If phase_plot is true, then will plor phase on x axis. Otherwise plots time. 
+    If phase_plot is true, then will plor phase on x axis. Otherwise plots time.
 
     '''
-    # Get the data 
+    # Get the data
     time, phase, flux, flux_err, model = pd.read_csv(path).values.T
     residuals = flux - model
 
@@ -382,7 +386,4 @@ def plot_from_file(path, phase_plot=True, folder_path='./plots',
 
     fig.savefig(save_path, bbox_inches='tight')
 
-    plt.close
-        
-    
-
+    plt.close()
