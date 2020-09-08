@@ -1369,6 +1369,7 @@ class Retriever:
 
         # Account for ttv
         if self.fit_ttv:
+            # t0 for each epoch
             n_params += n_epochs
 
         # Account for filter-specific parameters - rp and LD coeffs
@@ -1380,8 +1381,8 @@ class Retriever:
         # Account for normalisation
         if normalise:
             n_params += n_lightcurves
-
         # Account for detrending
+
         if detrend:
             for i in np.array(indices).T:
                 subset_i = self._full_to_subset_index(indices, i)
