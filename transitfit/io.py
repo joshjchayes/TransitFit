@@ -21,7 +21,7 @@ import os
 def read_priors_file(path, n_telescopes, n_filters, n_epochs,
                      limb_dark='quadratic', filter_indices=None, folded=False,
                      folded_P=None, folded_t0=None, host_radius=None,
-                     fit_ttv=None, lightcurves=None):
+                     fit_ttv=None, lightcurves=None, suppress_warnings=False):
     '''
     If given a csv file containing priors, will produce a PriorInfo object
     based off the given values
@@ -87,12 +87,12 @@ def read_priors_file(path, n_telescopes, n_filters, n_epochs,
     '''
     priors_list = pd.read_csv(path).values
 
-    return parse_priors_list(priors_list, n_telescopes, n_filters, n_epochs, limb_dark, filter_indices, folded, folded_P, folded_t0, host_radius, fit_ttv, lightcurves)
+    return parse_priors_list(priors_list, n_telescopes, n_filters, n_epochs, limb_dark, filter_indices, folded, folded_P, folded_t0, host_radius, fit_ttv, lightcurves, suppress_warnings)
 
 def parse_priors_list(priors_list, n_telescopes, n_filters,
                       n_epochs, ld_model, filter_indices=None, folded=False,
                       folded_P=None, folded_t0=None, host_radius=None,
-                      fit_ttv=False, lightcurves=None):
+                      fit_ttv=False, lightcurves=None, suppress_warnings=False):
     '''
     Parses a list of priors to produce a PriorInfo with all fitting parameters
     initialised.
@@ -242,6 +242,12 @@ def parse_priors_list(priors_list, n_telescopes, n_filters,
 
             if key in ['P', 't0'] and folded:
                 # Skip P and t0 for folded mode - we aren't fitting them
+                pass
+
+            elif key in ['P'] and fit_ttv:
+                # We can't fit period if we are using ttv mode - skip it
+                if not suppress_warnings:
+                    print("WARNING: Ignoring P fitting due to ttv mode. It is recommended to specify P as 'Fixed' in the input file, else TransitFit will default to the value given with Input A.")  
                 pass
 
             elif mode.lower() in ['fixed', 'f', 'constant', 'c']:
@@ -680,9 +686,17 @@ def save_final_light_curves(lightcurves, priorinfo, results,
             m_sample_times = batman.TransitModel(params, lightcurves[i].times)
             time_wise_best_curve = m_sample_times.light_curve(params)
 
+            # Calculate phase for each pont in the curve
+            #TODO - fix phase calculation
+            print(best_dict['t0'][i], best_dict['P'][i])
+            phase = lightcurves[i].get_phases(best_dict['t0'][i], best_dict['P'][i])
+
+            print(phase.min(), phase.max()) 
+
             write_dict = []
             for j, tj in enumerate(lightcurves[i].times):
                 write_dict.append({'Time' : tj,
+                                   'Phase' : phase[j],
                                    'Normalised flux' : detrended_flux[j],
                                    'Uncertainty' : detrended_errors[j],
                                    'Best fit curve' : time_wise_best_curve[j]})
@@ -693,7 +707,7 @@ def save_final_light_curves(lightcurves, priorinfo, results,
                 fname = 't{}_f{}_e{}_detrended.csv'.format(telescope_idx, filter_idx, epoch_idx)
 
             with open(os.path.join(folder, fname), 'w') as f:
-                columns = ['Time', 'Normalised flux', 'Uncertainty', 'Best fit curve']
+                columns = ['Time', 'Phase', 'Normalised flux', 'Uncertainty', 'Best fit curve']
                 writer = csv.DictWriter(f, columns)
                 writer.writeheader()
                 writer.writerows(write_dict)

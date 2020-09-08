@@ -316,6 +316,15 @@ class LightCurve:
             writer.writeheader()
             writer.writerows(write_dict)
 
+    def get_phases(self, t0, P):
+        '''
+        Converts the times into phase given the t0 and P values
+        '''
+        n = (self.times - (t0 + 0.5*P))//P
+
+        return (self.times-t0)/P - n - 0.5
+        
+
     def __eq__(self, other):
         '''
         Checks two LightCurves are the same. We are only checking the times,

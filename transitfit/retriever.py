@@ -80,7 +80,7 @@ class Retriever:
         # Get the FULL prior.
         # Assume independent ld method - it doesn't actually matter
         # since this never gets used.
-        self._full_prior, _ = self._get_priors_and_curves(self.all_lightcurves, 'independent')
+        self._full_prior, _ = self._get_priors_and_curves(self.all_lightcurves, 'independent', suppress_warnings=True)
 
         # From the full prior, get a bunch of info on numbers of parameters
         # Get the number of parameters in the limb darkening
@@ -203,7 +203,7 @@ class Retriever:
         Runs full retrieval with no folding/batching etc. Just a straight
         forward dynesty run.
         '''
-        priors, lightcurves = self._get_priors_and_curves(ld_fit_method,
+        priors, lightcurves = self._get_priors_and_curves(self.all_lightcurves, ld_fit_method,
                                                           detrend=detrend,
                                                           normalise=normalise)
 
@@ -333,7 +333,7 @@ class Retriever:
 
         # Plot the folded lightcurves so we can check them
         for lci, lc in np.ndenumerate(folded_curves):
-            quick_plot(lc, 'folded_curve_filter_{}.pdf'.format(lci[1]), os.path.join(plot_folder, 'folded_curves'), folded_t0)
+            quick_plot(lc, 'folded_curve_filter_{}.pdf'.format(lci[1]), os.path.join(plot_folder, 'folded_curves'), folded_t0, folded_P)
 
         # Get the batches, and remember that now we are not detrending or
         # normalising since that was done in the first stage
@@ -487,7 +487,8 @@ class Retriever:
     ##########################################################
     def _get_priors_and_curves(self, lightcurves, ld_fit_method, indices=None,
                                detrend=True, normalise=True, folded=False,
-                               folded_P=None, folded_t0=None):
+                               folded_P=None, folded_t0=None, 
+                               suppress_warnings=False):
         '''
         Generates a prior info for a particular run:
 
@@ -570,7 +571,8 @@ class Retriever:
                                       self.limb_darkening_model,
                                       filter_indices,
                                       folded, folded_P, folded_t0, self.host_r,
-                                      self.fit_ttv, lightcurve_subset)
+                                      self.fit_ttv, lightcurve_subset,
+                                      suppress_warnings)
         else:
             # Reading in from a list
             priors = parse_priors_list(self._prior_input,
@@ -580,7 +582,8 @@ class Retriever:
                                        self.limb_darkening_model,
                                        filter_indices,
                                        folded, folded_P, folded_t0,
-                                       self.host_r, self.fit_ttv, lightcurve_subset)
+                                       self.host_r, self.fit_ttv, lightcurve_subset,
+                                       suppress_warnings)
 
         # Set up limb darkening
         if not ld_fit_method.lower() == 'off':
@@ -675,6 +678,8 @@ class Retriever:
                     retrieved_t0[eidx].append(results_dict['t0'][i])
                     retrieved_t0_err[eidx].append(errors_dict['t0'][i])
 
+        
+
         single_val = not self.fit_ttv
 
         # Find the weighted average to get the best fit values of P and t0
@@ -690,7 +695,7 @@ class Retriever:
         print('P = {} ± {}'.format(round(best_P, 8),  round(P_err, 8)))
         if self.fit_ttv:
             for i, t0i in enumerate(best_t0):
-                print('t0 = {} ± {} (epoch {})'.format(round(t01, 3),  round(t0_err[i], 3), i))
+                print('t0 = {} ± {} (epoch {})'.format(round(t0i, 3),  round(t0_err[i], 3), i))
         else:
             print('t0 = {} ± {}'.format(best_t0.round(3)[0],  t0_err.round(3)[0]))
 
@@ -1357,6 +1362,10 @@ class Retriever:
 
         # Account for global parameters
         n_params = self.n_global_params
+
+        # Account for ttv
+        if self.fit_ttv:
+            n_params += n_epochs
 
         # Account for filter-specific parameters - rp and LD coeffs
         if ld_fit_method in ['independent', 'coupled']:

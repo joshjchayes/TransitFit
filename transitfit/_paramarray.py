@@ -165,20 +165,20 @@ class ParamArray:
                 else:
                     line += 'f -\t'
 
-                if self.telescope_dependent:
+                if self.epoch_dependent:
                     line += 'e {}\t'.format(i[2])
                 else:
                     line += 'e -\t'
 
                 if type(self[i]) is _Param:
-                    line += 'Fitting: Fixed - value: {}\n'.format( self[i].default_value)
+                    line += 'Fixed - value: {}\n'.format( self[i].default_value)
                 elif type(self[i]) is float or type(self[i]) is int:
-                    line += 'Fitting: Fixed - value: {}\n'.format(self[i])
+                    line += 'Fixed - value: {}\n'.format(self[i])
                 elif type(self[i]) is _UniformParam:
-                    line += 'Fitting: Uniform - min: {} - max: {}\n'.format(self[i].low_lim, self[i].high_lim)
+                    line += 'Uniform - min: {} - max: {}\n'.format(self[i].low_lim, self[i].high_lim)
                 elif type(self[i]) is _GaussianParam:
-                    line += 'Fitting: Gaussian - mean: {} - stdev: {}\n'.format(self[i].mean, self[i].stdev)
+                    line += 'Gaussian - mean: {} - stdev: {}\n'.format(self[i].mean, self[i].stdev)
                 else:
-                    line += 'Fitting: Unrecognised type - {}\n'.format( self[i].__str__())
+                    line += 'Unrecognised type - {}\n'.format( self[i].__str__())
                 print_str += line
         return print_str
