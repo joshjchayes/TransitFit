@@ -245,14 +245,23 @@ def weighted_avg_and_std(values, weights, axis=-1, single_val=False):
 def AU_to_host_radii(a, R):
     '''
     Converts a number in AU to a value in host radii when given the host
-    radius R in Solar radii
+    radius R in Solar radii. Inverse of host_radii_to_AU.
     '''
     AU = 1.495978707e11
     R_sun = 6.957e8
 
     return (a * AU) / (R * R_sun)
 
+def host_radii_to_AU(a, R):
+    '''
+    converts a separation in host radii into a separation in AU when given
+    the host radius R in Solar radii. Inverse of AU_to_host_radii.
+    '''
+    AU = 1.495978707e11
+    R_sun = 6.957e8
 
+    return (a * R * R_sun)/AU
+    
 def split_lightcurve_file(path, t0, P, new_base_fname=None):
     '''
     Splits a multi-epoch lightcurve data file into multiple single-epoch files
