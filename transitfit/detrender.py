@@ -36,7 +36,10 @@ class DetrendingFunction:
         self.n_required_args = args
         self.n_kwargs = kwargs
         # -1 assumes that the first entry is times, so won't be fitted
-        self.n_params = len(params) - 1
+        try:
+            self.n_params = function.order
+        except:
+            self.n_params = len(params)
 
     def __call__(self, *args, **kwargs):
         return self.function(*args, **kwargs)

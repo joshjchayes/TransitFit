@@ -33,7 +33,8 @@ _prior_info_defaults = {'P':1, 'a':10, 'inc':90, 'rp':0.05, 't0':0, 'ecc':0,
                         'n_epochs':1, 'norm':1}
 
 def setup_priors(P, t0, a, rp, inc, ecc, w, limb_dark, n_telescopes, n_filters,
-                 n_epochs, q0=None, q1=None, q2=None, q3=None, fit_ttv=False):
+                 n_epochs, q0=None, q1=None, q2=None, q3=None, fit_ttv=False, 
+                 lightcurves=None):
     '''
     qX should either be a single value or a list of values length n_filters
     '''
@@ -51,13 +52,13 @@ def setup_priors(P, t0, a, rp, inc, ecc, w, limb_dark, n_telescopes, n_filters,
                     'w':w, 'q0':q0, 'q1':q1, 'q2':q2, 'q3':q3, 'norm':1}
 
     return PriorInfo(default_dict, limb_dark, n_telescopes, n_filters,
-                      n_epochs, fit_ttv)
+                      n_epochs, fit_ttv, lightcurves)
 
 
 
 class PriorInfo:
     def __init__(self, default_dict, limb_dark, n_telescopes, n_filters,
-                 n_epochs, fit_ttv=False):
+                 n_epochs, fit_ttv=False, lightcurves=None):
         '''
 
         '''
@@ -118,9 +119,10 @@ class PriorInfo:
                     self.priors[key] = ParamArray(key, shape, False, True, False, default_dict[key])
 
             else:
+                print(key, lightcurves)
                 # This is a lightcurve dependent parameter
-                self.priors[key] = ParamArray(key, (self.n_telescopes, self.n_filters,self.n_epochs), True, True, True, default_dict[key])
-
+                self.priors[key] = ParamArray(key, (self.n_telescopes, self.n_filters,self.n_epochs), True, True, True, default_dict[key], lightcurves=lightcurves)
+                print(self.priors[key])
         # All priors should now be initialised
 
         # We also need a list for keeping track of what is being fitted

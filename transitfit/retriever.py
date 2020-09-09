@@ -77,6 +77,9 @@ class Retriever:
         # Load in the full LightCurve data and detrending index array
         self.all_lightcurves, self.detrending_index_array = read_input_file(data_files, data_skiprows)
 
+        self.n_total_lightcurves = np.sum(self.all_lightcurves!=None)
+        print(self.n_total_lightcurves)
+
         # Get the FULL prior.
         # Assume independent ld method - it doesn't actually matter
         # since this never gets used.
@@ -101,8 +104,10 @@ class Retriever:
         # parameters used in a fitting batch
         self.detrending_models = []
         for mode in self.detrending_info:
+            print(mode)
             if mode[0] == 'nth order':
                 function = NthOrderDetrendingFunction(mode[1])
+                print(function.order)
                 self.detrending_models.append(DetrendingFunction(function))
             elif mode[0] == 'custom':
                 function = mode[1]
@@ -155,7 +160,7 @@ class Retriever:
                     q = [params[qX][0,fi,0] for qX in priors.limb_dark_coeffs]
                     u.append(priors.ld_handler.convert_qtou(*q))
 
-                return ln_likelihood + priors.ld_handler.ldtk_lnlike(u, limb_dark)
+                return ln_likelihood + priors.ld_handler.ldtk_lnlike(u, priors.limb_dark)
             else:
                 return ln_likelihood
         #######################################################################
@@ -440,7 +445,7 @@ class Retriever:
                 # We have more than one lightcurve to fit - we can batch
                 # If one filter has >= 3 epochs, we can do folded mode
                 n_epochs_in_filter = np.sum(self.all_lightcurves!=None, axis=(2,0))
-
+                
                 if np.any(n_epochs_in_filter >= 3):
                     print("Auto mode detect has set 'folded' mode")
                     fitting_mode = 'folded'
@@ -471,7 +476,8 @@ class Retriever:
                     normalise, maxiter, maxcall, sample, nlive, dlogz, False,
                     False, None, None, output_folder, summary_file,
                     full_output_file, lightcurve_folder, plot, plot_folder,
-                    marker_color, line_color, max_parameters, overlap)
+                    marker_color, line_color)
+
 
         if fitting_mode.lower() == 'folded':
             # In this mode, we are running multi-epoch retrieval on each
@@ -537,9 +543,6 @@ class Retriever:
         if folded:
             if filter_indices is None:
                 raise ValueError('filter_indices must be provided for folded PriorInfo')
-
-            if lightcurves is None:
-                raise ValueError('lightcurves must be provided for folded PriorInfo')
 
             lightcurve_subset = self._get_lightcurve_subset(lightcurves, indices)
 
@@ -1392,6 +1395,7 @@ class Retriever:
                     detrending_model = self.detrending_models[detrending_index]
                     if detrending_info[0] in ['nth order', 'custom']:
                         n_params += detrending_model.n_params
+                        print(detrending_model.n_params, 'parameters for detrending model')
                     elif detrending_info[0] == 'off':
                         pass
                     else:

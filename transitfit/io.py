@@ -138,6 +138,7 @@ def parse_priors_list(priors_list, n_telescopes, n_filters,
     priors : PriorInfo
         The fully initialised PriorInfo which can then be used in fitting.
     '''
+    print(lightcurves)
     if folded:
         if folded_P is None:
             raise ValueError('folded_P must be provided for folded prior mode')
@@ -211,7 +212,7 @@ def parse_priors_list(priors_list, n_telescopes, n_filters,
                           priors_dict['q1'][0],
                           priors_dict['q2'][0],
                           priors_dict['q3'][0],
-                          fit_ttv)
+                          fit_ttv, lightcurves)
 
     ##########################
     # Initialise the fitting #
@@ -329,17 +330,19 @@ def _read_data_csv(path, usecols=None):
 
     return times[non_nan], flux[non_nan], errors[non_nan]
 
-def _read_data_txt(path, skiprows=0, usecols=None):
+def _read_data_txt(path, skiprows=0, usecols=None, delimiter=' '):
     '''
     Reads a txt data file with columns
     '''
-    times, depth, errors = np.loadtxt(path, skiprows=skiprows, usecols=usecols).T
+    data = pd.read_csv(path, usecols=usecols, dtype=float, delimiter=delimiter)
+
+    times, flux, errors = data.values.T
 
     non_nan = np.invert(np.any(pd.isna(data.values.T), axis=0))
 
     return times[non_nan], flux[non_nan], errors[non_nan]
 
-def read_data_file(path, skiprows=0, folder=None, usecols=None):
+def read_data_file(path, skiprows=0, folder=None, usecols=None, delimiter=None):
     '''
     Reads a file in, assuming that it is either a:
         .csv
@@ -373,7 +376,7 @@ def read_data_file(path, skiprows=0, folder=None, usecols=None):
     '''
     if folder is None:
         folder = ''
-
+    
     if path[-4:] == '.csv':
         times, flux, errors = _read_data_csv(os.path.join(folder, path), usecols)
     if path[-4:] == '.txt':
