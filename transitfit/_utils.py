@@ -212,35 +212,42 @@ def weighted_avg_and_std(values, weights, axis=-1, single_val=False):
     values = np.array(values)
     weights = np.array(weights)
 
+    if not isinstance(values[0], Iterable):
+        single_val = True
+
     if single_val:
         # Flatten the values and weights
         try:
-            flat_vals = [i for epoch_vals in values for i in epoch_vals]
-            flat_weights = [i for epoch_vals in weights for i in epoch_vals]
+            flat_vals = np.array([i for epoch_vals in values for i in epoch_vals])
+            flat_weights = np.array([i for epoch_vals in weights for i in epoch_vals])
         except:
             flat_vals = values
             flat_weights = weights
         average = np.average(flat_vals, weights=flat_weights)
-        variance = np.average((flat_vals-average)**2, weights=flat_weights)
+        uncertainty = 1 / np.sqrt(np.sum(1/(flat_weights**2)))
+        #variance = np.average((flat_vals-average)**2, weights=flat_weights)
 
-        return average, np.sqrt(variance)
+        return average, uncertainty
 
-    if not isinstance(values[0], Iterable):
+    #if not isinstance(values[0], Iterable):
         # This is globally fitted, not fitted over either epoch or filter
-        average = np.average(values, weights=weights, axis=axis)
-        variance = np.average((values-average)**2, weights=weights, axis=axis)
+    #    average = np.average(values, weights=weights, axis=axis)
+    #    variance = np.average((values-average)**2, weights=weights, axis=axis)
 
-        return average, np.sqrt(variance)
+
+    #    return average, np.sqrt(variance)
 
     # Make blank arrays to loop over the entries in values and weights
     average = []
-    variance = []
+    #variance = []
+    uncertainty = []
 
     for i in range(len(values)):
         average.append(np.average(values[i], weights=weights[i]))
-        variance.append(np.average((values[i]-average[i])**2, weights=weights[i]))
+        uncertainty.append(1 / np.sqrt(np.sum(1/(weights[i]**2))))
+        #variance.append(np.average((values[i]-average[i])**2, weights=weights[i]))
 
-    return np.array(average), np.sqrt(variance)
+    return np.array(average), np.array(uncertainty)
 
 def AU_to_host_radii(a, R):
     '''
@@ -261,7 +268,7 @@ def host_radii_to_AU(a, R):
     R_sun = 6.957e8
 
     return (a * R * R_sun)/AU
-    
+
 def split_lightcurve_file(path, t0, P, new_base_fname=None):
     '''
     Splits a multi-epoch lightcurve data file into multiple single-epoch files

@@ -445,7 +445,7 @@ class Retriever:
                 # We have more than one lightcurve to fit - we can batch
                 # If one filter has >= 3 epochs, we can do folded mode
                 n_epochs_in_filter = np.sum(self.all_lightcurves!=None, axis=(2,0))
-                
+
                 if np.any(n_epochs_in_filter >= 3):
                     print("Auto mode detect has set 'folded' mode")
                     fitting_mode = 'folded'
@@ -1198,7 +1198,7 @@ class Retriever:
             for i in np.ndindex(values[param].shape):
                 if values[param][i] is not None:
                     # Get the weighted average and error
-                    val, err = weighted_avg_and_std(values[param][i], errors[param][i])
+                    val, err = weighted_avg_and_std(values[param][i], errors[param][i], single_val=True)
                     best_vals[param][i] = val
                     best_vals_errors[param][i] = err
 
