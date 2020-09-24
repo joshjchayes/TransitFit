@@ -138,7 +138,6 @@ def parse_priors_list(priors_list, n_telescopes, n_filters,
     priors : PriorInfo
         The fully initialised PriorInfo which can then be used in fitting.
     '''
-    print(lightcurves)
     if folded:
         if folded_P is None:
             raise ValueError('folded_P must be provided for folded prior mode')
@@ -376,7 +375,7 @@ def read_data_file(path, skiprows=0, folder=None, usecols=None, delimiter=None):
     '''
     if folder is None:
         folder = ''
-    
+
     if path[-4:] == '.csv':
         times, flux, errors = _read_data_csv(os.path.join(folder, path), usecols)
     if path[-4:] == '.txt':

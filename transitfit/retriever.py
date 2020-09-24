@@ -78,7 +78,7 @@ class Retriever:
         self.all_lightcurves, self.detrending_index_array = read_input_file(data_files, data_skiprows)
 
         self.n_total_lightcurves = np.sum(self.all_lightcurves!=None)
-        print(self.n_total_lightcurves)
+
 
         # Get the FULL prior.
         # Assume independent ld method - it doesn't actually matter
@@ -104,10 +104,8 @@ class Retriever:
         # parameters used in a fitting batch
         self.detrending_models = []
         for mode in self.detrending_info:
-            print(mode)
             if mode[0] == 'nth order':
                 function = NthOrderDetrendingFunction(mode[1])
-                print(function.order)
                 self.detrending_models.append(DetrendingFunction(function))
             elif mode[0] == 'custom':
                 function = mode[1]
