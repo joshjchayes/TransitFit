@@ -1395,7 +1395,6 @@ class Retriever:
                     detrending_model = self.detrending_models[detrending_index]
                     if detrending_info[0] in ['nth order', 'custom']:
                         n_params += detrending_model.n_params
-                        print(detrending_model.n_params, 'parameters for detrending model')
                     elif detrending_info[0] == 'off':
                         pass
                     else:
