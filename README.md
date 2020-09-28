@@ -19,6 +19,8 @@
 
 [Fitting Large Numbers of Light Curves](#lots_of_curves)
 
+[Citing TransitFit](#citing)
+
 
 <a name="overview"></a>
 ## Overview
@@ -153,17 +155,39 @@ The priors file is used for defining which physical parameters are to be fitted,
 
 
 ### Filter info
-The filter info file defines the wavelengths of the filters that observations were made at. TransitFit currently can only handle uniform box filters, and so we recommend using the equivalent width values of filters where possible. This file should have three columns, in the order
+This is used to specify the filter profiles that observations were made at. TransitFit can deal with either uniform box filters or user-specified profiles, and this file is used to determine this behaviour. This file should have three columns, in the order
 
 - **Filter index**: the index of the filter, ensuring consistency with the other input files.
 
-- **Low wavelength**: the lowest wavelength not blocked by the filter in nm.
+- **Low wavelength OR path to filter profile**: EITHER the lowest wavelength not blocked by the filter in nm (if uniform box filter) OR the path to the filter profile.
 
-- **High wavelength**: the highest wavelength not blocked by the filter in nm.
+- **High wavelength**: the highest wavelength not blocked by the filter in nm. Ignored if filter profile provided.
 
+If using a filter profile, this should have 2 columns - the wavelength and the fraction of light which can pass. Anything outside of the range of the profile is assumed to have a transmission of 0.
 
 <a name="limb_darkening"></a>
 ## Limb darkening
+The following limb darkening models are implemented in TransitFit, given here with the value to pass to `'limb_darkening_model'` in `tf.run_retrieval()`:
+
+- The linear law - `'linear'`
+
+- The quadratic law - `'quadratic'`
+
+- The square root law - `'squareroot'`
+
+- The power-2 law - `'power2'`. Note that this is only implemented when using the version of LDTk from the GitHub repo, rather than the `pip` installable version.
+
+- The non-linear law - `'nonlinear'`
+
+With the exception of the non-linear model, all models are constrained by the method in [Kipping (2013)],(https://arxiv.org/abs/1308.0009).
+
+As discussed in more detail in the paper, TransitFit offers three modes of limb darkening coefficient fitting. These are (along with the value to give to `'ld_fit_method'`):
+
+- **Independent** (`'independent'`) -  This is the traditional approach of fitting LDCs for each filter separately. \tranf{} still uses the Kipping parameterisations, but LDTk is not used to couple LDCs across filters.
+
+- **Coupled** (`'coupled'`) - Using the Kipping parameterisations, each LDC is fitted as a free parameter, with LDTk being used to estimate the likelihood of complete sets of LDCs, using information on the host star and the observation filters.
+
+- **Single filter** (`'single'`) -  When fitting with multiple wavebands, the number of parameters required to be fitted can increase dramatically when using the coupled mode. Consequently, we have provided a method of only freely fitting the LDCs of one filter, and using LDTk to extrapolate LDC values for the remaining filters.
 
 <a name="detrending"></a>
 ## Detrending
@@ -172,3 +196,11 @@ TransitFit offers nth-order detrending which is fitted simultaneously with other
 
 <a name="lots_of_curves"></a>
 ## Fitting large numbers of light curves
+
+
+<a name="citing"></a>
+## Citing TransitFit
+If you have used TransitFit in your work, please cite the accompanying paper (LINK TO FOLLOW):
+```
+SOME BIBTEX HERE
+```
