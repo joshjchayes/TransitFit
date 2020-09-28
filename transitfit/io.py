@@ -460,7 +460,7 @@ def parse_data_path_list(data_path_list):
 #############################################################
 #                         FILTERS                           #
 #############################################################
-def parse_filter_list(filter_list):
+def parse_filter_list(filter_list, delimiter=None):
     '''
     Parses a list of filter information into a usable form for the `'filters'`
     argument in PriorInfo.fit_limb_darkening.
@@ -469,9 +469,12 @@ def parse_filter_list(filter_list):
     ----------
     filter_list : array_like, shape (n_filters, 3)
         The information on the filters. Each row should contain
-        [filter_index, low wavelength, high wavelength]
+        [filter_index, low wavelength/file path, high wavelength]
         The filter indices should refer to the indices used in the priors file.
         Wavelengths should be in nm.
+    delimiter : str, optional
+        The delimiter used in filter profile files. Default is None, which
+        automatically detects using csv.Sniffer
 
     Returns
     -------
@@ -484,15 +487,24 @@ def parse_filter_list(filter_list):
     n_filters = int(filter_list[:,0].max() + 1)
 
     # Make a blank array to populate with the filter limits
-    filter_info = np.zeros((n_filters, 2))
+    filter_info = np.zeros((n_filters, 2), object)
 
     # Now populate!
     for i in range(n_filters):
-        filter_info[i] = filter_list[i, 1:]
+        fidx = filter_list[i, 0]
+        if type(filter_list[i, 1]) == str:
+            # Path provided, load in the filter
+            filter_profile = pd.read_csv(filter_list[i, 1].strip(), sep=delimiter).values.T
+
+            filter_info[i,0] = filter_profile[0]
+            filter_info[i,1] = filter_profile[1]
+        else:
+            # box limits provided
+            filter_info[i] = filter_list[i, 1:]
 
     return filter_info
 
-def read_filter_info(path):
+def read_filter_info(path, delimiter=None):
     '''
     Reads in information on the filters from .csv file and puts them in a
     format which can be passed to the ``filters`` argument in
@@ -504,12 +516,20 @@ def read_filter_info(path):
         Path to the .csv file containing the information on the filters. This
         file should have three columns:
 
-        -----------------------------------------
-        |   filter_idx  |   low_wl  |   high_wl |
-        -----------------------------------------
+        -------------------------------------------------
+        |   filter_idx  |   low_wl_or_path  |   high_wl |
+        -------------------------------------------------
 
+        Filters can either be specified as uniform between low_wl and high_wl,
+        or a full profile can be passed through a file. Filter profile files
+        must be two columns, giving wavelength and transmission fraction in
+        range [0,1].
         The filter indices should refer to the indices used in the priors file.
         All wavelengths should be in nm.
+
+    delimiter : str, optional
+        The delimiter used in filter profile files. Default is None, which
+        automatically detects using csv.Sniffer
 
     Returns
     -------
@@ -520,7 +540,7 @@ def read_filter_info(path):
 
     info = pd.read_csv(path).values
 
-    return parse_filter_list(info)
+    return parse_filter_list(info, delimiter)
 
 #############################################################
 #                         OUTPUTS                           #

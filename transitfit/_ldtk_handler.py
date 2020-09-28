@@ -4,8 +4,9 @@ Class to handle limb darkening parameters through PyLDTK
 '''
 
 import numpy as np
-from ldtk import LDPSetCreator, BoxcarFilter
+from ldtk import LDPSetCreator, BoxcarFilter, TabulatedFilter
 import os
+from collections.abc import Iterable
 
 _implemented_ld_models = ['linear', 'quadratic', 'nonlinear', 'power2', 'squareroot']
 
@@ -56,7 +57,12 @@ class LDTKHandler:
         #print('Setting up filters')
         ldtk_filters = []
         for i, f in enumerate(filters):
-            ldtk_filters.append(BoxcarFilter('{}'.format(i), f[0], f[1]))
+            if isinstance(f[0], Iterable):
+                # We have been passed a full filter profile, set up
+                # TabulatedFilter
+                ldtk_filters.append(TabulatedFilter(i, f[0], f[1]))
+            else:
+                ldtk_filters.append(BoxcarFilter(i, f[0], f[1]))
 
         # Make the set creator, downloading data files if required
         if cache_path is not None:
