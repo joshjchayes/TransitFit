@@ -60,7 +60,13 @@ class LDTKHandler:
             if isinstance(f[0], Iterable):
                 # We have been passed a full filter profile, set up
                 # TabulatedFilter
-                ldtk_filters.append(TabulatedFilter(i, f[0], f[1]))
+                # Work out if the profile is in percent or fraction - is
+                # anything bigget than 1?
+                if np.any(f[1] > 1):
+                    tmf = 1e-2
+                else:
+                    tmf = 1
+                ldtk_filters.append(TabulatedFilter(i, f[0], f[1], tmf))
             else:
                 ldtk_filters.append(BoxcarFilter(i, f[0], f[1]))
 
