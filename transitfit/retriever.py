@@ -32,7 +32,8 @@ class Retriever:
                  filter_info=None, detrending_list=[['nth order', 1]],
                  limb_darkening_model='quadratic', host_T=None, host_logg=None,
                  host_z=None, host_r=None, ldtk_cache=None, data_skiprows=0,
-                 n_ld_samples=20000, do_ld_mc=False, fit_ttv=False):
+                 n_ld_samples=20000, do_ld_mc=False, fit_ttv=False,
+                 filter_delimiter=None):
         '''
 
         '''
@@ -70,9 +71,9 @@ class Retriever:
         if self._filter_input is None:
             self.filters = None
         elif type(self._filter_input) == str:
-            self.filters = read_filter_info(self._filter_input)
+            self.filters = read_filter_info(self._filter_input, filter_delimiter)
         else:
-            self.filters = parse_filter_list(self._filter_input)
+            self.filters = parse_filter_list(self._filter_input, filter_delimiter)
 
         # Load in the full LightCurve data and detrending index array
         self.all_lightcurves, self.detrending_index_array = read_input_file(data_files, data_skiprows)
