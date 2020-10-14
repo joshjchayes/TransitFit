@@ -9,6 +9,7 @@ from dynesty import NestedSampler
 from copy import deepcopy
 import os, csv
 import traceback
+import multiprocessing as mp
 
 from transitfit import io
 
@@ -118,7 +119,8 @@ class Retriever:
     #               RETRIEVAL RUNNING METHODS                #
     ##########################################################
     def _run_dynesty(self, lightcurves, priors, maxiter=None, maxcall=None,
-                     sample='auto', nlive=300, dlogz=None):
+                     sample='auto', nlive=300, dlogz=None, bound='multi',
+                     nprocs=mp.cpu_count() - 1):
         '''
         Runs dynesty on the given lightcurves with the given priors. Returns
         the result.
@@ -139,6 +141,13 @@ class Retriever:
 
         # Make a LikelihoodCalculator
         likelihood_calc = LikelihoodCalculator(lightcurves, priors)
+        print(priors)
+        #if nprocs == 1:
+        #    pool=None
+        #else:
+        #    print(nprocs, 'processes')
+        #    pool = mp.Pool(nprocs)
+        #    pool.size = nprocs
 
         #######################################################################
         #######################################################################
@@ -158,7 +167,6 @@ class Retriever:
                 for fi in range(priors.n_filters):
                     q = [params[qX][0,fi,0] for qX in priors.limb_dark_coeffs]
                     u.append(priors.ld_handler.convert_qtou(*q))
-
                 return ln_likelihood + priors.ld_handler.ldtk_lnlike(u, priors.limb_dark)
             else:
                 return ln_likelihood
@@ -166,13 +174,17 @@ class Retriever:
         #######################################################################
 
         # Now we can set up and run the sampler!
-        sampler = NestedSampler(lnlike, prior_transform, n_dims, bound='multi',
+        sampler = NestedSampler(lnlike, prior_transform, n_dims, bound=bound,
                                 sample=sample, #update_interval=float(n_dims),
-                                nlive=nlive)
+                                nlive=nlive, walks=100, slices=10)
 
         try:
             sampler.run_nested(maxiter=maxiter, maxcall=maxcall, dlogz=dlogz)
-        except:
+        except Exception as e:
+            # Added for testing
+            print(e)
+            if type(e) == RuntimeError:
+                print('If this is an error from sampling getting stuck, check your priors. This is often seen when the true value is at the edge of/outsude your priors!')
             raise
 
 
@@ -202,19 +214,20 @@ class Retriever:
                             full_output_file='full_output.csv',
                             lightcurve_folder='./fitted_lightcurves',
                             plot=True, plot_folder='./plots',
-                            marker_color='dimgrey', line_color='black'):
+                            marker_color='dimgrey', line_color='black',
+                            bound='multi'):
         '''
         Runs full retrieval with no folding/batching etc. Just a straight
         forward dynesty run.
         '''
         priors, lightcurves = self._get_priors_and_curves(self.all_lightcurves, ld_fit_method,
                                                           detrend=detrend,
-                                                          normalise=normalise)
-
+                                                          normalise=normalise, suppress_warnings=True)
+        #print(priors)
         results, ndof = self._run_dynesty(lightcurves, priors,
                                           maxiter, maxcall, sample, nlive,
-                                          dlogz)
-
+                                          dlogz, bound)
+        return_results = deepcopy(results)
         # Print results to terminal
         try:
             io.print_results(results, priors, ndof)
@@ -222,11 +235,13 @@ class Retriever:
             print(e)
 
         # Save outputs parameters, plots, lightcurves!
-        self._save_results([results], [priors], [lightcurves], output_folder,
+        try:
+            self._save_results([results], [priors], [lightcurves], output_folder,
                           summary_file, full_output_file, lightcurve_folder,
                           plot, plot_folder, marker_color, line_color)
-
-        return results
+        except:
+            print('UNable to save results')
+        return return_results
 
     def _run_batched_retrieval(self, lightcurves, batches, ld_fit_method, detrend,
                                normalise, maxiter, maxcall, sample, nlive,
@@ -238,7 +253,8 @@ class Retriever:
                                full_output_file='full_output.csv',
                                lightcurve_folder='./fitted_lightcurves',
                                plot=True, plot_folder='./plots',
-                               marker_color='dimgrey', line_color='black'):
+                               marker_color='dimgrey', line_color='black',
+                               bound='multi'):
         '''
         Runs a retrieval using the given batches
 
@@ -255,13 +271,13 @@ class Retriever:
         for bi, batch in enumerate(batches):
             print('Batch {} of {}'.format(bi+1, len(batches)))
             # Now we want to get the lightcurves and priors for each batch
-            batch_prior, batch_lightcurves = self._get_priors_and_curves(lightcurves, ld_fit_method, batch, detrend, normalise, folded, folded_P, folded_t0)
+            batch_prior, batch_lightcurves = self._get_priors_and_curves(lightcurves, ld_fit_method, batch, detrend, normalise, folded, folded_P, folded_t0, suppress_warnings=True)
 
-            print(batch_prior)
+            #print(batch_prior)
             # Run the retrieval!
             results, ndof = self._run_dynesty(batch_lightcurves, batch_prior, maxiter,
                                               maxcall, sample, nlive,
-                                              dlogz)
+                                              dlogz, bound)
 
             all_results.append(results)
             all_priors.append(batch_prior)
@@ -287,7 +303,7 @@ class Retriever:
                               lightcurve_folder='./fitted_lightcurves',
                               plot=True, plot_folder='./plots',
                               marker_color='dimgrey', line_color='black',
-                              max_parameters=25, overlap=2):
+                              max_parameters=25, overlap=2, bound='multi'):
         '''
         For each filter, runs retrieval, then produces a phase-folded
         lightcurve. Then runs retrieval across wavelengths on the folded
@@ -325,7 +341,8 @@ class Retriever:
                                             full_output_file=filter_full_output,
                                             lightcurve_folder=filter_lightcurve_folder,
                                             plot=plot, plot_folder=filter_plots_folder,
-                                            marker_color=marker_color, line_color=line_color)
+                                            marker_color=marker_color, line_color=line_color, 
+                                            bound=bound)
 
             results_list.append(results)
             priors_list.append(priors)
@@ -345,12 +362,13 @@ class Retriever:
                                      detrend=False, normalise=False, overlap=overlap)
 
         print('Running folded retrievals...')
+        
         return self._run_batched_retrieval(folded_curves, folded_batches, ld_fit_method, False,
                         False, maxiter, maxcall, sample, nlive, dlogz,
                         False, True, folded_P, folded_t0, output_folder=output_folder,
                         summary_file=summary_file, full_output_file=full_output_file,
                         lightcurve_folder=lightcurve_folder, plot=plot, plot_folder=plot_folder,
-                        marker_color=marker_color, line_color=line_color)
+                        marker_color=marker_color, line_color=line_color, bound=bound)
 
     def run_retrieval(self, ld_fit_method='independent', fitting_mode='auto',
                       max_parameters=25, maxiter=None, maxcall=None,
@@ -360,7 +378,7 @@ class Retriever:
                       summary_file='summary_output.csv',
                       full_output_file='full_output.csv',
                       plot_folder='./plots', marker_color='dimgray',
-                      line_color='black',
+                      line_color='black', bound='multi',
                       normalise=True, detrend=True, overlap=2):
         '''
         Runs dynesty on the data. Different modes exist and can be specified
@@ -461,7 +479,7 @@ class Retriever:
             return self._run_full_retrieval(ld_fit_method, detrend, normalise,
                     maxiter, maxcall, sample, nlive, dlogz, output_folder,
                     summary_file, full_output_file, lightcurve_folder, plot,
-                    plot_folder, marker_color, line_color)
+                    plot_folder, marker_color, line_color, bound)
 
         if fitting_mode.lower() == 'batched':
             # In this mode, we are generating batches which contain all
@@ -475,7 +493,7 @@ class Retriever:
                     normalise, maxiter, maxcall, sample, nlive, dlogz, False,
                     False, None, None, output_folder, summary_file,
                     full_output_file, lightcurve_folder, plot, plot_folder,
-                    marker_color, line_color)
+                    marker_color, line_color, bound)
 
 
         if fitting_mode.lower() == 'folded':
@@ -485,7 +503,7 @@ class Retriever:
             return self._run_folded_retrieval(ld_fit_method, detrend, normalise,
                     maxiter, maxcall, sample, nlive, dlogz, output_folder,
                     summary_file, full_output_file, lightcurve_folder, plot,
-                    plot_folder, marker_color, line_color, max_parameters, overlap)
+                    plot_folder, marker_color, line_color, max_parameters, overlap, bound)
 
     ##########################################################
     #            PRIOR MANIPULATION                          #
@@ -1269,7 +1287,10 @@ class Retriever:
 
         for param in values:
             # Loop through each parameter
-
+            if param == 'rp':
+                print_param = 'rp/r*'
+            else:
+                print_param = param
             # Get the values and errors
             for i in np.ndindex(values[param].shape):
                 if values[param][i] is not None:
@@ -1296,7 +1317,7 @@ class Retriever:
                         epoch_idx = i[2]
 
                     # Add the results to the output dicts
-                    summary_dict.append({'Parameter' : param,
+                    summary_dict.append({'Parameter' : print_param,
                                          'Telescope' : telescope_idx,
                                          'Filter' : filter_idx,
                                          'Epoch' : epoch_idx,
@@ -1305,7 +1326,7 @@ class Retriever:
 
                     for j in range(len(full_val)):
                         # We have to loop over the batches for the full results
-                        full_dict.append({'Parameter' : param,
+                        full_dict.append({'Parameter' : print_param,
                                           'Telescope' : telescope_idx,
                                           'Filter' : filter_idx,
                                           'Epoch' : epoch_idx,

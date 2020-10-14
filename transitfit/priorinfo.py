@@ -157,6 +157,11 @@ class PriorInfo:
         '''
         Adds a new parameter which will be fitted with a Gaussian prior
         '''
+        # If this is t0 and ttvs are on, we want to make the prior much wider to allow for proper TTVs
+        if name == 't0' and self.fit_ttv:
+            # Set the Gaussian width to 0.1 days for ttv fitting mode
+            stdev = 0.1
+
         self.priors[name].add_gaussian_fit_param(mean, stdev,
                                                  telescope_idx, filter_idx,
                                                  epoch_idx)

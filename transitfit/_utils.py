@@ -7,6 +7,7 @@ This is a series of utility functions for TransitFit, including input validation
 import numpy as np
 from .lightcurve import LightCurve
 from collections.abc import Iterable
+import os
 
 def validate_lightcurve_array_format(arr):
     '''
@@ -243,8 +244,8 @@ def weighted_avg_and_std(values, weights, axis=-1, single_val=False):
     uncertainty = []
 
     for i in range(len(values)):
-        average.append(np.average(values[i], weights=weights[i]))
-        uncertainty.append(1 / np.sqrt(np.sum(1/(weights[i]**2))))
+        average.append(np.average(np.array(values[i]), weights=np.array(weights[i])))
+        uncertainty.append(1 / np.sqrt(np.sum(1/(np.array(weights[i])**2))))
         #variance.append(np.average((values[i]-average[i])**2, weights=weights[i]))
 
     return np.array(average), np.array(uncertainty)
@@ -256,6 +257,10 @@ def AU_to_host_radii(a, R):
     '''
     AU = 1.495978707e11
     R_sun = 6.957e8
+
+    if isinstance(R, Iterable):
+        R_val
+        R_err = R[0]
 
     return (a * AU) / (R * R_sun)
 
@@ -281,13 +286,13 @@ def split_lightcurve_file(path, t0, P, new_base_fname=None):
 
     # Split the full curve into individual epochs
     single_epoch_curves = full_lightcurve.split(t0, P)
-
+    dirname = os.path.dirname(path)
     # Now save all the new curves
     if new_base_fname is None:
         new_base_fname = 'split_curve'
 
     for i, curve in enumerate(single_epoch_curves):
         fname = new_base_fname + '_{}'.format(i)
-        curve.save(fname)
+        curve.save(os.path.join(dirname, fname))
 
     return single_epoch_curves

@@ -495,7 +495,6 @@ def parse_filter_list(filter_list, delimiter=None):
         if type(filter_list[i, 1]) == str:
             # Path provided, load in the filter
             filter_profile = pd.read_csv(filter_list[i, 1].strip(), sep=delimiter).values.T
-
             filter_info[i,0] = filter_profile[0]
             filter_info[i,1] = filter_profile[1]
         else:

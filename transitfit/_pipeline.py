@@ -21,7 +21,8 @@ def run_retrieval(data_files, priors, filter_info=None,
                   max_batch_parameters=25, batch_overlap=2,
                   host_T=None, host_logg=None, host_z=None, host_r=None,
                   nlive=300, dlogz=None, maxiter=None, maxcall=None,
-                  dynesty_sample='auto', normalise=True, detrend=True,
+                  dynesty_sample='auto', dynesty_bounding='multi',
+                  normalise=True, detrend=True,
                   results_output_folder='./output_parameters',
                   final_lightcurve_folder='./fitted_lightcurves',
                   summary_file='summary_output.csv',
@@ -229,6 +230,8 @@ def run_retrieval(data_files, priors, filter_info=None,
         this defaults to 'hslice' if a gradient is provided and 'slice'
         otherwise. 'rstagger' and 'rslice' are provided as alternatives for
         'rwalk' and 'slice', respectively. Default is 'auto'.
+    dynesty_bounding : {`'none'`, `'single'`, `'multi'`, `'balls'`, 'cubes'`}, optional
+        The decomposition to use in sampling. Default is 'multi'
     results_output_folder : str, optional
         Folder to save results to. TransitFit will create subfolders within
         this if folded or batched runs are being used. Default is
@@ -299,7 +302,7 @@ def run_retrieval(data_files, priors, filter_info=None,
                                       results_output_folder,
                                       final_lightcurve_folder, summary_file,
                                       full_output_file, plot_folder,
-                                      marker_color, line_color, normalise,
-                                      detrend, overlap=batch_overlap)
-
+                                      marker_color, line_color, dynesty_bounding, normalise, 
+                                      detrend, batch_overlap)
+    print(results)
     return results
