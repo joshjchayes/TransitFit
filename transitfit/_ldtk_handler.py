@@ -4,8 +4,9 @@ Class to handle limb darkening parameters through PyLDTK
 '''
 
 import numpy as np
-from ldtk import LDPSetCreator, BoxcarFilter
+from ldtk import LDPSetCreator, BoxcarFilter, TabulatedFilter
 import os
+from collections.abc import Iterable
 
 _implemented_ld_models = ['linear', 'quadratic', 'nonlinear', 'power2', 'squareroot']
 
@@ -56,19 +57,30 @@ class LDTKHandler:
         #print('Setting up filters')
         ldtk_filters = []
         for i, f in enumerate(filters):
-            ldtk_filters.append(BoxcarFilter('{}'.format(i), f[0], f[1]))
+            if isinstance(f[0], Iterable):
+                # We have been passed a full filter profile, set up
+                # TabulatedFilter
+                # Work out if the profile is in percent or fraction - is
+                # anything bigget than 1?
+                if np.any(f[1] > 1):
+                    tmf = 1e-2
+                else:
+                    tmf = 1
+                ldtk_filters.append(TabulatedFilter(i, f[0], f[1], tmf))
+            else:
+                ldtk_filters.append(BoxcarFilter(i, f[0], f[1]))
 
         # Make the set creator, downloading data files if required
         if cache_path is not None:
             os.makedirs(cache_path, exist_ok=True)
         #print('Making LD parameter set creator.')
         #print('This may take some time as we may need to download files...')
-        set_creator = LDPSetCreator(teff=host_T, logg=host_logg, z=host_z,
+        self.set_creator = LDPSetCreator(teff=host_T, logg=host_logg, z=host_z,
                                     filters=ldtk_filters, cache=cache_path)
-
+        
         # Get the LD profiles from the set creator
         #print('Obtaining LD profiles')
-        self.profile_set = set_creator.create_profiles(nsamples=n_samples)
+        self.profile_set = self.set_creator.create_profiles(nsamples=n_samples)
 
         # Find the 'best values' for each filter and then find the ratios
         # compared to the first.
@@ -82,8 +94,8 @@ class LDTKHandler:
             try:
                 self.coeffs[model] = self._extract_best_coeffs(model)
                 self.ratios[model] = self.coeffs[model][0] / self.coeffs[model][0][0]
-            except:
-                print('power2 model cannot be initialised. If you want to use this, please use the development version of ldtk available on https://github.com/hpparvi/ldtk, rather than the pypi version.')
+            except Exception as e:
+                print(e)
                 self._power2_available = False
 
     def estimate_values(self, ld0_values, ld_model):
@@ -132,6 +144,8 @@ class LDTKHandler:
         elif ld_model == 'nonlinear':
             coeff, err = self.profile_set.coeffs_nl()
         elif ld_model == 'power2':
+            if not not self._power2_available:
+                raise ValueError('power2 model is not available. If you want to use this, please use the development version of ldtk available on https://github.com/hpparvi/ldtk, rather than the pypi version.')
             coeff, err = self.profile_set.coeffs_p2()
         elif ld_model == 'squareroot':
             coeff, err = self.profile_set.coeffs_sq()
@@ -140,7 +154,6 @@ class LDTKHandler:
             raise ValueError('Unrecognised ld_model {}'.format(ld_model))
 
         return coeff, err
-
 
     def lnlike(self, coeffs, ld_model):
         '''

@@ -6,6 +6,8 @@ This is a series of utility functions for TransitFit, including input validation
 
 import numpy as np
 from .lightcurve import LightCurve
+from collections.abc import Iterable
+import os
 
 def validate_lightcurve_array_format(arr):
     '''
@@ -197,29 +199,80 @@ def get_covariance_matrix(results):
 
     return cov
 
-def weighted_avg_and_std(values, weights):
+def weighted_avg_and_std(values, weights, axis=-1, single_val=False):
     '''
-    Calculates the weigted average and error on some data.
+    Calculates the weighted average and error on some data.
+
+    axis defaults to the last one (-1)
     '''
-    if len(values) == 1:
-        # We have only been given one value - return it
-        return values[0], weights[0]
+    if not isinstance(values, Iterable):
+        values = [values]
+    if not isinstance(weights, Iterable):
+        weights = [weights]
 
-    average = np.average(values, weights=weights)
-    variance = np.average((values-average)**2, weights=weights)
+    values = np.array(values)
+    weights = np.array(weights)
 
-    return average, np.sqrt(variance)
+    if not isinstance(values[0], Iterable):
+        single_val = True
+
+    if single_val:
+        # Flatten the values and weights
+        try:
+            flat_vals = np.array([i for epoch_vals in values for i in epoch_vals])
+            flat_weights = np.array([i for epoch_vals in weights for i in epoch_vals])
+        except:
+            flat_vals = values
+            flat_weights = weights
+        average = np.average(flat_vals, weights=flat_weights)
+        uncertainty = 1 / np.sqrt(np.sum(1/(flat_weights**2)))
+        #variance = np.average((flat_vals-average)**2, weights=flat_weights)
+
+        return average, uncertainty
+
+    #if not isinstance(values[0], Iterable):
+        # This is globally fitted, not fitted over either epoch or filter
+    #    average = np.average(values, weights=weights, axis=axis)
+    #    variance = np.average((values-average)**2, weights=weights, axis=axis)
+
+
+    #    return average, np.sqrt(variance)
+
+    # Make blank arrays to loop over the entries in values and weights
+    average = []
+    #variance = []
+    uncertainty = []
+
+    for i in range(len(values)):
+        average.append(np.average(np.array(values[i]), weights=np.array(weights[i])))
+        uncertainty.append(1 / np.sqrt(np.sum(1/(np.array(weights[i])**2))))
+        #variance.append(np.average((values[i]-average[i])**2, weights=weights[i]))
+
+    return np.array(average), np.array(uncertainty)
 
 def AU_to_host_radii(a, R):
     '''
     Converts a number in AU to a value in host radii when given the host
-    radius R in Solar radii
+    radius R in Solar radii. Inverse of host_radii_to_AU.
     '''
     AU = 1.495978707e11
     R_sun = 6.957e8
 
+    if isinstance(R, Iterable):
+        R_val
+        R_err = R[0]
+
     return (a * AU) / (R * R_sun)
 
+def host_radii_to_AU(a, R):
+    '''
+    converts a separation in host radii into a separation in AU when given
+    the host radius R in Solar radii. Inverse of AU_to_host_radii.
+    '''
+    AU = 1.495978707e11
+    R_sun = 6.957e8
+
+    return (a * R * R_sun)/AU
 
 def split_lightcurve_file(path, t0, P, new_base_fname=None):
     '''
@@ -227,19 +280,19 @@ def split_lightcurve_file(path, t0, P, new_base_fname=None):
     and saves these.
     '''
     from .io import read_data_file
-    
+
     # Load the full data file as a LightCurve
     full_lightcurve = LightCurve(*read_data_file(path))
 
     # Split the full curve into individual epochs
     single_epoch_curves = full_lightcurve.split(t0, P)
-
+    dirname = os.path.dirname(path)
     # Now save all the new curves
     if new_base_fname is None:
         new_base_fname = 'split_curve'
 
     for i, curve in enumerate(single_epoch_curves):
         fname = new_base_fname + '_{}'.format(i)
-        curve.save(fname)
+        curve.save(os.path.join(dirname, fname))
 
     return single_epoch_curves
