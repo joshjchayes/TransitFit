@@ -191,7 +191,11 @@ As discussed in more detail in the paper, TransitFit offers three modes of limb 
 
 <a name="detrending"></a>
 ## Detrending
-TransitFit offers nth-order detrending which is fitted simultaneously with other parameters. In order to
+Detrending of light curves in TransitFit occurs in three different modes - `'nth order'`, `'custom'`, and `'off'`. Since observations being simultaneously fitted may require different treatments, the `detrending_list` kwarg in `run_retrieval()` allows this to be specified. Each 
+
+TransitFit offers nth-order detrending which is fitted simultaneously with other parameters. Since different observations may require different treatment, 
+
+The detrending order can be set in the kwargs of `run_retrieval()`.
 
 
 <a name="lots_of_curves"></a>
