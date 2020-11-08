@@ -65,9 +65,10 @@ priors = '/path/to/priors_file'
 filters = '/path/to/filter_info'
 
 # host info
-host_T = (5450, 130)
-host_z = (0.32, 0.09)
-host_logg = (4.5, 0.1)
+host_T = (5450, 130) # T in kelvin
+host_z = (0.32, 0.09) 
+host_r = (1.03, 0.05) # R in solar radii - this MUST be supplied if the prior for orbital separation is in AU. 
+host_logg = (4.5, 0.1) # g in cm/s2
 
 # Let's assume we want quadratic detrending - can set this with the detrending_list
 detrending = [['nth order', 2]]
@@ -93,7 +94,7 @@ Each light curve also requires a detrending index. This allows different detrend
 What follows is a quick overview of how to format each of the required files. TransitFit assumes that each of these contains one header row.
 
 ### Data paths
-The data paths file should have 5 columns, in the order
+The data paths file should have 5 columns, in the order \[Path, telescope index, filter index, epoch index, detrending index\]
 
 - **Path**: the absolute or relative path to the data file for each light curve.
 
@@ -107,7 +108,7 @@ The data paths file should have 5 columns, in the order
 
 
 ### Priors file
-The priors file is used for defining which physical parameters are to be fitted, and the distribution from which samples are drawn. This file should have 5 columns, in the order
+The priors file is used for defining which physical parameters are to be fitted, and the distribution from which samples are drawn. This file should have 5 columns, in the order \[Parameter, distribution, input A, input B, filter index\].
 
 - **Parameter**: The parameters which can be set using the priors file are:
 
@@ -155,7 +156,7 @@ The priors file is used for defining which physical parameters are to be fitted,
 
 
 ### Filter info
-This is used to specify the filter profiles that observations were made at. TransitFit can deal with either uniform box filters or user-specified profiles, and this file is used to determine this behaviour. This file should have three columns, in the order
+This is used to specify the filter profiles that observations were made at. TransitFit can deal with either uniform box filters or user-specified profiles, and this file is used to determine this behaviour. This file should have three columns, in the order \[Filter index, low wavelength or path, high wavelength\]
 
 - **Filter index**: the index of the filter, ensuring consistency with the other input files.
 
@@ -183,7 +184,7 @@ With the exception of the non-linear model, all models are constrained by the me
 
 As discussed in more detail in the paper, TransitFit offers three modes of limb darkening coefficient fitting. These are (along with the value to give to `'ld_fit_method'`):
 
-- **Independent** (`'independent'`) -  This is the traditional approach of fitting LDCs for each filter separately. \tranf{} still uses the Kipping parameterisations, but LDTk is not used to couple LDCs across filters.
+- **Independent** (`'independent'`) -  This is the traditional approach of fitting LDCs for each filter separately. TransitFit still uses the Kipping parameterisations, but LDTk is not used to couple LDCs across filters.
 
 - **Coupled** (`'coupled'`) - Using the Kipping parameterisations, each LDC is fitted as a free parameter, with LDTk being used to estimate the likelihood of complete sets of LDCs, using information on the host star and the observation filters.
 
@@ -191,15 +192,20 @@ As discussed in more detail in the paper, TransitFit offers three modes of limb 
 
 <a name="detrending"></a>
 ## Detrending
-Detrending of light curves in TransitFit occurs in three different modes - `'nth order'`, `'custom'`, and `'off'`. Since observations being simultaneously fitted may require different treatments, the `detrending_list` kwarg in `run_retrieval()` allows this to be specified. Each 
+Detrending of light curves in TransitFit occurs in three different modes - `'nth order'`, `'custom'`, and `'off'`. Since observations being simultaneously fitted may require different treatments, the `detrending_list` kwarg in `run_retrieval()` allows this to be specified. `detrending_list` is an Nx2 iterable, where each entry is a pair of `[mode, info]`. The syntax for these is as follows
 
-TransitFit offers nth-order detrending which is fitted simultaneously with other parameters. Since different observations may require different treatment, 
+- `nth order` mode: `['nth order', X]`,  where X is the order of the detrending polynomial.
 
-The detrending order can be set in the kwargs of `run_retrieval()`.
+- `custom` mode: `['custom', f]`, where `f` is the custom detrending function. This can take any form but the first argument must be an array of times. 
 
+- `off`: `['off', ]` - anything in the second entry will be ignored. 
+
+To use different methods, use the detrending index specified in the data paths file to refer to the entry in `detrending_list`. 
 
 <a name="lots_of_curves"></a>
 ## Fitting large numbers of light curves
+
+
 
 
 <a name="citing"></a>
