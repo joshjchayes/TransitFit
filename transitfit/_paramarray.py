@@ -27,7 +27,10 @@ class ParamArray:
         self.epoch_dependent = epoch_dependent
         self.global_param = sum((self.telescope_dependent,
                                 self.filter_dependent, self.epoch_dependent)) == 0
-        self.default_value = default_value
+        if isinstance(default_value, _Param):
+            self.default_value = default_value.default_value
+        else:
+            self.default_value = default_value
         self.lightcurves = lightcurves
 
         # Check that shape matches up with the given dependencies

@@ -698,7 +698,7 @@ def save_final_light_curves(lightcurves, priorinfo, results,
             else:
                 q = np.array([priorinfo.priors[key][i] for key in priorinfo.limb_dark_coeffs])
                 for j in np.ndindex(q.shape):
-                    q[j] = q[j].default_value
+                    q[j] = q[j]
                 best_q = q
 
             # Convert from q to u

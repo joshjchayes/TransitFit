@@ -94,6 +94,7 @@ class PriorInfo:
             #print('Param:', key)
             # Loop through each parameter and initialise the prior
 
+
             if key in _global_params:
                 # These are global parameters
                 if key == 't0' and fit_ttv:
@@ -121,6 +122,7 @@ class PriorInfo:
             else:
                 # This is a lightcurve dependent parameter
                 self.priors[key] = ParamArray(key, (self.n_telescopes, self.n_filters,self.n_epochs), True, True, True, default_dict[key], lightcurves=lightcurves)
+
         # All priors should now be initialised
 
         # We also need a list for keeping track of what is being fitted
@@ -347,9 +349,6 @@ class PriorInfo:
             light curve. We use
                 ``1/f_median -1 <= c_n <= 1/f_median + 1``
             as the default range, where f_median is the median flux value.
-        default_low : float, optional
-            The lowest value to consider as a multiplicative normalisation
-            constant. Default is 0.1.
         '''
         if self.normalise:
             raise ValueError('Detrending is already initialised. You need to make a new PriorInfo to use another detrending method!')

@@ -36,7 +36,7 @@ class Retriever:
                  n_ld_samples=20000, do_ld_mc=False, fit_ttv=False,
                  filter_delimiter=None):
         '''
-
+        
         '''
         ###################
         # Save input data #
@@ -341,7 +341,7 @@ class Retriever:
                                             full_output_file=filter_full_output,
                                             lightcurve_folder=filter_lightcurve_folder,
                                             plot=plot, plot_folder=filter_plots_folder,
-                                            marker_color=marker_color, line_color=line_color, 
+                                            marker_color=marker_color, line_color=line_color,
                                             bound=bound)
 
             results_list.append(results)
@@ -362,7 +362,7 @@ class Retriever:
                                      detrend=False, normalise=False, overlap=overlap)
 
         print('Running folded retrievals...')
-        
+
         return self._run_batched_retrieval(folded_curves, folded_batches, ld_fit_method, False,
                         False, maxiter, maxcall, sample, nlive, dlogz,
                         False, True, folded_P, folded_t0, output_folder=output_folder,
@@ -400,6 +400,7 @@ class Retriever:
                   fitting will lead to much higher computation times.
                 - `'independent'` : Each LD coefficient is fitted separately for
                   each filter, with no coupling to the ldtk models.
+                - `'off'` : Will use the fixed value provided in the input file
             Default is `'independent'`
         fitting_mode : {'auto', 'all', 'folded', 'batched'}, optional
             Determines if the fitting algorithm is limited by max_parameters.

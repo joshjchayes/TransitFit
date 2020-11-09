@@ -3,6 +3,9 @@ _utils.py
 
 This is a series of utility functions for TransitFit, including input validation
 '''
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 
 import numpy as np
 from .lightcurve import LightCurve
@@ -274,10 +277,29 @@ def host_radii_to_AU(a, R):
 
     return (a * R * R_sun)/AU
 
-def split_lightcurve_file(path, t0, P, new_base_fname=None):
+def split_lightcurve_file(path, t0, P,t14=20, window=2.5,
+                          new_base_fname=None):
     '''
     Splits a multi-epoch lightcurve data file into multiple single-epoch files
-    and saves these.
+    and saves these. This is useful for dealing with multi-epoch observations
+    which contain TTVs, or have long term periodic trends, since single-epoch
+    observation trends can be approximated with polynomial fits.
+
+    Parameters
+    ----------
+    path : str
+        The path to the light curve data to be split
+    t0 : float
+        The centre of a transit
+    P : float
+        The estimated period of the planet in days
+    t14 : float, optional
+        The approximate transit duration in minutes. Default is 20
+    window : float, optional
+        Data outside of the range [t0 ± (0.5 * t14) * window] will be
+        discarded.
+    plot : bool, optional
+        If True, will plot the raw light curves
     '''
     from .io import read_data_file
 
@@ -285,7 +307,7 @@ def split_lightcurve_file(path, t0, P, new_base_fname=None):
     full_lightcurve = LightCurve(*read_data_file(path))
 
     # Split the full curve into individual epochs
-    single_epoch_curves = full_lightcurve.split(t0, P)
+    single_epoch_curves = full_lightcurve.split(t0, P, t14, window)
     dirname = os.path.dirname(path)
     # Now save all the new curves
     if new_base_fname is None:

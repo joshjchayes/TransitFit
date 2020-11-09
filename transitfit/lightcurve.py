@@ -205,14 +205,15 @@ class LightCurve:
 
         returns a new LightCurve
         '''
-        if base_t0 is None:
-            base_t0 = t0
+        #if base_t0 is None:
+        #    base_t0 = t0
 
-
-        ttv_term = t0 - ((t0 - (base_t0+period/2))//period) * period - base_t0
+        #ttv_term = t0 - ((t0 - (base_t0+period/2))//period) * period - base_t0
         #ttv_term = self.times - ((self.times - (t0 + period/2))//period) * period - base_t0
 
-        times = self.times - ((self.times - (t0 + period/2))//period) * period - ttv_term
+        #times = self.times - ((self.times - (t0 + period/2))//period) * period - ttv_term
+
+        times = self.times - ((self.times - (t0 + period/2))//period) * period
 
         return LightCurve(times, self.flux, self.errors, self.telescope_idx,
                           self.filter_idx, self.epoch_idx)
@@ -238,7 +239,7 @@ class LightCurve:
         return LightCurve(times, flux, errors, telescope_idx, filter_idx,
                           epoch_idx)
 
-    def split(self, t0, P):
+    def split(self, t0, P, t14, window):
         '''
         Splits the LightCurve into multiple LightCurves containing a single
         transit. This is useful for dealing with multi-epoch observations which
@@ -251,6 +252,11 @@ class LightCurve:
             The centre of a transit
         P : float
             The estimated period of the planet
+        t14 : float, optional
+            The approximate transit duration in minutes. Default is 20.
+        window : float, optional
+            If provided, data outside of the range [t0 ± (0.5 * t14) * window]
+            will be discarded.
 
         Returns
         -------
@@ -263,11 +269,15 @@ class LightCurve:
         '''
         # Work out how many periods are contained in the current LightCurve
         n_periods = np.ceil((self.times.max() - self.times.min())/P)
-        n_periods = int(n_periods)
+        n_periods = int(n_periods) +1
 
         # Make sure that t0 will fall in the first new epoch
         t0 = t0 - ((t0 - self.times.min())//P * P)
 
+        # Convert t14 to days:
+        t14 /= 60 * 24
+
+        print(t14)
 
         # Work out the times, flux, and errors for each epoch
         t_new = [[] for i in range(n_periods)]
@@ -281,19 +291,46 @@ class LightCurve:
             err = self.errors[i]
 
             for j in range(n_periods):
-                if t < t0 + (2 * j + 1) * P/2:
+                if t < t0 + (2 * j + 1) * P/2 and t > t0 - P/2:
                     t_new[j].append(t)
                     f_new[j].append(f)
                     err_new[j].append(err)
                     break
 
+        # Convert to np arrays
+        for i in range(len(t_new)):
+            t_new[i] = np.array(t_new[i])
+            f_new[i] = np.array(f_new[i])
+            err_new[i] = np.array(err_new[i])
+
         # Now we have all the data for the epochs, make the new LightCurves
         lightcurves = []
         for i in range(n_periods):
-            if not t_new[i] == []:
+            #print(t_new[i], len(t_new[i]))
+            if not len(t_new[i]) == 0:
                 # Make sure we don't produce empty curves
-                new_curve = LightCurve(t_new[i], f_new[i], err_new[i])
-                lightcurves.append(new_curve)
+
+                # Now a bunch more checks. Need to ensure there is data around
+                # the expected t0 (ie we have a transit!). We keep the transit
+                # if there is data within t14/2 of the predicted t0
+                # (found by folding each epoch)
+                if np.any(abs((t_new[i]- ((t_new[i] - t0)//P) * P) - t0) <= t14/2):
+                    #print(abs((t_new[i]- ((t_new[i] - t0)//P) * P) - t0) <= t14/2)
+                    #print(abs((t_new[i]- ((t_new[i] - t0)//P) * P) - t0))
+
+                    #print(np.sum(abs((t_new[i]- ((t_new[i] - t0)//P) * P) - t0) <= t14/2))
+
+                    # Now we cut out the window:
+                    mask = abs((t_new[i] - ((t_new[i] - (t0 - P/2))//P) * P) - t0) <= (window * t14 * 0.5)
+                    #print(mask, np.sum(mask))
+                    #print(t_new[i][mask], len(t_new[i][mask]))
+
+                    new_curve = LightCurve(t_new[i][mask], f_new[i][mask], err_new[i][mask])
+
+                    lightcurves.append(new_curve)
+                else:
+                    #print(abs((t_new[i]- ((t_new[i] - t0 - P/2)//P) * P) - t0) <= t14/2)
+                    print('Light curve {} discarded'.format(i))
 
         return lightcurves
 
@@ -318,12 +355,12 @@ class LightCurve:
 
     def get_phases(self, t0, P):
         '''
-        Converts the times into phase given the t0 and P values
+        Converts the times into phase given the t0 and P values, centred on 0
         '''
         n = (self.times - (t0 + 0.5*P))//P
 
         return (self.times-t0)/P - n - 0.5
-        
+
 
     def __eq__(self, other):
         '''

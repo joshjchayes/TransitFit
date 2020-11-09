@@ -104,7 +104,7 @@ class LikelihoodCalculator:
                                    params['w'][i],
                                    self.priors.limb_dark,
                                    u)
-
+                                   
                 # Now we calculate the model transits
                 model = self.batman_models[i]
                 model_flux = model.light_curve(self.batman_params[i])
