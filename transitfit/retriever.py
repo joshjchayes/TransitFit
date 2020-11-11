@@ -19,7 +19,7 @@ from .detrending_funcs import NthOrderDetrendingFunction
 from .detrender import DetrendingFunction
 from .io import read_input_file, read_priors_file, parse_priors_list, read_filter_info, parse_filter_list
 from ._likelihood import LikelihoodCalculator
-from ._utils import get_normalised_weights, get_covariance_matrix, validate_lightcurve_array_format, weighted_avg_and_std
+from ._utils import get_normalised_weights, get_covariance_matrix, weighted_avg_and_std
 
 # Parameters and if they are global, filter-specific or lightcurve-specific
 global_params = ['P', 'ecc', 'a', 'inc', 'w']
@@ -36,7 +36,7 @@ class Retriever:
                  n_ld_samples=20000, do_ld_mc=False, fit_ttv=False,
                  filter_delimiter=None):
         '''
-        
+
         '''
         ###################
         # Save input data #
@@ -825,7 +825,7 @@ class Retriever:
     #        FUNCTIONS FOR BATCHING ETC                      #
     ##########################################################
     def _get_folding_batches(self, max_parameters, ld_fit_method,
-                             detrend, normalise, overlap=2):
+                             detrend, normalise, overlap=2, random_order=True):
         '''
         Splits all_lightcurves into single-filter, multi-epoch batches
         to be fitted, which will allow us to produce folded lightcurves. This
@@ -845,6 +845,9 @@ class Retriever:
         overlap : int, optional
             The number of epochs to overlap in each batch. This will be adhered
             to where possible. Default is 2.
+        random_order : bool, optional
+            If True, will shuffle the epochs before batching to reduce
+            correlations from grouping them. Default is True
 
         Returns
         -------
@@ -862,6 +865,11 @@ class Retriever:
             # Find the indices of the lightcurves within the filter
             indices = np.where(self.all_lightcurves[:,fi,:] != None)
             n_curves = len(indices[0])
+            # Randomise the order to minimise correlations
+            if random_order:
+                random_indices = np.arange(n_curves)
+                np.random.shuffle(random_indices)
+                indices = (indices[0][random_indices], indices[1][random_indices])
 
             # Put the fi index back into indices tuple
             indices = (indices[0], np.full(n_curves, fi), indices[1])

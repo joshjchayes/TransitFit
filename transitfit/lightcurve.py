@@ -239,7 +239,7 @@ class LightCurve:
         return LightCurve(times, flux, errors, telescope_idx, filter_idx,
                           epoch_idx)
 
-    def split(self, t0, P, t14, window):
+    def split(self, t0, P, t14, cutoff=0.25, window=None):
         '''
         Splits the LightCurve into multiple LightCurves containing a single
         transit. This is useful for dealing with multi-epoch observations which
@@ -253,7 +253,10 @@ class LightCurve:
         P : float
             The estimated period of the planet
         t14 : float, optional
-            The approximate transit duration in minutes. Default is 20.
+            The approximate transit duration in minutes.
+        cutoff : float, optional
+            If there are no data within t14 * cutoff of t0, a period will be
+            discarded. Default is 0.25
         window : float, optional
             If provided, data outside of the range [t0 ± (0.5 * t14) * window]
             will be discarded.
@@ -312,18 +315,15 @@ class LightCurve:
 
                 # Now a bunch more checks. Need to ensure there is data around
                 # the expected t0 (ie we have a transit!). We keep the transit
-                # if there is data within t14/2 of the predicted t0
+                # if there is data within t14/cutoff of the predicted t0
                 # (found by folding each epoch)
-                if np.any(abs((t_new[i]- ((t_new[i] - t0)//P) * P) - t0) <= t14/2):
-                    #print(abs((t_new[i]- ((t_new[i] - t0)//P) * P) - t0) <= t14/2)
-                    #print(abs((t_new[i]- ((t_new[i] - t0)//P) * P) - t0))
-
-                    #print(np.sum(abs((t_new[i]- ((t_new[i] - t0)//P) * P) - t0) <= t14/2))
+                if np.any(abs((t_new[i]- ((t_new[i] - t0)//P) * P) - t0) <= t14/cutoff):
 
                     # Now we cut out the window:
-                    mask = abs((t_new[i] - ((t_new[i] - (t0 - P/2))//P) * P) - t0) <= (window * t14 * 0.5)
-                    #print(mask, np.sum(mask))
-                    #print(t_new[i][mask], len(t_new[i][mask]))
+                    if window is None:
+                        mask = np.ones(len(t_new[i]), bool)
+                    else:
+                        mask = abs((t_new[i] - ((t_new[i] - (t0 - P/2))//P) * P) - t0) <= (window * t14 * 0.5)
 
                     new_curve = LightCurve(t_new[i][mask], f_new[i][mask], err_new[i][mask])
 

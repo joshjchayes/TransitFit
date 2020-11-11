@@ -12,94 +12,6 @@ from .lightcurve import LightCurve
 from collections.abc import Iterable
 import os
 
-def validate_lightcurve_array_format(arr):
-    '''
-    Used to check that the input LightCurve data arrays are compatible with
-    TransitFit, and corrects for any simple mistakes in the formatting.
-    '''
-
-    arr = np.array(arr)
-
-    if arr.ndim == 0:
-        # We have a single LightCurve
-        arr = arr.reshape(1,1,1)
-    elif arr.ndim == 1:
-        # This is either a single light curve or we are missing axes!
-        # We can check this by looking for any entries with None: if there
-        # are any, then we are missing an axis and should raise an error as
-        # we cannot tell which of telescope, wavelength or epoch is missing.
-        if np.any(arr[arr] == None):
-            raise ValueError('You appear to be missing either the telescope, wavelength or epoch axis in your input LightCurve array. Please check the format and try again')
-        arr = arr.reshape(1,1,1)
-    elif arr.ndim == 2:
-        # We are missing an axis.
-        raise ValueError('You appear to be missing either the telescope, wavelength or epoch axis in your input LightCurve array. Please check the format and try again')
-
-    elif arr.ndim > 3:
-        raise ValueError('There are too many axes in your input LightCurve array! There should only be three, in the order (telescope, filter, epoch)')
-
-    return arr
-
-
-def validate_data_format(a1, a2, a3):
-    '''
-    This function is to be used to check that the 3 input data arrays
-    are compatible, and also checks for and corrects any simple
-    mistakes in the formatting.
-
-    One of the big uses for this is to ensure that the arrays are numpy
-    arrays and also to allow single light curves to be passed with
-    minimal effort
-
-    Returns
-    -------
-    a1 : np.array
-        The array a1 but corrected for use in TransitFit
-    a2 : np.array
-        The array a2 but corrected for use in TransitFit
-    a3 : np.array
-        The array a3 but corrected for use in TransitFit
-    '''
-
-    # First we check the shapes of each array and set them as a 2D
-    # numpy array where each entry is data series for the light curve
-    np_arrays = {'a1':np.array(a1, object),
-                 'a2':np.array(a2, object),
-                 'a3':np.array(a3, object)}
-
-    for arr in np_arrays:
-        if np_arrays[arr].ndim > 2:
-            raise ValueError('Array {} has {} > 2 dimensions!'.format(arr, np_arrays[arr].ndim))
-        if np_arrays[arr].ndim == 0:
-            raise ValueError("Array {} has 0 dimensions! It looks like you've only given me one data point!")
-        if np_arrays[arr].ndim == 1:
-            # This is either a single light curve or we are missing an axis!
-            # We can check this by looking for any entries with None: if there
-            # are any, then we are missing an axis and should raise an error as
-            # we cannot tell which of wavelength or epoch is missing
-            if np.any(np_arrays[arr] == None):
-                raise ValueError('Array {}: You appear to be missing either the wavelength or epoch axis in your input array. Please check the format and try again'.format(arr))
-            np_arrays[arr] = np_arrays[arr].reshape(2, np_arrays[arr].shape[0])
-
-    # Now check that they are all the same shape!!
-    if not np_arrays['a1'].shape == np_arrays['a2'].shape == np_arrays['a3'].shape:
-        raise ValueError('I was unable to cast all the input arrays into the same shape! I only managed to get the shapes {}, {}, {}'.format(np_arrays['a1'].shape, np_arrays['a2'].shape, np_arrays['a3'].shape))
-
-    # Check that all the 'None's are in the same place:
-    if np.any(np_arrays['a1'] == None):
-        if not np.where(np_arrays['a1'] == None) == np.where(np_arrays['a2']==None) == np.where(np_arrays['a3']==None):
-            raise ValueError("The None values in your input arrays don't match! Check this then try again!")
-
-    # Check that each data set is the same length, since each light
-    # curve will have a different number of data points
-    for i, row in enumerate(np_arrays['a1']):
-        for j, column in enumerate(np_arrays['a1']):
-            if not len(np_arrays['a1']) == len(np_arrays['a2']) == len(np_arrays['a3']):
-                raise ValueError('There is an issue with the number of data points you gave for index ({}, {}) in your input arrays. Check that all each of these are the same length and then try again.'.format(i, j))
-
-    return np_arrays['a1'], np_arrays['a2'], np_arrays['a3']
-
-
 def validate_variable_key(key):
     '''
     Checks that a key is valid for use with PriorInfo, and corrects when it
@@ -144,8 +56,6 @@ def calculate_logg(host_mass, host_radius):
     host_radius : tuple
         The host radius in solar radii and the uncertainty
     '''
-
-
     m_sun = 1.989e30
     r_sun = 6.957e8
     G = 6.674e-11
@@ -178,7 +88,6 @@ def get_normalised_weights(results):
     weights : np.array, shape (n_iterations,)
         The normalised weights for each sample set
     '''
-
     return np.exp(results.logwt - results.logwt.max())/np.sum(np.exp(results.logwt - results.logwt.max()))
 
 
@@ -196,7 +105,6 @@ def get_covariance_matrix(results):
     cov : np.array, shape (ndims, ndims)
         The covariance matrix for the results object.
     '''
-
     # Calculate a covariance matrix using numpy
     cov = np.cov(results.samples, rowvar=False, aweights=results.weights)
 
@@ -229,27 +137,16 @@ def weighted_avg_and_std(values, weights, axis=-1, single_val=False):
             flat_weights = weights
         average = np.average(flat_vals, weights=flat_weights)
         uncertainty = 1 / np.sqrt(np.sum(1/(flat_weights**2)))
-        #variance = np.average((flat_vals-average)**2, weights=flat_weights)
 
         return average, uncertainty
 
-    #if not isinstance(values[0], Iterable):
-        # This is globally fitted, not fitted over either epoch or filter
-    #    average = np.average(values, weights=weights, axis=axis)
-    #    variance = np.average((values-average)**2, weights=weights, axis=axis)
-
-
-    #    return average, np.sqrt(variance)
-
     # Make blank arrays to loop over the entries in values and weights
     average = []
-    #variance = []
     uncertainty = []
 
     for i in range(len(values)):
         average.append(np.average(np.array(values[i]), weights=np.array(weights[i])))
         uncertainty.append(1 / np.sqrt(np.sum(1/(np.array(weights[i])**2))))
-        #variance.append(np.average((values[i]-average[i])**2, weights=weights[i]))
 
     return np.array(average), np.array(uncertainty)
 
@@ -277,13 +174,16 @@ def host_radii_to_AU(a, R):
 
     return (a * R * R_sun)/AU
 
-def split_lightcurve_file(path, t0, P,t14=20, window=2.5,
-                          new_base_fname=None):
+def split_lightcurve_file(path, t0, P,t14=20, cutoff=0.25, window=2.5,
+                          new_base_fname='split_curve'):
     '''
+    Split a light curve file into multiple single epoch files
+
     Splits a multi-epoch lightcurve data file into multiple single-epoch files
     and saves these. This is useful for dealing with multi-epoch observations
     which contain TTVs, or have long term periodic trends, since single-epoch
-    observation trends can be approximated with polynomial fits.
+    observation trends can be approximated with polynomial fits. New files
+    are created of the form new_base_name_X
 
     Parameters
     ----------
@@ -295,11 +195,21 @@ def split_lightcurve_file(path, t0, P,t14=20, window=2.5,
         The estimated period of the planet in days
     t14 : float, optional
         The approximate transit duration in minutes. Default is 20
+    cutoff : float, optional
+        If there are no data within t14 * cutoff of t0, a period will be
+        discarded. Default is 0.25
     window : float, optional
         Data outside of the range [t0 ± (0.5 * t14) * window] will be
         discarded.
-    plot : bool, optional
-        If True, will plot the raw light curves
+    new_base_fname : str, optional
+        The base name for the new files, which will have numbers appended
+        depending on the epoch. This can be used to specify a relative path
+        for saving. Default is `'split_curve'`.
+
+    Returns
+    -------
+    lightcurves : list of `LightCurve`s
+        The single epoch `LightCurves`
     '''
     from .io import read_data_file
 
@@ -309,10 +219,8 @@ def split_lightcurve_file(path, t0, P,t14=20, window=2.5,
     # Split the full curve into individual epochs
     single_epoch_curves = full_lightcurve.split(t0, P, t14, window)
     dirname = os.path.dirname(path)
-    # Now save all the new curves
-    if new_base_fname is None:
-        new_base_fname = 'split_curve'
 
+    # Now save all the new curves
     for i, curve in enumerate(single_epoch_curves):
         fname = new_base_fname + '_{}'.format(i)
         curve.save(os.path.join(dirname, fname))
