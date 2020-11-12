@@ -1081,7 +1081,7 @@ class Retriever:
                       plot=True, plot_folder='./plots',
                       marker_color='dimgrey', line_color='black',
                       folded_P=None, folded_P_err=None, folded_t0=None,
-                      folded_t0_err=None, fit_ld=True):
+                      folded_t0_err=None):
         '''
         Saves the parameters, as well as the detrended lightcurves and the
         best fit.
@@ -1134,6 +1134,8 @@ class Retriever:
         n_batches = len(results)
 
         folded = folded_P is not None
+
+        fit_ld = priors[0].fit_ld  # Are we fitting limb darkening?
 
         def initialise_dict_entry(d, param):
             '''
