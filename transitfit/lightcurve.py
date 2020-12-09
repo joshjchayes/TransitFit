@@ -12,7 +12,8 @@ import csv
 
 class LightCurve:
     def __init__(self, times, flux, errors, telescope_idx=None,
-                 filter_idx=None, epoch_idx=None):
+                 filter_idx=None, epoch_idx=None, curve_labels=None,
+                 telescope_array=None, filter_array=None, epoch_array=None):
         '''
         The transit data which we are trying to fit. The LightCurve is designed
         to simplify dealing with detrending etc across multiple data sets. It
@@ -23,9 +24,6 @@ class LightCurve:
         flux = np.array(flux)
         errors = np.array(errors)
 
-        if not (times.shape == flux.shape == errors.shape):
-            raise ValueError('The shapes of times, flux, and errors don\'t match!')
-
         if not times.ndim == 1:
             raise ValueError('Times, flux, and errors have {} dimensions. They should only have 1!'.format(times.ndims))
 
@@ -33,9 +31,58 @@ class LightCurve:
         self.flux = flux
         self.errors = errors
 
-        self.epoch_idx = epoch_idx
-        self.filter_idx = filter_idx
+        ###############################################################
+        # Identifying indices - for unqiuely identifying a light curve:
+
+        # These are quick-access references for non-combined curves
         self.telescope_idx = telescope_idx
+        self.filter_idx = filter_idx
+        self.epoch_idx = epoch_idx
+
+        # These will be arrays which allow individual light curves to be
+        # separated if this is a combined curve. Will be used in outputs too.
+        if telescope_array is None:
+            if telescope_idx is None:
+                self._telescope_array = np.full(times.shape, None)
+            else:
+                self._telescope_array = np.ones(times.shape) * telescope_idx
+        else:
+            telescope_array = np.array(telescope_array)
+            if not telescope_array.shape == times.shape:
+                raise ValueError('telescope_array has shape {}, but requires shape {}'.format(telescope_array.shape, times.shape))
+            self._telescope_array = telescope_array
+
+        if filter_array is None:
+            if filter_idx is None:
+                self._filter_array = np.full(times.shape, None)
+            else:
+                self._filter_array = np.ones(times.shape) * filter_idx
+        else:
+            filter_array = np.array(filter_array)
+            if not filter_array.shape == times.shape:
+                raise ValueError('filter_array has shape {}, but requires shape {}'.format(filter_array.shape, times.shape))
+            self._filter_array = filter_array
+
+        if epoch_array is None:
+            if epoch_idx is None:
+                self._epoch_array = np.full(times.shape, None)
+            else:
+                self._epoch_array = np.ones(times.shape) * epoch_idx
+        else:
+            epoch_array = np.array(epoch_array)
+            if not epoch_array.shape == times.shape:
+                raise ValueError('epoch_array has shape {}, but requires shape {}'.format(epoch_array.shape, times.shape))
+            self._epoch_array = epoch_array
+
+        # These are used to label the data so that combined lightcurves
+        # can be quickly untangled.
+        if curve_labels is None:
+            self.curve_labels = np.zeros(times.shape)
+        else:
+            curve_labels = np.array(curve_labels)
+            if not curve_labels.shape == times.shape:
+                raise ValueError('curve_labels has shape {}, but requires shape {}'.format(curve_labels.shape, times.shape))
+            self.curve_labels = curve_labels
 
         self.detrend = False
         self.normalise = False
@@ -139,7 +186,7 @@ class LightCurve:
         return median_factor, low_factor, high_factor
 
 
-    def detrend_flux(self, d, norm=1, use_full_times=False):
+    def detrend_flux(self, d, norm=1, use_full_times=False, normalise=False):
         '''
         When given a normalisation constant and some detrending parameters,
         will return the detrended flux and errors
@@ -179,7 +226,7 @@ class LightCurve:
 
             detrended_flux -= detrend_values
 
-        if self.normalise:
+        if self.normalise or normalise:
             detrended_flux *= norm
             detrended_errors *= norm
 
@@ -192,7 +239,10 @@ class LightCurve:
         detrended_flux, detrended_errors = self.detrend_flux(d, norm)
 
         return LightCurve(self.times, detrended_flux, detrended_errors,
-                          self.telescope_idx, self.filter_idx, self.epoch_idx)
+                          self.telescope_idx, self.filter_idx,
+                          self.epoch_idx, self.curve_labels,
+                          self._telescope_array, self._filter_array,
+                          self._epoch_array)
 
     def fold(self, t0, period, base_t0=None):
         '''
@@ -216,7 +266,9 @@ class LightCurve:
         times = self.times - ((self.times - (t0 + period/2))//period) * period
 
         return LightCurve(times, self.flux, self.errors, self.telescope_idx,
-                          self.filter_idx, self.epoch_idx)
+                          self.filter_idx, self.epoch_idx, self.curve_labels,
+                          self._telescope_array, self._filter_array,
+                          self._epoch_array)
 
     def combine(self, lightcurves, telescope_idx=None, filter_idx=None,
                 epoch_idx=None):
@@ -231,13 +283,49 @@ class LightCurve:
         flux = self.flux
         errors = self.errors
 
-        for lightcurve in lightcurves:
+        labels = self.curve_labels
+        telescope_labels = self._telescope_array
+        filter_labels = self._filter_array
+        epoch_labels = self._epoch_array
+
+        starting_label = labels.max() + 1
+        print('starting_label:', starting_label)
+        for i, lightcurve in enumerate(lightcurves):
             times = np.hstack((times, lightcurve.times))
             flux = np.hstack((flux, lightcurve.flux))
             errors = np.hstack((errors, lightcurve.errors))
+            labels = np.hstack((labels, np.ones(lightcurve.times.shape) * (starting_label + i)))
+            telescope_labels = np.hstack((telescope_labels, lightcurve._telescope_array))
+            filter_labels = np.hstack((filter_labels, lightcurve._filter_array))
+            epoch_labels = np.hstack((epoch_labels, lightcurve._epoch_array))
 
         return LightCurve(times, flux, errors, telescope_idx, filter_idx,
-                          epoch_idx)
+                          epoch_idx, labels, telescope_labels, filter_labels,
+                          epoch_labels)
+
+    def decombine(self):
+        '''
+        Splits a lightcurve according to its curve labels.
+
+        Inverse of combine
+        '''
+        lightcurves = []
+
+        for label in np.unique(self.curve_labels):
+            mask = self.curve_labels == label
+            times = self.times[mask]
+            flux = self.flux[mask]
+            errors = self.errors[mask]
+            telescope_array = self._telescope_array[mask]
+            filter_array = self._filter_array[mask]
+            epoch_array = self._epoch_array[mask]
+
+            lightcurves.append(LightCurve(times, flux, errors,
+                                          telescope_array[0], filter_array[0],
+                                          epoch_array[0], None, telescope_array,
+                                          filter_array, epoch_array))
+
+        return lightcurves
 
     def split(self, t0, P, t14, cutoff=0.25, window=None):
         '''
@@ -280,8 +368,6 @@ class LightCurve:
         # Convert t14 to days:
         t14 /= 60 * 24
 
-        print(t14)
-
         # Work out the times, flux, and errors for each epoch
         t_new = [[] for i in range(n_periods)]
         f_new = [[] for i in range(n_periods)]
@@ -309,7 +395,6 @@ class LightCurve:
         # Now we have all the data for the epochs, make the new LightCurves
         lightcurves = []
         for i in range(n_periods):
-            #print(t_new[i], len(t_new[i]))
             if not len(t_new[i]) == 0:
                 # Make sure we don't produce empty curves
 
@@ -329,7 +414,6 @@ class LightCurve:
 
                     lightcurves.append(new_curve)
                 else:
-                    #print(abs((t_new[i]- ((t_new[i] - t0 - P/2)//P) * P) - t0) <= t14/2)
                     print('Light curve {} discarded'.format(i))
 
         return lightcurves

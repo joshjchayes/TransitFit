@@ -9,11 +9,12 @@ from scipy.special import erfinv
 import numpy as np
 
 class _Param:
-    def __init__(self, value):
+    def __init__(self, value, uncertainty=None):
 
         self.default_value = value
         self.low_lim=None
         self.high_lim=None
+        self.uncertainty=uncertainty
 
     def from_unit_interval(self, u):
         raise NotImplementedError

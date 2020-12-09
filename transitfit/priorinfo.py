@@ -79,7 +79,6 @@ class PriorInfo:
         # Initialse detrending (set to off)
         self.detrend = False
         self.detrending_coeffs = []
-        self.detrending_coeffs_fit_mode = []
 
         # Initialse normalisation (set to off)
         self.normalise=False

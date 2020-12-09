@@ -150,7 +150,7 @@ def weighted_avg_and_std(values, weights, axis=-1, single_val=False):
 
     return np.array(average), np.array(uncertainty)
 
-def AU_to_host_radii(a, R):
+def AU_to_host_radii(a, R, a_err=0, R_err=0, calc_err=False):
     '''
     Converts a number in AU to a value in host radii when given the host
     radius R in Solar radii. Inverse of host_radii_to_AU.
@@ -158,13 +158,14 @@ def AU_to_host_radii(a, R):
     AU = 1.495978707e11
     R_sun = 6.957e8
 
-    if isinstance(R, Iterable):
-        R_val
-        R_err = R[0]
+    if not calc_err:
+        return (a * AU) / (R * R_sun)
 
-    return (a * AU) / (R * R_sun)
+    err = np.sqrt( ((R_err * R_sun) * (a*AU)/((R*R_sun)**2)) ** 2 + ((a_err * AU)/(R*R_sun))**2  )
 
-def host_radii_to_AU(a, R):
+    return (a * AU) / (R * R_sun), err/(R * R_sun)
+
+def host_radii_to_AU(a, R, a_err=0, R_err=0, calc_err=False):
     '''
     converts a separation in host radii into a separation in AU when given
     the host radius R in Solar radii. Inverse of AU_to_host_radii.
@@ -172,7 +173,12 @@ def host_radii_to_AU(a, R):
     AU = 1.495978707e11
     R_sun = 6.957e8
 
-    return (a * R * R_sun)/AU
+    if not calc_err:
+        return (a * R * R_sun)/AU
+
+    err = np.sqrt((R * R_sun * a_err )**2 + (a * R_err * R_sun)**2)
+
+    return (a * R * R_sun)/AU, err/AU
 
 def split_lightcurve_file(path, t0, P,t14=20, cutoff=0.25, window=2.5,
                           new_base_fname='split_curve'):

@@ -186,9 +186,9 @@ def run_retrieval(data_files, priors, filter_info=None,
     host_z : tuple or None, optional
         The metalicity of the host, given as a (value, uncertainty) pair.
         Required if ld_fit_method is `'single'` or `'coupled'`. Default is None
-    host_r : float
-        The host radius in Solar radii. Required for conversion of host-planet
-        separation from AU to host radii.
+    host_r : tuple or None, optional
+        The host radius in Solar radii, given as a (value, uncertainty) pair.
+        Required for conversion of host-planet separation from AU to host radii
     nlive : int, optional
         The number of live points to use in the nested sampling retrieval.
     normalise : bool, optional
@@ -302,7 +302,7 @@ def run_retrieval(data_files, priors, filter_info=None,
                                       results_output_folder,
                                       final_lightcurve_folder, summary_file,
                                       full_output_file, plot_folder,
-                                      marker_color, line_color, dynesty_bounding, normalise, 
+                                      marker_color, line_color, dynesty_bounding, normalise,
                                       detrend, batch_overlap)
-    print(results)
+
     return results

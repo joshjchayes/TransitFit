@@ -111,7 +111,7 @@ def plot_individual_lightcurves(lightcurves, priorinfo, results,
             else:
                 # x axis is time, need to calculate phase
                 try:
-                    x_vals = (lightcurves[i].times - t0 + (period/2))/period
+                    x_vals = (lightcurves[i].times - (t0 + (period/2)))/period
                     x_label = 'Phase'
                 except Exception as e:
                     print('Exception raised when calculating phase. Reverting to plotting time')

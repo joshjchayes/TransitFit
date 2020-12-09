@@ -220,7 +220,7 @@ def parse_priors_list(priors_list, n_telescopes, n_filters,
         key, mode, inputA, inputB, filt = row
         mode = mode.strip()
 
-        if np.isfinite(filt) and filt not in filter_indices:
+        if pd.notna(filt) and filt not in filter_indices:
             # Skip this parameter since it's not in the filters we are
             # interested in
             pass
@@ -230,9 +230,9 @@ def parse_priors_list(priors_list, n_telescopes, n_filters,
             try:
                 filt = filter_conversion[filt]
             except KeyError:
-                if not np.isfinite(filt):
+                if pd.isna(filt):
                     # This was excepted because filt was not specified
-                    pass
+                    filt = None
                 else: raise
 
             if key == 'a' and host_radius is not None:
