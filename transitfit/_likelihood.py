@@ -104,7 +104,7 @@ class LikelihoodCalculator:
                                    params['w'][i],
                                    self.priors.limb_dark,
                                    u)
-                                   
+
                 # Now we calculate the model transits
                 model = self.batman_models[i]
                 model_flux = model.light_curve(self.batman_params[i])
@@ -126,16 +126,16 @@ class LikelihoodCalculator:
 
                 detrended_flux, err = self.lightcurves[i].detrend_flux(d, norm, use_full_times)
 
-                # Work out the chi2
-                #chi2 = sum((model_flux - detrended_flux)**2 / err**2)
-                total_chi2 += np.sum((model_flux - detrended_flux)**2 / err**2)
-
-                # Check to make sure that there is actually a transit in the model
+                # Check that there is actually a transit in the model
                 # otherwise we impose a large penalty to the chi2 value
-                # This avoids a situation where the detrending values try
+                # This avoids a situation where the models try
                 # to completely flatten the light curves, which is wrong!
-                #if np.isclose(model_flux, 1).all():
-                #    chi2 += 10000000
+                if np.isclose(model_flux, 1).all():
+                    total_chi2 += 10000000
+                else:
+                    # Work out the chi2
+                    #chi2 = sum((model_flux - detrended_flux)**2 / err**2)
+                    total_chi2 += np.sum((model_flux - detrended_flux)**2 / err**2)
 
                 #all_chi2.append(chi2)
 

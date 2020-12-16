@@ -255,15 +255,28 @@ class LightCurve:
 
         returns a new LightCurve
         '''
-        #if base_t0 is None:
-        #    base_t0 = t0
+        if base_t0 is None:
+            base_t0 = t0
 
         #ttv_term = t0 - ((t0 - (base_t0+period/2))//period) * period - base_t0
         #ttv_term = self.times - ((self.times - (t0 + period/2))//period) * period - base_t0
 
         #times = self.times - ((self.times - (t0 + period/2))//period) * period - ttv_term
+        print('Folding curve:')
+        print('Period:', period)
+        print('t0:', t0)
+        print('base_t0:', base_t0)
 
-        times = self.times - ((self.times - (t0 + period/2))//period) * period
+
+        phase = self.get_phases(t0, period)
+
+        n = (self.times - (t0 - 0.5*period))//period
+
+        times = base_t0 + period * (phase - 0.5)
+
+
+
+        #times = self.times - (self.times//period) * period + t0
 
         return LightCurve(times, self.flux, self.errors, self.telescope_idx,
                           self.filter_idx, self.epoch_idx, self.curve_labels,
@@ -439,11 +452,11 @@ class LightCurve:
 
     def get_phases(self, t0, P):
         '''
-        Converts the times into phase given the t0 and P values, centred on 0
+        Converts times into phase given t0 and P values, with t0 at phase=0.5
         '''
-        n = (self.times - (t0 + 0.5*P))//P
+        n = (self.times - (t0 - 0.5*P))//P
 
-        return (self.times-t0)/P - n - 0.5
+        return (self.times-t0)/P - n + 0.5
 
 
     def __eq__(self, other):

@@ -10,15 +10,17 @@ import pandas as pd
 import batman
 import itertools
 import traceback
+import corner
 
-import matplotlib
-matplotlib.use('Agg')
-font = {'family' : 'serif',
-        'weight' : 'normal',
-        'size'   : 20}
+# TODO: remove these? Should probably be left to the user
+#import matplotlib
+#matplotlib.use('Agg')
+#font = {'family' : 'serif',
+#        'weight' : 'normal',
+#        'size'   : 20}
 
-matplotlib.rc('font', **font)
-matplotlib.rc('text', **{'usetex':True})
+#matplotlib.rc('font', **font)
+#matplotlib.rc('text', **{'usetex':True})
 
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
@@ -68,6 +70,7 @@ class OutputHandler:
             Array containing the global set of light curves - these should be
             raw and not normalised or detrended.
         '''
+        print('Saving final light curves')
         # Set up the model
         self._initialise_batman(all_lightcurves)
 
@@ -90,7 +93,7 @@ class OutputHandler:
             # Loop through each light curve, make the best model, and save it!
             if lc is not None:
                 # First, detrend and normalise the curve
-                flux, flux_err = lc.detrend_flux(d[i], self.best_model['norm'][i][0])
+                flux, flux_err = lc.detrend_flux(d[i], self.best_model['norm'][i][0], normalise=True)
 
                 # Get phase
                 phase = lc.get_phases(self.best_model['t0'][i][0], self.best_model['P'][i][0])
@@ -116,6 +119,7 @@ class OutputHandler:
 
 
         '''
+        print('Plotting final curves')
         # First, deal with detrending
         # Put all the detrending coeffs in usable format
         d = np.full(all_lightcurves.shape, None, object)
@@ -137,6 +141,9 @@ class OutputHandler:
             # Loop through each light curve, make the best model, and save it!
             if lc is not None:
                 # First, detrend and normalise the curve
+
+                print('t0, P:', self.best_model['t0'][i][0], self.best_model['P'][i][0])
+
                 flux, flux_err = lc.detrend_flux(d[i], self.best_model['norm'][i][0], normalise=True)
 
                 # Get phase
@@ -148,11 +155,17 @@ class OutputHandler:
                 model = batman.TransitModel(self.batman_params[i], model_times)
                 model_curve = model.light_curve(self.batman_params[i])
                 time_wise_best_curve = self.batman_models[i].light_curve(self.batman_params[i])
-
                 # get model phase:
-                n = (model_times - (self.best_model['t0'][i][0] + 0.5 * self.best_model['P'][i][0]))//self.best_model['P'][i][0]
+                n = (model_times - (self.best_model['t0'][i][0] - 0.5 * self.best_model['P'][i][0]))//self.best_model['P'][i][0]
 
-                model_phase = (model_times - self.best_model['t0'][i][0])/self.best_model['P'][i][0] - n - 0.5
+                model_phase = (model_times - self.best_model['t0'][i][0])/self.best_model['P'][i][0] - n + 0.5
+
+                print(i, 'model_times range:', model_times.min(), model_times.max())
+                print(i, 'lc times range:', lc.times.min(), lc.times.max())
+                print(i, 'Model rp/r*:', self.batman_params[i].rp)
+                print(i, 'Min model depth:', model_curve.min())
+                print(i, 'Number of in-transit points:', np.sum(model_curve < 1))
+                print(i, 'In-transit transit depths:', model_curve[model_curve<1])
 
                 # Get the residual
                 residuals = flux - time_wise_best_curve
@@ -193,9 +206,9 @@ class OutputHandler:
                     time_wise_best_curve = self.batman_models[i].light_curve(self.batman_params[i])
 
                     # get model phase:
-                    n = (model_times - (self.best_model['t0'][i][0] + 0.5 * self.best_model['P'][i][0]))//self.best_model['P'][i][0]
+                    n = (model_times - (self.best_model['t0'][i][0] - 0.5 * self.best_model['P'][i][0]))//self.best_model['P'][i][0]
 
-                    model_phase = (model_times - self.best_model['t0'][i][0])/self.best_model['P'][i][0] - n - 0.5
+                    model_phase = (model_times - self.best_model['t0'][i][0])/self.best_model['P'][i][0] - n + 0.5
 
 
                     lc_residuals = lc_flux - time_wise_best_curve
@@ -237,6 +250,8 @@ class OutputHandler:
         '''
         _ = self._initialise_best_model(mode, global_prior, output_folder, summary_file)
 
+        print('Saving final results')
+
         self._save_results_dict(self.best_model, os.path.join(output_folder, 'Complete_results.csv'), False)
 
     def save_results(self, results, priors, lightcurves,
@@ -277,13 +292,17 @@ class OutputHandler:
             from the results dictionaries -
             [[best value, median, 16th percentile, 84th percentile, stdev],...]
         '''
+        print('Saving batched results')
         fit_ld = priors[0].fit_ld
 
         results_dicts = []
 
         for i, ri in enumerate(results):
             results_dicts.append(self.get_results_dict(ri, priors[i], lightcurves[i]))
-
+            try:
+                self._plot_samples(ri, priors[i], 'batch_{}_samples.png'.format(i), output_folder)
+            except Exception as e:
+                print(e)
         best_vals, combined_results = self.get_best_vals(results_dicts, fit_ld)
 
         self._save_results_dict(best_vals, os.path.join(output_folder, summary_file), False)
@@ -349,7 +368,7 @@ class OutputHandler:
                             results_dict[param_name][i] = []
 
                         results_dict[param_name][i].append(result_entry)
-
+        print('result_dict keys:',results_dict.keys())
         return results_dict
 
     def get_best_vals(self, results_dicts, priors, fit_ld=True, return_combined=True):
@@ -416,7 +435,6 @@ class OutputHandler:
             [[best value, median, 16th percentile, 84th percentile, stdev],...]
         '''
         combined_dict = {}
-
         # Loop through each dict and the params
         for rd in results_dicts:
             for param in rd.keys():
@@ -424,16 +442,18 @@ class OutputHandler:
 
                 for i in np.ndindex(combined_dict[param].shape):
                     if rd[param][i] is not None:
-
                         if combined_dict[param][i] is None:
                             combined_dict[param][i] = rd[param][i]
                         else:
-                            combined_dict[param][i].append(rd[param][i])
+                            combined_dict[param][i] += rd[param][i]
 
-                # Convert to np.arrays
-                for i in np.ndindex(combined_dict[param].shape):
-                    if combined_dict[param][i] is not None:
-                        combined_dict[param][i] = np.array(combined_dict[param][i])
+        # Convert to np.arrays
+        for param in combined_dict.keys():
+            for i in np.ndindex(combined_dict[param].shape):
+                if combined_dict[param][i] is not None:
+                    combined_dict[param][i] = np.array(combined_dict[param][i])
+
+        print('combined_dict keys:', combined_dict.keys())
         return combined_dict
 
     def add_best_u(self, best_dict, combined_dict):
@@ -525,6 +545,7 @@ class OutputHandler:
         values. In folded mode, we pull in from the global summary first and
         add from the filter summaries after
         '''
+        print('Initialising best fit model')
         mode = mode.lower()
         if mode not in ['full', 'batched', 'folded']:
             raise ValueError('Unrecognised mode {}'.format(mode))
@@ -623,62 +644,7 @@ class OutputHandler:
         '''
         Saves a dict to csv
         '''
-        # Put dict into a pandas DataFrame so we can output it nicely
-        # Columns:
-        # not batched - param, tidx, fidx, eidx, best, error
-        # batched - param, tidx, fidx, eidx, batch, best, error
-        if batched:
-            vals_arr = np.zeros((1, 7), dtype=object)
-            columns = ['Parameter', 'Telescope', 'Filter', 'Epoch', 'Batch', 'Best', 'Error']
-        else:
-            vals_arr = np.zeros((1, 6), dtype=object)
-            columns = ['Parameter', 'Telescope', 'Filter', 'Epoch', 'Best', 'Error']
-
-        for param in results_dict:
-            # Sort out display of the parameters
-            if param == 'rp':
-                print_param = 'rp/r*'
-            elif param == 'a':
-                print_param = 'a/r*'
-            else:
-                print_param = param
-
-            for i in np.ndindex(results_dict[param].shape):
-                if results_dict[param][i] is not None:
-                    # Sort out the indices:
-                    if param in global_params:
-                        tidx, fidx, eidx = None, None, None
-                    elif param in filter_dependent_params:
-                        tidx, fidx, eidx = None, i[1], None
-                    else:
-                        tidx, fidx, eidx = i
-
-                    if not batched:
-                        # Add the best values in
-                        vals_arr = np.append(vals_arr, np.array([[print_param, tidx, fidx, eidx, results_dict[param][i][0], results_dict[param][i][1]]]), axis=0)
-
-                        if param == 'a' and self.host_r is not None:
-                            # Put a into AU as well
-                            a_AU, a_AU_err = host_radii_to_AU(results_dict[param][i][0],
-                                                              self.host_r[0],
-                                                              results_dict[param][i][1],
-                                                              self.host_r[1], True)
-                            vals_arr = np.append(vals_arr, np.array([['a/AU', tidx, fidx, eidx, a_AU, a_AU_err]]), axis=0)
-                    else:
-                        # Loop over batches
-                        for bi in range(len(results_dict[param][i])):
-                            vals_arr = np.append(vals_arr, np.array([[print_param, tidx, fidx, eidx, bi, results_dict[param][i][bi][0], results_dict[param][i][bi][-1]]]), axis=0)
-
-                            if param == 'a' and self.host_r is not None:
-                                # Put a into AU as well
-                                a_AU, a_AU_err = host_radii_to_AU(results_dict[param][i][bi][0],
-                                                                  self.host_r[0],
-                                                                  results_dict[param][i][bi][-1],
-                                                                  self.host_r[1], True)
-                                vals_arr = np.append(vals_arr, np.array([['a/AU', tidx, fidx, eidx, bi, a_AU, a_AU_err]]), axis=0)
-
-        # Make the DataFrame - cut off the first (all zeros) entries
-        df = pd.DataFrame(vals_arr[1:], columns=columns)
+        df = self._results_dict_to_dataframe(results_dict, batched)
 
         # Save outputs
         os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -698,6 +664,21 @@ class OutputHandler:
 
         if self.batman_initialised:
             return
+
+        # Check that best model initialisation worked
+        failed_key = []
+        failed_index = []
+        for key in self.best_model.keys():
+            for i, lc in np.ndenumerate(all_lightcurves):
+                if self.best_model[key][i] is None:
+                    failed_key.append(key)
+                    failed_index.append(i)
+
+        print('Best model failed keys:', failed_key)
+        print('Best model failed indices:', failed_index)
+
+
+        print('Initialising best batman models')
 
         n_telescopes = all_lightcurves.shape[0]
         n_filters = all_lightcurves.shape[1]
@@ -787,6 +768,11 @@ class OutputHandler:
         '''
         Plots the lightcurve and model consistently
         '''
+        # Sort into phase orders
+        data_order = np.argsort(phase)
+        model_order = np.argsort(model_phase)
+
+
         # Set up the figure and the relevant axes
         gs = gridspec.GridSpec(6, 7)
         fig = plt.figure(figsize=figsize)
@@ -797,14 +783,15 @@ class OutputHandler:
 
         ####### PLOT! #########
         # Main plot
-        main_ax.errorbar(phase, flux, flux_err, zorder=1, capsize=2,
+        main_ax.errorbar(phase[data_order], flux[data_order], flux_err[data_order],
+                         zorder=1, capsize=2,
                          linestyle='', marker='x', color=marker_color,
                          elinewidth=0.8, alpha=0.6)
 
-        main_ax.plot(model_phase, model_curve, linewidth=2,
-                     color=line_color)
+        main_ax.plot(model_phase[model_order], model_curve[model_order],
+                     linewidth=2, color=line_color)
         # Residuals
-        residual_ax.errorbar(phase, residuals, flux_err, zorder=2,
+        residual_ax.errorbar(phase[data_order], residuals[data_order], flux_err[data_order], zorder=2,
                              linestyle='', marker='x', capsize=2,
                              color=marker_color, elinewidth=0.8,
                              alpha=0.6)
@@ -854,3 +841,108 @@ class OutputHandler:
         fig.savefig(os.path.join(folder, fname), bbox_inches='tight', dpi=300)
 
         plt.close()
+
+    def _results_dict_to_dataframe(self, results_dict, batched):
+        '''
+        Converts a results dict to a pandas dataframe
+        '''
+        if batched:
+            vals_arr = np.zeros((1, 7), dtype=object)
+            columns = ['Parameter', 'Telescope', 'Filter', 'Epoch', 'Batch', 'Best', 'Error']
+        else:
+            vals_arr = np.zeros((1, 6), dtype=object)
+            columns = ['Parameter', 'Telescope', 'Filter', 'Epoch', 'Best', 'Error']
+
+        for param in results_dict:
+            # Sort out display of the parameters
+            if param == 'rp':
+                print_param = 'rp/r*'
+            elif param == 'a':
+                print_param = 'a/r*'
+            else:
+                print_param = param
+
+            for i in np.ndindex(results_dict[param].shape):
+                if results_dict[param][i] is not None:
+                    # Sort out the indices:
+                    if param in global_params:
+                        tidx, fidx, eidx = None, None, None
+                    elif param in filter_dependent_params:
+                        tidx, fidx, eidx = None, i[1], None
+                    else:
+                        tidx, fidx, eidx = i
+
+                    if not batched:
+                        # Add the best values in
+                        vals_arr = np.append(vals_arr, np.array([[print_param, tidx, fidx, eidx, results_dict[param][i][0], results_dict[param][i][1]]]), axis=0)
+
+                        if param == 'a' and self.host_r is not None:
+                            # Put a into AU as well
+                            a_AU, a_AU_err = host_radii_to_AU(results_dict[param][i][0],
+                                                              self.host_r[0],
+                                                              results_dict[param][i][1],
+                                                              self.host_r[1], True)
+                            vals_arr = np.append(vals_arr, np.array([['a/AU', tidx, fidx, eidx, a_AU, a_AU_err]]), axis=0)
+                    else:
+                        # Loop over batches
+                        for bi in range(len(results_dict[param][i])):
+                            vals_arr = np.append(vals_arr, np.array([[print_param, tidx, fidx, eidx, bi, results_dict[param][i][bi][0], results_dict[param][i][bi][-1]]]), axis=0)
+
+                            if param == 'a' and self.host_r is not None:
+                                # Put a into AU as well
+                                a_AU, a_AU_err = host_radii_to_AU(results_dict[param][i][bi][0],
+                                                                  self.host_r[0],
+                                                                  results_dict[param][i][bi][-1],
+                                                                  self.host_r[1], True)
+                                vals_arr = np.append(vals_arr, np.array([['a/AU', tidx, fidx, eidx, bi, a_AU, a_AU_err]]), axis=0)
+
+        # Make the DataFrame - cut off the first (all zeros) entries
+        return pd.DataFrame(vals_arr[1:], columns=columns)
+
+    def _print_results(self, result):
+        '''
+        Prints a results dict to terminal
+        '''
+        df = self._results_dict_to_dataframe(result, False)
+
+        print(df)
+
+    def _plot_samples(self, result, prior, fname, folder='./plots'):
+        '''
+        Makes a corner plot of the samples from a result
+        '''
+        samples = result.samples
+        best = result.best
+        median = result.median
+        ndim = len(best)
+        labels = prior.fitting_params[:,0]
+
+        fig = corner.corner(samples, labels=labels, quantiles=[0.16, 0.5, 0.84],
+                       show_titles=True, title_kwargs={"fontsize": 12})
+
+
+        # Add in the best value plots
+        # Extract the axes
+        axes = np.array(fig.axes).reshape((ndim, ndim))
+        # Loop over the diagonal
+        for i in range(ndim):
+            ax = axes[i, i]
+            ax.axvline(best[i], color="g")
+
+        # Loop over the histograms
+        for yi in range(ndim):
+            for xi in range(yi):
+                ax = axes[yi, xi]
+                ax.axvline(best[xi], color="g")
+                ax.axhline(best[yi], color="g")
+                ax.plot(best[xi], best[yi], "sg")
+                ax.axvline(median[xi], color="r")
+                ax.axhline(median[yi], color="r")
+                ax.plot(median[xi], median[yi], "sr")
+
+        fig.tight_layout()
+
+        path = os.path.join(folder, fname)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+
+        fig.savefig(os.path.join(folder, fname), bbox_inches='tight', dpi=300)

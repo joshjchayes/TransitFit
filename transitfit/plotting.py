@@ -259,30 +259,16 @@ def quick_plot(lightcurve, fname, folder_path, t0=None, period=None):
 
     If t0 and period are provided, will use a phase plot
     '''
+    base_fname = fname
+
+    # Plot the raw times with t0 added
     fig, ax = plt.subplots()
-
-    phase_plot = t0 is not None and period is not None
-
-    if phase_plot:
-        # x axis is time, need to calculate phase
-        try:
-            x_vals = (lightcurve.times - t0 + (period/2))/period
-            x_label = 'Phase'
-        except Exception as e:
-            print('Exception raised when calculating phase. Reverting to plotting time')
-            print(e)
-            x_vals = lightcurve.times
-            x_label= 'Time (BJD)'
-    else:
-        # x axis is time, not phase
-        x_vals = lightcurve[i].times
-        x_label = 'Time (BJD)'
-
-
+    x_vals = lightcurve.times
+    x_label= 'Time (BJD)'
     ax.errorbar(x_vals, lightcurve.flux, lightcurve.errors, zorder=1,
         linestyle='', marker='x', color='dimgrey', elinewidth=0.8, alpha=0.6)
 
-    if t0 is not None and not phase_plot:
+    if t0 is not None:
         ax.axvline(t0, linestyle='dashed', color='gray',
                         linewidth=1, zorder=1)
 
@@ -294,8 +280,43 @@ def quick_plot(lightcurve, fname, folder_path, t0=None, period=None):
 
     os.makedirs(folder_path, exist_ok=True)
 
-    if not fname[-4:] == '.pdf':
-        fname += '.pdf'
+    if not base_fname[-4:] == '.png':
+        fname += '_raw_times.png'
+    else:
+        fname += base_fname[:-4] + '_raw_times.png'
+
+    fig.savefig(os.path.join(folder_path, fname),
+                bbox_inches='tight')
+
+    if t0 is None or period is None:
+        return
+
+    # Now plot with phases
+    # Plot the raw times with t0 added
+    fig, ax = plt.subplots()
+
+    x_vals = lightcurve.get_phases(t0, period)
+    x_label = 'Phase'
+
+    ax.errorbar(x_vals, lightcurve.flux, lightcurve.errors, zorder=1,
+        linestyle='', marker='x', color='dimgrey', elinewidth=0.8, alpha=0.6)
+
+    ax.axvline(0.5, linestyle='dashed', color='gray',
+               linewidth=1, zorder=1)
+
+    ax.set_xlabel(x_label)
+    ax.set_ylabel('Normalised flux')
+
+    ax.tick_params('both', which='both', direction='in',
+                        labelbottom=True, top='on', right='on')
+
+    os.makedirs(folder_path, exist_ok=True)
+
+    if not base_fname[-4:] == '.png':
+        fname += '_phase.png'
+    else:
+        fname += base_fname[:-4] + '_phase.png'
+
     fig.savefig(os.path.join(folder_path, fname),
                 bbox_inches='tight')
 

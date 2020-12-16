@@ -222,6 +222,7 @@ class Retriever:
 
         # Save the best fit results for easy access
         results.best = results.samples[np.argmax(results.logl)]
+        #results.best = median
 
         return results, n_dof
 
@@ -320,14 +321,17 @@ class Retriever:
             all_lightcurves.append(batch_lightcurves)
 
         # Make outputs etc
+        print('Old saving')
+        self._save_results(all_results, all_priors, all_lightcurves,
+                          output_folder, 'summary_output_old_method.csv', 'full_output_old_method.csv',
+                          './fitted_lightcurves/old_method', plot, './plots/old_method', marker_color,
+                          line_color, folded_P=folded_P,
+                          folded_t0=folded_t0)
+        print('New saving')
         output_handler.save_results(all_results, all_priors,
-                                        all_lightcurves, output_folder,
-                                        summary_file, full_output_file)
-        #self._save_results(all_results, all_priors, all_lightcurves,
-        #                  output_folder, summary_file, full_output_file,
-        #                  lightcurve_folder, plot, plot_folder, marker_color,
-        #                  line_color, folded_P=folded_P,
-        #                  folded_t0=folded_t0)
+                                    all_lightcurves, output_folder,
+                                    summary_file, full_output_file)
+
 
         if full_return:
             return all_results, all_priors, all_lightcurves
@@ -393,7 +397,11 @@ class Retriever:
 
         # Plot the folded lightcurves so we can check them
         for lci, lc in np.ndenumerate(folded_curves):
-            quick_plot(lc, 'folded_curve_filter_{}.pdf'.format(lci[1]), os.path.join(plot_folder, 'folded_curves'), folded_t0, folded_P)
+            quick_fname = 'quick_plot:folded_curve_filter_{}.png'.format(lci[1])
+            quick_folder = os.path.join(plot_folder, 'folded_curves')
+            quick_plot(lc, quick_fname.format(lci[1]), quick_folder, folded_t0, folded_P)
+
+            print('Filter {} quick look phase folde saved to {}'.format(lci, os.path.join(quick_folder, quick_fname)))
 
         # Get the batches, and remember that now we are not detrending or
         # normalising since that was done in the first stage
@@ -772,9 +780,9 @@ class Retriever:
         print('P = {} ± {}'.format(round(best_P, 8),  round(P_err, 8)))
         if self.fit_ttv:
             for i, t0i in enumerate(best_t0):
-                print('t0 = {} ± {} (epoch {})'.format(round(t0i, 3),  round(t0_err[i], 3), i))
+                print('t0 = {} ± {} (epoch {})'.format(round(t0i, 6),  round(t0_err[i], 6), i))
         else:
-            print('t0 = {} ± {}'.format(best_t0.round(3)[0],  t0_err.round(3)[0]))
+            print('t0 = {} ± {}'.format(best_t0.round(6)[0],  t0_err.round(6)[0]))
 
         ###############################################################
         ###            NORMALISATION/DETRENDING/FOLDING             ###
@@ -1126,10 +1134,10 @@ class Retriever:
     ##########################################################
     def _save_results(self, results, priors, lightcurves,
                       output_folder='./output_parameters',
-                      summary_file='summary_output.csv',
-                      full_output_file='full_output.csv',
+                      summary_file='summary_output_old_method.csv',
+                      full_output_file='full_output_old_method.csv',
                       lightcurve_folder='./fitted_lightcurves',
-                      plot=True, plot_folder='./plots',
+                      plot=True, plot_folder='./plots/old_method',
                       marker_color='dimgrey', line_color='black',
                       folded_P=None, folded_P_err=None, folded_t0=None,
                       folded_t0_err=None):
@@ -1206,7 +1214,7 @@ class Retriever:
             # specific parameters slightly differently
 
             # FIRST: save the detrended curves and the fit:
-            io.save_final_light_curves(lightcurves[i], priors[i], results[i], lightcurve_folder, folded)
+            #io.save_final_light_curves(lightcurves[i], priors[i], results[i], lightcurve_folder, folded)
 
             # Now plot the curves!
             if plot:
