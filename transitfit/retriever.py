@@ -321,16 +321,17 @@ class Retriever:
             all_lightcurves.append(batch_lightcurves)
 
         # Make outputs etc
-        print('Old saving')
-        self._save_results(all_results, all_priors, all_lightcurves,
-                          output_folder, 'summary_output_old_method.csv', 'full_output_old_method.csv',
-                          './fitted_lightcurves/old_method', plot, './plots/old_method', marker_color,
-                          line_color, folded_P=folded_P,
-                          folded_t0=folded_t0)
-        print('New saving')
+        #print('Old saving')
+        #self._save_results(all_results, all_priors, all_lightcurves,
+        #                  output_folder, 'summary_output_old_method.csv', 'full_output_old_method.csv',
+        #                  './fitted_lightcurves/old_method', plot, './plots/old_method', marker_color,
+        #                  line_color, folded_P=folded_P,
+        #                  folded_t0=folded_t0)
+        #print('New saving')
         output_handler.save_results(all_results, all_priors,
                                     all_lightcurves, output_folder,
-                                    summary_file, full_output_file)
+                                    summary_file, full_output_file,
+                                    plot_folder, folded)
 
 
         if full_return:
@@ -760,7 +761,8 @@ class Retriever:
                     retrieved_t0_err[eidx].append(errors_dict['t0'][i])
 
 
-
+        print(retrieved_t0, retrieved_t0_err)
+        print(retrieved_P, retrieved_P_err)
         single_val = not self.fit_ttv
 
         # Find the weighted average to get the best fit values of P and t0

@@ -211,11 +211,13 @@ def split_lightcurve_file(path, t0, P,t14=20, cutoff=0.25, window=2.5,
         The base name for the new files, which will have numbers appended
         depending on the epoch. This can be used to specify a relative path
         for saving. Default is `'split_curve'`.
+    return_names : bool
+
 
     Returns
     -------
-    lightcurves : list of `LightCurve`s
-        The single epoch `LightCurves`
+    paths : array_like, shape (n_curves,)
+        The paths to each of the new data files
     '''
     from .io import read_data_file
 
@@ -226,9 +228,12 @@ def split_lightcurve_file(path, t0, P,t14=20, cutoff=0.25, window=2.5,
     single_epoch_curves = full_lightcurve.split(t0, P, t14, window)
     dirname = os.path.dirname(path)
 
+    paths = []
+
     # Now save all the new curves
     for i, curve in enumerate(single_epoch_curves):
         fname = new_base_fname + '_{}'.format(i)
         curve.save(os.path.join(dirname, fname))
+        paths.append(os.path.join(dirname, fname))
 
-    return single_epoch_curves
+    return paths

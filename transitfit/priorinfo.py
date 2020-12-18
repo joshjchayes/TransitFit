@@ -200,7 +200,7 @@ class PriorInfo:
                 method_idx = method_index_array[i]
                 method = method_list[method_idx]
 
-                if method[0] is 'off':
+                if method[0] == 'off':
                     # No detrending - skip this curve
                     pass
                 else:

@@ -160,26 +160,23 @@ class OutputHandler:
 
                 model_phase = (model_times - self.best_model['t0'][i][0])/self.best_model['P'][i][0] - n + 0.5
 
-                print(i, 'model_times range:', model_times.min(), model_times.max())
-                print(i, 'lc times range:', lc.times.min(), lc.times.max())
-                print(i, 'Model rp/r*:', self.batman_params[i].rp)
-                print(i, 'Min model depth:', model_curve.min())
-                print(i, 'Number of in-transit points:', np.sum(model_curve < 1))
-                print(i, 'In-transit transit depths:', model_curve[model_curve<1])
-
                 # Get the residual
                 residuals = flux - time_wise_best_curve
 
-                fname = 'individual_curves/t{}_f{}_e{}.png'.format(*i)
-                if titles:
-                    title = 'Fitted curve: Telescope {} Filter {}, Epoch {}'.format(*i)
-                else:
-                    title = None
+                plot_errors = [flux_err, None]
+                sub_folder = ['with_errorbars', 'without_errorbars']
 
-                ####### PLOT! #########
-                self._plot_data(phase, flux, flux_err, model_phase,
-                                model_curve, residuals, fname, title, folder,
-                                figsize, marker_color, line_color)
+                for j in range(2):
+                    fname = 'individual_curves/{}/t{}_f{}_e{}.png'.format(sub_folder[j],*i)
+                    if titles:
+                        title = 'Fitted curve: Telescope {} Filter {}, Epoch {}'.format(*i)
+                    else:
+                        title = None
+
+                    ####### PLOT! #########
+                    self._plot_data(phase, flux, plot_errors[j], model_phase,
+                                    model_curve, residuals, fname, title, folder,
+                                    figsize, marker_color, line_color)
 
         if not plot_folded:
             return
@@ -224,24 +221,30 @@ class OutputHandler:
             flux_err = np.array(flux_err).flatten()
             residuals = np.array(residuals).flatten()
 
-            fname = 'folded_curves/filter_{}.png'.format(fi)
-            if titles:
-                title = 'Folded curve for filter {}'.format(fi)
-            else:
-                title = None
-            try:
-                self._plot_data(phase, flux, flux_err, model_phase,
-                            model_curve, residuals, fname, title, folder,
-                            figsize, marker_color, line_color)
-            except Exception as e:
-                print('Exception raised while plotting:')
-                print(e)
-                print('Traceback:')
-                traceback.print_tb(e.__traceback__)
-                print('_plot_data inputs:')
-                print(phase, '/n',flux, '/n',flux_err,'/n', model_phase,'/n',
-                            model_curve,'/n', residuals, '/n',fname,'/n', title, '/n',folder,
-                            figsize,'/n', marker_color, '/n',line_color)
+            plot_errors = [flux_err, None]
+            sub_folder = ['with_errorbars', 'without_errorbars']
+
+            for j in range(2):
+                fname = 'folded_curves/{}/filter_{}.png'.format(sub_folder[j],fi)
+                if titles:
+                    title = 'Folded curve for filter {}'.format(fi)
+                else:
+                    title = None
+
+                ####### PLOT! #########
+                try:
+                    self._plot_data(phase, flux, plot_errors[j], model_phase,
+                                model_curve, residuals, fname, title, folder,
+                                figsize, marker_color, line_color)
+                except Exception as e:
+                    print('Exception raised while plotting:')
+                    print(e)
+                    print('Traceback:')
+                    traceback.print_tb(e.__traceback__)
+                    print('_plot_data inputs:')
+                    print(phase, '/n',flux, '/n',plot_errors[j],'/n', model_phase,'/n',
+                                model_curve,'/n', residuals, '/n',fname,'/n', title, '/n',folder,
+                                figsize,'/n', marker_color, '/n',line_color)
 
     def save_complete_results(self, mode, global_prior, output_folder,
                               summary_file):
@@ -257,7 +260,8 @@ class OutputHandler:
     def save_results(self, results, priors, lightcurves,
                      output_folder='./output_parameters',
                      summary_file='summary_output.csv',
-                     full_output_file='full_output.csv',):
+                     full_output_file='full_output.csv',
+                     plot_folder='./plots', folded=False):
         '''
         Saves results to .csv files
 
@@ -300,7 +304,11 @@ class OutputHandler:
         for i, ri in enumerate(results):
             results_dicts.append(self.get_results_dict(ri, priors[i], lightcurves[i]))
             try:
-                self._plot_samples(ri, priors[i], 'batch_{}_samples.png'.format(i), output_folder)
+                if folded:
+                    sample_folder = os.path.join(plot_folder, 'folded')
+                else:
+                    sample_folder = os.path.join(plot_folder, 'unfolded')
+                self._plot_samples(ri, priors[i], 'batch_{}_samples.png'.format(i), sample_folder)
             except Exception as e:
                 print(e)
         best_vals, combined_results = self.get_best_vals(results_dicts, fit_ld)
@@ -397,6 +405,9 @@ class OutputHandler:
 
         # Collate the results dicts
         combined_dict = self.combine_results_dicts(results_dicts)
+
+        print('Combined dict t0:', combined_dict['P'])
+        print('Combined dict P:', combined_dict['t0'])
 
         for param in combined_dict:
             # Loop through each parameter
@@ -762,86 +773,6 @@ class OutputHandler:
 
         return tidx, fidx, eidx
 
-    def _plot_data(self, phase, flux, flux_err, model_phase, model_curve,
-                   residuals, fname, title=None, folder='./plots',
-                   figsize=(12,8), marker_color='dimgrey', line_color='black'):
-        '''
-        Plots the lightcurve and model consistently
-        '''
-        # Sort into phase orders
-        data_order = np.argsort(phase)
-        model_order = np.argsort(model_phase)
-
-
-        # Set up the figure and the relevant axes
-        gs = gridspec.GridSpec(6, 7)
-        fig = plt.figure(figsize=figsize)
-
-        main_ax = fig.add_subplot(gs[:-2, :-1])
-        residual_ax = fig.add_subplot(gs[-2:, :-1], sharex=main_ax)
-        hist_ax = fig.add_subplot(gs[-2:,-1], sharey=residual_ax)
-
-        ####### PLOT! #########
-        # Main plot
-        main_ax.errorbar(phase[data_order], flux[data_order], flux_err[data_order],
-                         zorder=1, capsize=2,
-                         linestyle='', marker='x', color=marker_color,
-                         elinewidth=0.8, alpha=0.6)
-
-        main_ax.plot(model_phase[model_order], model_curve[model_order],
-                     linewidth=2, color=line_color)
-        # Residuals
-        residual_ax.errorbar(phase[data_order], residuals[data_order], flux_err[data_order], zorder=2,
-                             linestyle='', marker='x', capsize=2,
-                             color=marker_color, elinewidth=0.8,
-                             alpha=0.6)
-
-        residual_ax.axhline(0, linestyle='dashed', color='gray',
-                            linewidth=1, zorder=1)
-        # Histogram residuals
-        rgba_color = colors.to_rgba(marker_color)
-        facecolor = (rgba_color[0], rgba_color[1], rgba_color[2], 0.6)
-        hist_ax.hist(residuals, bins=30, orientation='horizontal',
-                     color=facecolor, edgecolor=rgba_color,
-                     histtype='stepfilled')
-        hist_ax.axhline(0, linestyle='dashed', color='gray',
-                        linewidth=1, zorder=1)
-
-        # FORMATTING AXES
-        # Prune axes
-        main_ax.yaxis.set_major_locator(MaxNLocator(6, prune='lower'))
-        residual_ax.yaxis.set_major_locator(MaxNLocator(4, prune='upper'))
-        residual_ax.xaxis.set_major_locator(MaxNLocator(8, prune='upper'))
-
-        # Add labels
-        main_ax.set_ylabel('Normalised flux')
-        residual_ax.set_ylabel('Residual')
-        residual_ax.set_xlabel('Phase')
-
-        # Format the axes
-        main_ax.tick_params('both', which='both', direction='in',
-                            labelbottom=False, top=True, right=True)
-
-        residual_ax.tick_params('both', which='both', direction='in',
-                                top=True, right=True)
-
-        hist_ax.tick_params('both', which='both', direction='in',
-                             labelleft=False, labelbottom=False,
-                             right=True, top=True)
-
-        if title is not None:
-            main_ax.set_title(title)
-
-        fig.tight_layout()
-        fig.subplots_adjust(hspace=0, wspace=0)
-
-        os.makedirs(os.path.dirname(os.path.join(folder, fname)), exist_ok=True)
-
-        # SAVE THE PLOT
-        fig.savefig(os.path.join(folder, fname), bbox_inches='tight', dpi=300)
-
-        plt.close()
-
     def _results_dict_to_dataframe(self, results_dict, batched):
         '''
         Converts a results dict to a pandas dataframe
@@ -907,6 +838,9 @@ class OutputHandler:
 
         print(df)
 
+    ###########################################################################
+    #               PLOTTING THINGS                                           #
+    ###########################################################################
     def _plot_samples(self, result, prior, fname, folder='./plots'):
         '''
         Makes a corner plot of the samples from a result
@@ -945,4 +879,83 @@ class OutputHandler:
         path = os.path.join(folder, fname)
         os.makedirs(os.path.dirname(path), exist_ok=True)
 
-        fig.savefig(os.path.join(folder, fname), bbox_inches='tight', dpi=300)
+        fig.savefig(os.path.join(folder, fname), bbox_inches='tight', dpi=100)
+
+    def _plot_data(self, phase, flux, flux_err, model_phase, model_curve,
+                       residuals, fname, title=None, folder='./plots',
+                       figsize=(12,8), marker_color='dimgrey', line_color='black'):
+            '''
+            Plots the lightcurve and model consistently
+            '''
+            # Sort into phase orders
+            data_order = np.argsort(phase)
+            model_order = np.argsort(model_phase)
+
+            # Set up the figure and the relevant axes
+            gs = gridspec.GridSpec(6, 7)
+            fig = plt.figure(figsize=figsize)
+
+            main_ax = fig.add_subplot(gs[:-2, :-1])
+            residual_ax = fig.add_subplot(gs[-2:, :-1], sharex=main_ax)
+            hist_ax = fig.add_subplot(gs[-2:,-1], sharey=residual_ax)
+
+            ####### PLOT! #########
+            # Main plot
+            main_ax.errorbar(phase[data_order], flux[data_order], flux_err[data_order],
+                             zorder=1, capsize=2,
+                             linestyle='', marker='.', color=marker_color,
+                             elinewidth=0.8, alpha=0.6)
+
+            main_ax.plot(model_phase[model_order], model_curve[model_order],
+                         linewidth=2, color=line_color)
+            # Residuals
+            residual_ax.errorbar(phase[data_order], residuals[data_order], flux_err[data_order], zorder=2,
+                                 linestyle='', marker='.', capsize=2,
+                                 color=marker_color, elinewidth=0.8,
+                                 alpha=0.6)
+
+            residual_ax.axhline(0, linestyle='dashed', color='gray',
+                                linewidth=1, zorder=1)
+            # Histogram residuals
+            rgba_color = colors.to_rgba(marker_color)
+            facecolor = (rgba_color[0], rgba_color[1], rgba_color[2], 0.6)
+            hist_ax.hist(residuals, bins=30, orientation='horizontal',
+                         color=facecolor, edgecolor=rgba_color,
+                         histtype='stepfilled')
+            hist_ax.axhline(0, linestyle='dashed', color='gray',
+                            linewidth=1, zorder=1)
+
+            # FORMATTING AXES
+            # Prune axes
+            main_ax.yaxis.set_major_locator(MaxNLocator(6, prune='lower'))
+            residual_ax.yaxis.set_major_locator(MaxNLocator(4, prune='upper'))
+            residual_ax.xaxis.set_major_locator(MaxNLocator(8, prune='upper'))
+
+            # Add labels
+            main_ax.set_ylabel('Normalised flux')
+            residual_ax.set_ylabel('Residual')
+            residual_ax.set_xlabel('Phase')
+
+            # Format the axes
+            main_ax.tick_params('both', which='both', direction='in',
+                                labelbottom=False, top=True, right=True)
+
+            residual_ax.tick_params('both', which='both', direction='in',
+                                    top=True, right=True)
+
+            hist_ax.tick_params('both', which='both', direction='in',
+                                 labelleft=False, labelbottom=False,
+                                 right=True, top=True)
+
+            if title is not None:
+                main_ax.set_title(title)
+
+            fig.tight_layout()
+            fig.subplots_adjust(hspace=0, wspace=0)
+
+            os.makedirs(os.path.dirname(os.path.join(folder, fname)), exist_ok=True)
+
+            # SAVE THE PLOT
+            fig.savefig(os.path.join(folder, fname), bbox_inches='tight', dpi=300)
+
+            plt.close()
