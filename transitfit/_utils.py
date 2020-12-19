@@ -110,6 +110,7 @@ def get_covariance_matrix(results):
 
     return cov
 
+
 def weighted_avg_and_std(values, weights, axis=-1, single_val=False):
     '''
     Calculates the weighted average and error on some data.
@@ -150,6 +151,7 @@ def weighted_avg_and_std(values, weights, axis=-1, single_val=False):
 
     return np.array(average), np.array(uncertainty)
 
+
 def AU_to_host_radii(a, R, a_err=0, R_err=0, calc_err=False):
     '''
     Converts a number in AU to a value in host radii when given the host
@@ -165,6 +167,7 @@ def AU_to_host_radii(a, R, a_err=0, R_err=0, calc_err=False):
 
     return (a * AU) / (R * R_sun), err/(R * R_sun)
 
+
 def host_radii_to_AU(a, R, a_err=0, R_err=0, calc_err=False):
     '''
     converts a separation in host radii into a separation in AU when given
@@ -179,6 +182,7 @@ def host_radii_to_AU(a, R, a_err=0, R_err=0, calc_err=False):
     err = np.sqrt((R * R_sun * a_err )**2 + (a * R_err * R_sun)**2)
 
     return (a * R * R_sun)/AU, err/AU
+
 
 def split_lightcurve_file(path, t0, P,t14=20, cutoff=0.25, window=2.5,
                           new_base_fname='split_curve'):

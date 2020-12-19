@@ -262,12 +262,6 @@ class LightCurve:
         #ttv_term = self.times - ((self.times - (t0 + period/2))//period) * period - base_t0
 
         #times = self.times - ((self.times - (t0 + period/2))//period) * period - ttv_term
-        print('Folding curve:')
-        print('Period:', period)
-        print('t0:', t0)
-        print('base_t0:', base_t0)
-
-
         phase = self.get_phases(t0, period)
 
         n = (self.times - (t0 - 0.5*period))//period
@@ -302,7 +296,6 @@ class LightCurve:
         epoch_labels = self._epoch_array
 
         starting_label = labels.max() + 1
-        print('starting_label:', starting_label)
         for i, lightcurve in enumerate(lightcurves):
             times = np.hstack((times, lightcurve.times))
             flux = np.hstack((flux, lightcurve.flux))
@@ -457,6 +450,77 @@ class LightCurve:
         n = (self.times - (t0 - 0.5*P))//P
 
         return (self.times-t0)/P - n + 0.5
+
+    def bin(self, cadence, residuals=None):
+        '''
+        Bins the light curve to a given observation cadence
+
+        Parameters
+        ----------
+        cadence : float
+            The observation cadence to bin to in the units of self.times
+        residuals : array_like, shape (n_times,)
+            If provided, will also bin any model residuals
+
+        Returns
+        -------
+        time : array_like
+            The time centers of each bin
+        flux : array_like
+            The flux in each bin, calculated as the weighted mean of all flux
+            values in the bin
+        err : array_like
+            The error on the flux of each bin
+        '''
+        if residuals is not None:
+            residuals = np.array(residuals)
+
+        # Calculate the number of bins we need, and the size of each bin
+        obs_length = self.times.max() - self.times.min()
+
+        n_bins = int((obs_length)/cadence)
+        bin_size = obs_length / n_bins
+
+        times = np.full(n_bins, None)
+        flux = np.full(n_bins, None)
+        err = np.full(n_bins, None)
+        binned_residuals = np.full(n_bins, None)
+
+        points_in_bin = np.zeros(n_bins)
+
+        # Now we can bin the data
+        for i in range(n_bins):
+            bin_upper = (i+1) * bin_size + self.times.min()
+            bin_lower = i * bin_size + self.times.min()
+            bin_time = (bin_upper + bin_lower)/2
+
+            mask = (bin_lower <= self.times) * (self.times < bin_upper)
+
+            bin_flux = self.flux[mask]
+
+            bin_err = self.errors[mask]
+
+            if len(bin_flux > 0):
+                if residuals is not None:
+                    bin_residuals = residuals[mask]
+                    binned_residuals[i] = np.average(bin_residuals, weights=bin_err)
+
+                times[i] = bin_time
+                flux[i] = np.average(bin_flux, weights=bin_err)
+                err[i] = 1/np.sqrt(np.sum(1/(bin_err**2)))
+
+            points_in_bin[i] = np.sum(mask)
+
+        print('Average points in each bin:', np.average(points_in_bin))
+
+        print('Expected RMS improvement from binning:', np.sqrt(np.average(points_in_bin)))
+
+        return_mask = (points_in_bin > 0)
+
+        if residuals is None:
+            return times[return_mask], flux[return_mask], err[return_mask]
+        else:
+            return times[return_mask], flux[return_mask], err[return_mask], binned_residuals[return_mask]
 
 
     def __eq__(self, other):

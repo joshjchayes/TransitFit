@@ -31,6 +31,7 @@ from matplotlib import colors
 from .retriever import global_params, filter_dependent_params, lightcurve_dependent_params
 from ._utils import weighted_avg_and_std, host_radii_to_AU
 from ._paramarray import ParamArray
+from .lightcurve import LightCurve
 
 
 class OutputHandler:
@@ -113,7 +114,8 @@ class OutputHandler:
     def plot_final_light_curves(self, all_lightcurves, global_prior,
                                 folder='./plots', figsize=(12,8),
                                 marker_color='dimgrey', line_color='black',
-                                plot_folded=True, titles=False):
+                                plot_folded=True, titles=False, bin_data=True,
+                                cadence=2):
         '''
         Plots the detrended light curves with the global best-fit model
 
@@ -141,8 +143,6 @@ class OutputHandler:
             # Loop through each light curve, make the best model, and save it!
             if lc is not None:
                 # First, detrend and normalise the curve
-
-                print('t0, P:', self.best_model['t0'][i][0], self.best_model['P'][i][0])
 
                 flux, flux_err = lc.detrend_flux(d[i], self.best_model['norm'][i][0], normalise=True)
 
@@ -221,6 +221,8 @@ class OutputHandler:
             flux_err = np.array(flux_err).flatten()
             residuals = np.array(residuals).flatten()
 
+            cadence = cadence / (self.best_model['P'][None, None, None][0] * 24 * 60)
+
             plot_errors = [flux_err, None]
             sub_folder = ['with_errorbars', 'without_errorbars']
 
@@ -235,16 +237,18 @@ class OutputHandler:
                 try:
                     self._plot_data(phase, flux, plot_errors[j], model_phase,
                                 model_curve, residuals, fname, title, folder,
-                                figsize, marker_color, line_color)
+                                figsize, marker_color, line_color, bin_data,
+                                cadence)
+
                 except Exception as e:
                     print('Exception raised while plotting:')
                     print(e)
                     print('Traceback:')
                     traceback.print_tb(e.__traceback__)
-                    print('_plot_data inputs:')
-                    print(phase, '/n',flux, '/n',plot_errors[j],'/n', model_phase,'/n',
-                                model_curve,'/n', residuals, '/n',fname,'/n', title, '/n',folder,
-                                figsize,'/n', marker_color, '/n',line_color)
+                    #print('_plot_data inputs:')
+                    #print(phase, '/n',flux, '/n',plot_errors[j],'/n', model_phase,'/n',
+                    #            model_curve,'/n', residuals, '/n',fname,'/n', title, '/n',folder,
+                    #            figsize,'/n', marker_color, '/n',line_color)
 
     def save_complete_results(self, mode, global_prior, output_folder,
                               summary_file):
@@ -261,7 +265,7 @@ class OutputHandler:
                      output_folder='./output_parameters',
                      summary_file='summary_output.csv',
                      full_output_file='full_output.csv',
-                     plot_folder='./plots', folded=False):
+                     samples_plot_folder='./plots', folded=False):
         '''
         Saves results to .csv files
 
@@ -296,7 +300,7 @@ class OutputHandler:
             from the results dictionaries -
             [[best value, median, 16th percentile, 84th percentile, stdev],...]
         '''
-        print('Saving batched results')
+        print('Saving results...')
         fit_ld = priors[0].fit_ld
 
         results_dicts = []
@@ -305,16 +309,20 @@ class OutputHandler:
             results_dicts.append(self.get_results_dict(ri, priors[i], lightcurves[i]))
             try:
                 if folded:
-                    sample_folder = os.path.join(plot_folder, 'folded')
+                    sample_folder = os.path.join(samples_plot_folder, 'folded')
                 else:
-                    sample_folder = os.path.join(plot_folder, 'unfolded')
-                self._plot_samples(ri, priors[i], 'batch_{}_samples.png'.format(i), sample_folder)
+                    sample_folder = os.path.join(samples_plot_folder, 'unfolded')
+                print(f'Plotting batch {i} samples to {os.path.join(sample_folder, f"batch_{i}_samples.png")}')
+                self._plot_samples(ri, priors[i], f'batch_{i}_samples.png', sample_folder)
             except Exception as e:
                 print(e)
         best_vals, combined_results = self.get_best_vals(results_dicts, fit_ld)
 
+        print(f'Saving summary results to {os.path.join(output_folder, summary_file)}')
         self._save_results_dict(best_vals, os.path.join(output_folder, summary_file), False)
+        print(f'Saving full results to {os.path.join(output_folder, full_output_file)}')
         self._save_results_dict(combined_results, os.path.join(output_folder, full_output_file), True)
+        print('Results saved')
 
         return best_vals, combined_results
 
@@ -338,6 +346,7 @@ class OutputHandler:
         results_dict : dict
             Each entry is [best value, median, 16th percentile, 84th percentile, stdev]
         '''
+        print('Extracting results dict')
         results_dict = {}
 
         # Loop over all fitting parameters and access the results
@@ -376,7 +385,6 @@ class OutputHandler:
                             results_dict[param_name][i] = []
 
                         results_dict[param_name][i].append(result_entry)
-        print('result_dict keys:',results_dict.keys())
         return results_dict
 
     def get_best_vals(self, results_dicts, priors, fit_ld=True, return_combined=True):
@@ -401,13 +409,11 @@ class OutputHandler:
             The combined results dictionary. Returned if return_combined is
             True
         '''
+        print('Calculating best values for this run')
         best_vals = {}
 
         # Collate the results dicts
         combined_dict = self.combine_results_dicts(results_dicts)
-
-        print('Combined dict t0:', combined_dict['P'])
-        print('Combined dict P:', combined_dict['t0'])
 
         for param in combined_dict:
             # Loop through each parameter
@@ -445,6 +451,7 @@ class OutputHandler:
             from the results dictionaries -
             [[best value, median, 16th percentile, 84th percentile, stdev],...]
         '''
+        print('Combining results dicts')
         combined_dict = {}
         # Loop through each dict and the params
         for rd in results_dicts:
@@ -464,7 +471,6 @@ class OutputHandler:
                 if combined_dict[param][i] is not None:
                     combined_dict[param][i] = np.array(combined_dict[param][i])
 
-        print('combined_dict keys:', combined_dict.keys())
         return combined_dict
 
     def add_best_u(self, best_dict, combined_dict):
@@ -684,10 +690,10 @@ class OutputHandler:
                 if self.best_model[key][i] is None:
                     failed_key.append(key)
                     failed_index.append(i)
-
-        print('Best model failed keys:', failed_key)
-        print('Best model failed indices:', failed_index)
-
+        if len(failed_key) > 0:
+            print('Best model failed keys:', failed_key)
+            print('Best model failed indices:', failed_index)
+            raise RuntimeError('Something has gone wrong with the best model generation')
 
         print('Initialising best batman models')
 
@@ -870,9 +876,6 @@ class OutputHandler:
                 ax.axvline(best[xi], color="g")
                 ax.axhline(best[yi], color="g")
                 ax.plot(best[xi], best[yi], "sg")
-                ax.axvline(median[xi], color="r")
-                ax.axhline(median[yi], color="r")
-                ax.plot(median[xi], median[yi], "sr")
 
         fig.tight_layout()
 
@@ -883,13 +886,39 @@ class OutputHandler:
 
     def _plot_data(self, phase, flux, flux_err, model_phase, model_curve,
                        residuals, fname, title=None, folder='./plots',
-                       figsize=(12,8), marker_color='dimgrey', line_color='black'):
+                       figsize=(12,8), marker_color='dimgrey', line_color='black',
+                       bin_data=False, cadence=2, binned_colour='red'):
             '''
             Plots the lightcurve and model consistently
             '''
             # Sort into phase orders
             data_order = np.argsort(phase)
             model_order = np.argsort(model_phase)
+
+            phase = phase[data_order]
+            flux = flux[data_order]
+            if flux_err is not None:
+                flux_err = flux_err[data_order]
+            residuals = residuals[data_order]
+            model_phase = model_phase[model_order]
+            model_curve = model_curve[model_order]
+
+            residuals_std = np.std(residuals)
+
+            if bin_data:
+                # Now we have to work out the binned values
+                if flux_err is None:
+                    err_for_bin = np.ones(len(flux))
+                else:
+                    err_for_bin = flux_err
+                final_filter_lc = LightCurve(phase, flux, err_for_bin)
+                binned_phase, binned_flux, binned_err, binned_residuals = final_filter_lc.bin(cadence, residuals)
+
+                binned_residuals_std = np.std(binned_residuals)
+
+                if flux_err is None:
+                    binned_err = None
+
 
             # Set up the figure and the relevant axes
             gs = gridspec.GridSpec(6, 7)
@@ -901,21 +930,35 @@ class OutputHandler:
 
             ####### PLOT! #########
             # Main plot
-            main_ax.errorbar(phase[data_order], flux[data_order], flux_err[data_order],
+            main_ax.errorbar(phase, flux, flux_err,
                              zorder=1, capsize=2,
                              linestyle='', marker='.', color=marker_color,
                              elinewidth=0.8, alpha=0.6)
 
-            main_ax.plot(model_phase[model_order], model_curve[model_order],
+            main_ax.plot(model_phase, model_curve, zorder=3,
                          linewidth=2, color=line_color)
+            if bin_data:
+                main_ax.errorbar(binned_phase, binned_flux, binned_err,
+                                 zorder=2, capsize=2, markersize=4,
+                                 linestyle='', marker='.', color=binned_colour,
+                                 elinewidth=0.8, alpha=0.6)
+
             # Residuals
-            residual_ax.errorbar(phase[data_order], residuals[data_order], flux_err[data_order], zorder=2,
+            residual_ax.errorbar(phase, residuals, flux_err, zorder=1,
                                  linestyle='', marker='.', capsize=2,
                                  color=marker_color, elinewidth=0.8,
                                  alpha=0.6)
 
             residual_ax.axhline(0, linestyle='dashed', color='gray',
-                                linewidth=1, zorder=1)
+                                linewidth=1, zorder=3)
+
+            if bin_data:
+                residual_ax.errorbar(binned_phase, binned_residuals,
+                                     binned_err, zorder=2, markersize=4,
+                                     linestyle='', marker='.', capsize=2,
+                                     color=binned_colour, elinewidth=0.8,
+                                     alpha=0.6)
+
             # Histogram residuals
             rgba_color = colors.to_rgba(marker_color)
             facecolor = (rgba_color[0], rgba_color[1], rgba_color[2], 0.6)
@@ -924,6 +967,18 @@ class OutputHandler:
                          histtype='stepfilled')
             hist_ax.axhline(0, linestyle='dashed', color='gray',
                             linewidth=1, zorder=1)
+
+
+            if bin_data:
+                rgba_color = colors.to_rgba(binned_colour)
+                facecolor = (rgba_color[0], rgba_color[1], rgba_color[2], 0.6)
+                hist_ax.hist(binned_residuals, bins=30, orientation='horizontal',
+                             color=facecolor, edgecolor=rgba_color,
+                             histtype='stepfilled')
+
+                hist_ax.text(0.02, 0.93, r'$\sigma_{unbinned} = $' + str(round(residuals_std, 5)), transform=hist_ax.transAxes)
+                hist_ax.text(0.02, 0.85, r'$\sigma_{binned}$ = ' + str(round(binned_residuals_std, 5)), transform=hist_ax.transAxes)
+
 
             # FORMATTING AXES
             # Prune axes

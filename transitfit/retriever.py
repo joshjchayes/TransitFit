@@ -328,6 +328,13 @@ class Retriever:
         #                  line_color, folded_P=folded_P,
         #                  folded_t0=folded_t0)
         #print('New saving')
+
+        if 'filter' in plot_folder:
+            plot_folder = os.path.dirname(plot_folder)
+            plot_folder = os.path.join(os.path.dirname(plot_folder), 'marginalised_plots', os.path.basename(plot_folder))]
+        else:
+            plot_folder = os.path.join(plot_folder, 'marginalised_plots')
+
         output_handler.save_results(all_results, all_priors,
                                     all_lightcurves, output_folder,
                                     summary_file, full_output_file,
@@ -402,7 +409,7 @@ class Retriever:
             quick_folder = os.path.join(plot_folder, 'folded_curves')
             quick_plot(lc, quick_fname.format(lci[1]), quick_folder, folded_t0, folded_P)
 
-            print('Filter {} quick look phase folde saved to {}'.format(lci, os.path.join(quick_folder, quick_fname)))
+            print('Filter {} quick look phase fold saved to {}'.format(lci, os.path.join(quick_folder, quick_fname)))
 
         # Get the batches, and remember that now we are not detrending or
         # normalising since that was done in the first stage
@@ -726,65 +733,43 @@ class Retriever:
         # average and then use the detrending, normalisation, P and t0 values
         # to produce a single LightCurve comprised by folding all the
         # detrended and normalised curves within a filter
-
         n_filters = self.n_filters
         fit_ttv = self.fit_ttv
-
-        # Blank arrays to store the global parameter retrievals
-        retrieved_P = []
-        retrieved_P_err = []
-
-        # We need t0 for each epoch
-        retrieved_t0 = [[] for f in range(self.n_epochs)]
-        retrieved_t0_err = [[] for f in range(self.n_epochs)]
 
         ###############################################################
         ###                  GET P AND t0 VALUES                    ###
         ###############################################################
-        for fi , filter_results in enumerate(results):
-            for ri, result in enumerate(filter_results):
-                prior = priors[fi][ri]
+        result_handler = OutputHandler(self.all_lightcurves, self._full_prior, self.host_r)
 
-                # Get the results and errors dictionaries
-                results_dict, errors_dict = prior._interpret_final_results(result)
+        results_dicts = []
+        for fi in range(n_filters):
+            n_batches = len(results[fi])
+            for bi in range(n_batches):
+                result_dict = result_handler.get_results_dict(results[fi][bi], priors[fi][bi], lightcurves[fi][bi])
+                results_dicts.append(result_dict)
 
-                for i in np.ndindex(lightcurves[fi][ri].shape):
+        combined_results = result_handler.combine_results_dicts(results_dicts)
 
-                    tidx = lightcurves[fi][ri][i].telescope_idx
-                    fidx = lightcurves[fi][ri][i].filter_idx
-                    eidx = lightcurves[fi][ri][i].epoch_idx
-
-                    retrieved_P.append(results_dict['P'][i])
-                    retrieved_P_err.append(errors_dict['P'][i])
-
-                    retrieved_t0[eidx].append(results_dict['t0'][i])
-                    retrieved_t0_err[eidx].append(errors_dict['t0'][i])
-
-
-        print(retrieved_t0, retrieved_t0_err)
-        print(retrieved_P, retrieved_P_err)
-        single_val = not self.fit_ttv
-
-        # Find the weighted average to get the best fit values of P and t0
+        # Get best P value
         if self.fit_ttv:
-            # We aren't fitting P, so don't actually have a value to average§
-            best_P, P_err = retrieved_P[0], 0
+            # P is fixed
+            best_P, best_P_err = combined_results['P'][None,None,None][0,0], 0
         else:
-            best_P, P_err = weighted_avg_and_std(retrieved_P, retrieved_P_err, single_val=True)
-        best_t0, t0_err = weighted_avg_and_std(retrieved_t0, retrieved_t0_err, single_val=single_val)
+            best_P, best_P_err = weighted_avg_and_std(combined_results['P'][None,None,None][:,0], combined_results['P'][None,None,None][:,-1], single_val=True)
 
-        if not self.fit_ttv:
-            # Put the t0 values and errors into an array just for simplicity
-            # in dealing with the two modes
-            best_t0 = best_t0 * np.ones(self.n_epochs)
-            t0_err = t0_err * np.ones(self.n_epochs)
+        # Get bast t0 values, allowing for ttv mode
+        best_t0, best_t0_err = np.full(self.n_epochs, None), np.full(self.n_epochs, None)
 
-        print('P = {} ± {}'.format(round(best_P, 8),  round(P_err, 8)))
+        for ei in range(self.n_epochs):
+            best_t0[ei], best_t0_err[ei] = weighted_avg_and_std(combined_results['t0'][None,ei,None][:,0], combined_results['t0'][None,ei,None][:,-1], single_val=True)
+
+        print('Folding light curves with these parameters:')
+        print('P = {} ± {}'.format(round(best_P, 8),  round(best_P_err, 8)))
         if self.fit_ttv:
             for i, t0i in enumerate(best_t0):
-                print('t0 = {} ± {} (epoch {})'.format(round(t0i, 6),  round(t0_err[i], 6), i))
+                print('t0 = {} ± {} (epoch {})'.format(round(t0i, 6),  round(best_t0_err[i], 6), i))
         else:
-            print('t0 = {} ± {}'.format(best_t0.round(6)[0],  t0_err.round(6)[0]))
+            print('t0 = {} ± {}'.format(round(best_t0[0],6),  round(best_t0_err[0],6)))
 
         ###############################################################
         ###            NORMALISATION/DETRENDING/FOLDING             ###
