@@ -331,7 +331,7 @@ class Retriever:
 
         if 'filter' in plot_folder:
             plot_folder = os.path.dirname(plot_folder)
-            plot_folder = os.path.join(os.path.dirname(plot_folder), 'marginalised_plots', os.path.basename(plot_folder))]
+            plot_folder = os.path.join(os.path.dirname(plot_folder), 'marginalised_plots', os.path.basename(plot_folder))
         else:
             plot_folder = os.path.join(plot_folder, 'marginalised_plots')
 
