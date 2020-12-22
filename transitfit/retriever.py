@@ -188,7 +188,8 @@ class Retriever:
             sampler.run_nested(maxiter=maxiter, maxcall=maxcall, dlogz=dlogz)
         except BaseException as e:
             # Added for testing
-            print(f'Exception ({type(e)}) encountered')
+            print(f'Exception ({type(e)}) encountered:')
+            print(e)
             if type(e) == RuntimeError:
                 print('If this is an error from sampling getting stuck, check your priors and the samples. This is often seen when the true value is at the edge of/outside your priors!')
 
