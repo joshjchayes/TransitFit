@@ -281,9 +281,9 @@ def quick_plot(lightcurve, fname, folder_path, t0=None, period=None):
     os.makedirs(folder_path, exist_ok=True)
 
     if not base_fname[-4:] == '.png':
-        fname += '_raw_times.png'
+        fname = base_fname + '_raw_times.png'
     else:
-        fname += base_fname[:-4] + '_raw_times.png'
+        fname = base_fname[:-4] + '_raw_times.png'
 
     fig.savefig(os.path.join(folder_path, fname),
                 bbox_inches='tight')
@@ -313,9 +313,9 @@ def quick_plot(lightcurve, fname, folder_path, t0=None, period=None):
     os.makedirs(folder_path, exist_ok=True)
 
     if not base_fname[-4:] == '.png':
-        fname += '_phase.png'
+        fname = base_fname + '_phase.png'
     else:
-        fname += base_fname[:-4] + '_phase.png'
+        fname = base_fname[:-4] + '_phase.png'
 
     fig.savefig(os.path.join(folder_path, fname),
                 bbox_inches='tight')

@@ -853,7 +853,6 @@ class OutputHandler:
         '''
         samples = result.samples
         best = result.best
-        median = result.median
         ndim = len(best)
         labels = prior.fitting_params[:,0]
 

@@ -268,10 +268,6 @@ class LightCurve:
 
         times = base_t0 + period * (phase - 0.5)
 
-
-
-        #times = self.times - (self.times//period) * period + t0
-
         return LightCurve(times, self.flux, self.errors, self.telescope_idx,
                           self.filter_idx, self.epoch_idx, self.curve_labels,
                           self._telescope_array, self._filter_array,
@@ -373,6 +369,8 @@ class LightCurve:
 
         # Convert t14 to days:
         t14 /= 60 * 24
+
+        print(f't14 is {t14} days')
 
         # Work out the times, flux, and errors for each epoch
         t_new = [[] for i in range(n_periods)]

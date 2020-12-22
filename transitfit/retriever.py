@@ -186,11 +186,18 @@ class Retriever:
 
         try:
             sampler.run_nested(maxiter=maxiter, maxcall=maxcall, dlogz=dlogz)
-        except Exception as e:
+        except BaseException as e:
             # Added for testing
-            print(e)
+            print(e'Exception (type {type(e)}) encountered')
             if type(e) == RuntimeError:
                 print('If this is an error from sampling getting stuck, check your priors. This is often seen when the true value is at the edge of/outside your priors!')
+
+            print('Plotting samples at time of exception')
+            # Plot the samples
+            results = sampler.results
+            results.best = results.samples[np.argmax(results.logl)]
+            output_handler = OutputHandler(lightcurves, self._full_prior, self.host_r)
+            output_handler._plot_samples(results, priors, 'Exception_posteriors.png')
             raise
 
 
@@ -310,7 +317,6 @@ class Retriever:
             # Now we want to get the lightcurves and priors for each batch
             batch_prior, batch_lightcurves = self._get_priors_and_curves(lightcurves, ld_fit_method, batch, detrend, normalise, folded, folded_P, folded_t0, suppress_warnings=True)
 
-            #print(batch_prior)
             # Run the retrieval!
             results, ndof = self._run_dynesty(batch_lightcurves, batch_prior, maxiter,
                                               maxcall, sample, nlive,
@@ -321,16 +327,8 @@ class Retriever:
             all_lightcurves.append(batch_lightcurves)
 
         # Make outputs etc
-        #print('Old saving')
-        #self._save_results(all_results, all_priors, all_lightcurves,
-        #                  output_folder, 'summary_output_old_method.csv', 'full_output_old_method.csv',
-        #                  './fitted_lightcurves/old_method', plot, './plots/old_method', marker_color,
-        #                  line_color, folded_P=folded_P,
-        #                  folded_t0=folded_t0)
-        #print('New saving')
-
         if 'filter' in plot_folder:
-            plot_folder = os.path.dirname(plot_folder)
+            #plot_folder = os.path.dirname(plot_folder)
             plot_folder = os.path.join(os.path.dirname(plot_folder), 'marginalised_plots', os.path.basename(plot_folder))
         else:
             plot_folder = os.path.join(plot_folder, 'marginalised_plots')
@@ -405,9 +403,9 @@ class Retriever:
 
         # Plot the folded lightcurves so we can check them
         for lci, lc in np.ndenumerate(folded_curves):
-            quick_fname = 'quick_plot:folded_curve_filter_{}.png'.format(lci[1])
+            quick_fname = 'quick_plot-folded_curve_filter_{}.png'.format(lci[1])
             quick_folder = os.path.join(plot_folder, 'folded_curves')
-            quick_plot(lc, quick_fname.format(lci[1]), quick_folder, folded_t0, folded_P)
+            quick_plot(lc, quick_fname, quick_folder, folded_t0, folded_P)
 
             print('Filter {} quick look phase fold saved to {}'.format(lci, os.path.join(quick_folder, quick_fname)))
 
