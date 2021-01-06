@@ -179,7 +179,7 @@ class PriorInfo:
     ###############################################################
 
     def fit_detrending(self, lightcurves, method_list, method_index_array,
-                       low_lim=-100, high_lim=100):
+                       low_lim=-1000, high_lim=1000):
         '''
         '''
         if self.detrend:

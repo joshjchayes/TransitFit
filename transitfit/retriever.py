@@ -10,6 +10,7 @@ from copy import deepcopy
 import os, csv
 import traceback
 import multiprocessing as mp
+import pandas as pd
 
 from transitfit import io
 
@@ -81,6 +82,16 @@ class Retriever:
 
         # Load in the full LightCurve data and detrending index array
         self.all_lightcurves, self.detrending_index_array = read_input_file(data_files, data_skiprows)
+
+        # intialise detrending in each light curve
+        for i, lc in np.ndenumerate(self.all_lightcurves):
+            detrending_idx = self.detrending_index_array[i]
+            detrending_method = detrending_list[detrending_idx]
+
+            if detrending_method[0] == 'nth order':
+                lc.set_detrending('nth order', order=detrending_method[1], method_idx=detrending_idx)
+            if detrending_method[0] == 'custom':
+                lc.set_detrending('custom', function=detrending_method[1], method_idx=detrending_idx)
 
         self.n_total_lightcurves = np.sum(self.all_lightcurves!=None)
 
@@ -424,6 +435,123 @@ class Retriever:
                         lightcurve_folder=lightcurve_folder, plot=plot, plot_folder=plot_folder,
                         marker_color=marker_color, line_color=line_color, bound=bound)
 
+    def _run_detrending_retrieval(self,ld_fit_method, detrend, normalise,
+                                  maxiter, maxcall, sample, nlive, dlogz,
+                                  output_folder='./output_parameters',
+                                  summary_file='summary_output.csv',
+                                  full_output_file='full_output.csv',
+                                  lightcurve_folder='./fitted_lightcurves',
+                                  plot=True, plot_folder='./plots',
+                                  marker_color='dimgrey', line_color='black',
+                                  max_parameters=25, overlap=2, bound='multi'):
+        '''
+        Runs an initial retrieval to normalise and detrend the curves, then
+        runs a second retrieval using the detrended curves.
+        '''
+
+        # First up, run each filter as if for folding (epoch batches) and
+        # use the results to detrend and normalise the lightcurves without
+        # folding them
+        detrending_batches = self._get_folding_batches(max_parameters, detrend, normalise, overlap)
+
+        # Blank lists to fill with results etc
+        results_list = []
+        priors_list = []
+        lightcurve_list = []
+
+        print('Running pre-detrending retrievals...')
+        # Now run the batches for each filter
+        for fi, filter_batches in enumerate(detrending_batches):
+            print('Filter {} of {}'.format(fi + 1, self.n_filters))
+
+            # Make a bunch of paths etc for saving the partial results
+            filter_output_folder = os.path.join(output_folder, 'filter_{}_parameters'.format(fi))
+            filter_summary = 'filter_{}_summary.csv'.format(fi)
+            filter_full_output = 'filter_{}_full_output.csv'.format(fi)
+            filter_lightcurve_folder = os.path.join(lightcurve_folder, 'filter_{}_curves'.format(fi))
+            filter_plots_folder = os.path.join(plot_folder, 'filter_{}_plots'.format(fi))
+
+            results, priors, lightcurves = self._run_batched_retrieval(self.all_lightcurves,
+                                            filter_batches,
+                                            ld_fit_method,
+                                            detrend, normalise,
+                                            maxiter, maxcall,
+                                            sample, nlive, dlogz,
+                                            full_return=True,
+                                            output_folder=filter_output_folder,
+                                            summary_file=filter_summary,
+                                            full_output_file=filter_full_output,
+                                            lightcurve_folder=filter_lightcurve_folder,
+                                            plot=plot, plot_folder=filter_plots_folder,
+                                            marker_color=marker_color, line_color=line_color,
+                                            bound=bound)
+
+            results_list.append(results)
+            priors_list.append(priors)
+            lightcurve_list.append(lightcurves)
+
+        print('Collating retrieved detrending and normalisation coefficients...')
+        # Get the best detrending coeffs from the summary files
+        final_detrending_coeffs = {}
+        final_norm = np.full(self.all_lightcurves.shape, None)
+
+        for fi in range(self.n_filters):
+            summary_file = os.path.join(output_folder, f'filter_{fi}_parameters/filter_{fi}_summary.csv')
+
+            # Pull out the detrending coeffs from the summary files
+            filter_result = pd.read_csv(summary_file)
+
+            for i, row in filter_result.iterrows():
+                param, tidx, fidx, eidx, best, err = row
+                if param[0] == 'd':
+                    tidx = int(tidx)
+                    fidx = int(fidx)
+                    eidx = int(eidx)
+                    # This is a detrending coeff
+                    if not param in final_detrending_coeffs:
+                        # Initialise param in dict
+                        final_detrending_coeffs[param] = np.full(self.all_lightcurves.shape, None)
+                    # Store param
+                    final_detrending_coeffs[param][tidx, fidx, eidx] = best
+                elif param == 'norm':
+                    tidx = int(tidx)
+                    fidx = int(fidx)
+                    eidx = int(eidx)
+                    final_norm[tidx, fidx, eidx] = best
+
+
+        # Detrend but don't fold!
+        detrended_curves = np.full(self.all_lightcurves.shape, None)
+
+        print('Detrending and normmalising light curves...')
+        for i, lc in np.ndenumerate(self.all_lightcurves):
+            if lc is not None:
+                method_idx = lc.detrending_method_idx
+                method_detrending_coeffs = self._full_prior.detrending_coeffs[method_idx]
+
+                # pull out the detrending values
+                d = [final_detrending_coeffs[di][i] for di in method_detrending_coeffs]
+
+                norm = final_norm[i]
+
+                detrended_curves[i] = lc.create_detrended_LightCurve(d, norm)
+
+        # Then run a standard batched retrieval on these, allowing P and t0
+        # values to be fitted
+        print('Running post-detrending retrievals...')
+
+        batches = self._get_non_folding_batches(detrended_curves, max_parameters, ld_fit_method,
+                                     detrend=False, normalise=False, overlap=overlap)
+
+        results = self._run_batched_retrieval(detrended_curves, batches, ld_fit_method, False,
+                        False, maxiter, maxcall, sample, nlive, dlogz,
+                        False, output_folder=output_folder,
+                        summary_file=summary_file, full_output_file=full_output_file,
+                        lightcurve_folder=lightcurve_folder, plot=plot, plot_folder=plot_folder,
+                        marker_color=marker_color, line_color=line_color, bound=bound)
+
+
+
     def run_retrieval(self, ld_fit_method='independent', fitting_mode='auto',
                       max_parameters=25, maxiter=None, maxcall=None,
                       sample='auto', nlive=300, dlogz=None, plot=True,
@@ -456,7 +584,7 @@ class Retriever:
                   each filter, with no coupling to the ldtk models.
                 - `'off'` : Will use the fixed value provided in the input file
             Default is `'independent'`
-        fitting_mode : {'auto', 'all', 'folded', 'batched'}, optional
+        fitting_mode : {'auto', 'all', '2_stage', 'folded', 'batched'}, optional
             Determines if the fitting algorithm is limited by max_parameters.
             If the number of parameters to be fitted exceeds max_parameters,
             then the retrieval will split into fitting each filter
@@ -466,8 +594,10 @@ class Retriever:
             `'auto'`, then the mode used will be determined automatically.
             If fitting_mode is `'all'`, then all light curves will be
             attempted to be fitted simultaneously, regardless of the
-            value of max_parameters. If fitting_mode is `'folded'`, then
-            the folding approach will be used. Default is `'auto'`
+            value of max_parameters. If fitting_mode is '2_stage', then the
+            curves will be detrended before being fitted again. If fitting_mode
+            is `'folded'`, then the folding approach will be used. Default is
+            `'auto'`.
         max_parameters : int, optional
             The maximum number of parameters to use in a single retrieval.
             Default is 25.
@@ -536,7 +666,7 @@ class Retriever:
                     summary_file, full_output_file, lightcurve_folder, plot,
                     plot_folder, marker_color, line_color, bound)
 
-        if fitting_mode.lower() == 'batched':
+        elif fitting_mode.lower() == 'batched':
             # In this mode, we are generating batches which contain all
             # lightcurves for a filter. Batches may contain more than one
             # filter, but filters will not be split across multiple batches
@@ -551,11 +681,17 @@ class Retriever:
                     marker_color, line_color, bound)
 
 
-        if fitting_mode.lower() == 'folded':
+        elif fitting_mode.lower() == 'folded':
             # In this mode, we are running multi-epoch retrieval on each
             # filter separately, and then producing phase folded lightcurves
             # to run a multi-filter retrieval on.
             results = self._run_folded_retrieval(ld_fit_method, detrend, normalise,
+                    maxiter, maxcall, sample, nlive, dlogz, output_folder,
+                    summary_file, full_output_file, lightcurve_folder, plot,
+                    plot_folder, marker_color, line_color, max_parameters, overlap, bound)
+
+        elif fitting_mode.lower() == '2_stage':
+            results = self._run_detrending_retrieval(ld_fit_method, detrend, normalise,
                     maxiter, maxcall, sample, nlive, dlogz, output_folder,
                     summary_file, full_output_file, lightcurve_folder, plot,
                     plot_folder, marker_color, line_color, max_parameters, overlap, bound)

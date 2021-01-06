@@ -148,7 +148,7 @@ def run_retrieval(data_files, priors, filter_info=None,
               mode, it it strongly recommended to set values for the
               Kipping q parameters using the priors file.
         Default is `'independent'`
-    fitting_mode : {`'auto'`, `'all'`, `'folded'`, `'batched'`}, optional
+    fitting_mode : {`'auto'`, `'all'`, `'2_stage'`, `'folded'`, `'batched'`}, optional
         The approach TransitFit takes towards limiting the number of parameters
         being simultaneously fitted. The available modes are:
         - `'auto'` : Will calculate the number of parameters required to fit
@@ -158,6 +158,9 @@ def run_retrieval(data_files, priors, filter_info=None,
         - `'all'` : Fits all parameters simultaneously, with no folding or
           batching of curves. Should be used with caution when fitting very
           large (~< 30) numbers of parameters.
+        - `'2_stage'` : Fits in 2 stages, first detrending the light curves and
+          then fitting the detrended curves simultaneously, using the
+          `'batched'` approach if required.
         - `'folded'` : Useful for fitting curves with multiple epochs for each
           filter. TransitFit will fit each filter separately and produce a
           period-folded light curve for each filter, before fitting these

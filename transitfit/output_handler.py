@@ -86,7 +86,7 @@ class OutputHandler:
                 for coeff in np.ravel(global_prior.detrending_coeffs):
                     if self.best_model[coeff][i] is not None:
                         if d[i] is None:
-                            d[i] = [self.best_model[coeff][i]]
+                            d[i] = [self.best_model[coeff][i][0]]
                         else:
                             d[i].append(self.best_model[coeff][i][0])
 
@@ -94,6 +94,8 @@ class OutputHandler:
             # Loop through each light curve, make the best model, and save it!
             if lc is not None:
                 # First, detrend and normalise the curve
+
+
                 flux, flux_err = lc.detrend_flux(d[i], self.best_model['norm'][i][0], normalise=True)
 
                 # Get phase
@@ -564,7 +566,7 @@ class OutputHandler:
         '''
         print('Initialising best fit model')
         mode = mode.lower()
-        if mode not in ['full', 'batched', 'folded']:
+        if mode not in ['all', 'batched', 'folded', '2_stage']:
             raise ValueError('Unrecognised mode {}'.format(mode))
 
         best_model_dict = {}
@@ -614,6 +616,7 @@ class OutputHandler:
                     best_model_dict[param][tidx, fidx, eidx] = [best, err]
 
         if mode in ['full', 'batched']:
+            self.best_model = best_model_dict
             return best_model_dict
 
         # Now we have to go through the results for each of the filters and

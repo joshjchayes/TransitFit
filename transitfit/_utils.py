@@ -179,7 +179,7 @@ def host_radii_to_AU(a, R, a_err=0, R_err=0, calc_err=False):
     if not calc_err:
         return (a * R * R_sun)/AU
 
-    err = np.sqrt((R * R_sun * a_err )**2 + (a * R_err * R_sun)**2)
+    err = np.sqrt ((R * R_sun * a_err )**2 + (a * R_err * R_sun)**2)
 
     return (a * R * R_sun)/AU, err/AU
 
