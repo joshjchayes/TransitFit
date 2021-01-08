@@ -496,10 +496,10 @@ class Retriever:
         final_norm = np.full(self.all_lightcurves.shape, None)
 
         for fi in range(self.n_filters):
-            summary_file = os.path.join(output_folder, f'filter_{fi}_parameters/filter_{fi}_summary.csv')
+            filter_summary_file = os.path.join(output_folder, f'filter_{fi}_parameters/filter_{fi}_summary.csv')
 
             # Pull out the detrending coeffs from the summary files
-            filter_result = pd.read_csv(summary_file)
+            filter_result = pd.read_csv(filter_summary_file)
 
             for i, row in filter_result.iterrows():
                 param, tidx, fidx, eidx, best, err = row
