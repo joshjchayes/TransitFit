@@ -194,7 +194,7 @@ def estimate_t14(Rp, Rs, a, P):
 
     return (Rp * R_jup + Rs * R_sun)/(np.pi * a * AU) * P * 24 * 60
 
-def split_lightcurve_file(path, t0, P,t14=20, cutoff=0.25, window=2.5,
+def split_lightcurve_file(path, t0, P,t14=20, cutoff=0.25, window=5,
                           new_base_fname='split_curve'):
     '''
     Split a light curve file into multiple single epoch files
@@ -220,7 +220,7 @@ def split_lightcurve_file(path, t0, P,t14=20, cutoff=0.25, window=2.5,
         discarded. Default is 0.25
     window : float, optional
         Data outside of the range [t0 ± (0.5 * t14) * window] will be
-        discarded.
+        discarded. Default is 5.
     new_base_fname : str, optional
         The base name for the new files, which will have numbers appended
         depending on the epoch. This can be used to specify a relative path
