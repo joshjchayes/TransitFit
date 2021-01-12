@@ -239,7 +239,7 @@ def split_lightcurve_file(path, t0, P,t14=20, cutoff=0.25, window=5,
     full_lightcurve = LightCurve(*read_data_file(path))
 
     # Split the full curve into individual epochs
-    single_epoch_curves = full_lightcurve.split(t0, P, t14, window)
+    single_epoch_curves = full_lightcurve.split(t0, P, t14, cutoff, window)
     dirname = os.path.dirname(path)
 
     paths = []
