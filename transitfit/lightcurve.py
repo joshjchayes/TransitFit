@@ -404,9 +404,9 @@ class LightCurve:
 
                 # Now a bunch more checks. Need to ensure there is data around
                 # the expected t0 (ie we have a transit!). We keep the transit
-                # if there is data within t14/cutoff of the predicted t0
+                # if there is data within t14*cutoff of the predicted t0
                 # (found by folding each epoch)
-                if np.any(abs((t_new[i]- ((t_new[i] - t0)//P) * P) - t0) <= t14/cutoff):
+                if np.any(abs((t_new[i]- ((t_new[i] - t0)//P) * P) - t0) <= t14*cutoff):
 
                     # Now we cut out the window:
                     if window is None:

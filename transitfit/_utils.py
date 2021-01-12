@@ -184,6 +184,16 @@ def host_radii_to_AU(a, R, a_err=0, R_err=0, calc_err=False):
     return (a * R * R_sun)/AU, err/AU
 
 
+def estimate_t14(Rp, Rs, a, P):
+    '''
+    Estimates t14 in minutes, if P is in days
+    '''
+    AU = 1.495978707e11
+    R_sun = 6.957e8
+    R_jup = 71492000
+
+    return (Rp * R_jup + Rs * R_sun)/(np.pi * a * AU) * P * 24 * 60
+
 def split_lightcurve_file(path, t0, P,t14=20, cutoff=0.25, window=2.5,
                           new_base_fname='split_curve'):
     '''
