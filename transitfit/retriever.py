@@ -896,7 +896,7 @@ class Retriever:
         best_t0, best_t0_err = np.full(self.n_epochs, None), np.full(self.n_epochs, None)
 
         for ei in range(self.n_epochs):
-            best_t0[ei], best_t0_err[ei] = weighted_avg_and_std(combined_results['t0'][None,ei,None][:,0], combined_results['t0'][None,ei,None][:,-1], single_val=True)
+            best_t0[ei], best_t0_err[ei] = weighted_avg_and_std(combined_results['t0'][None,None,ei][:,0], combined_results['t0'][None,None,ei][:,-1], single_val=True)
 
         print('Folding light curves with these parameters:')
         print('P = {} ± {}'.format(round(best_P, 8),  round(best_P_err, 8)))
