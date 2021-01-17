@@ -72,19 +72,21 @@ class ParamArray:
         return self.array[idx]
 
     def add_uniform_fit_param(self, low_lim, high_lim, telescope_idx=None,
-                              filter_idx=None, epoch_idx=None):
+                              filter_idx=None, epoch_idx=None,
+                              negative_allowed=True):
         '''
         Adds a parameter to be fitted with uniform sampling
         '''
-        self.set_value(_UniformParam(low_lim, high_lim),
+        self.set_value(_UniformParam(low_lim, high_lim, negative_allowed),
                        telescope_idx, filter_idx, epoch_idx)
 
     def add_gaussian_fit_param(self, mean, stdev, telescope_idx=None,
-                               filter_idx=None, epoch_idx=None):
+                               filter_idx=None, epoch_idx=None,
+                               negative_allowed=True):
         '''
         Adds a gaussian sampled fitting parameter
         '''
-        self.set_value(_GaussianParam(mean, stdev),
+        self.set_value(_GaussianParam(mean, stdev, negative_allowed),
                        telescope_idx, filter_idx, epoch_idx)
 
     def from_unit_interval(self, u, telescope_idx=None, filter_idx=None,

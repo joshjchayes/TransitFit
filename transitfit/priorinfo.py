@@ -142,9 +142,14 @@ class PriorInfo:
         Adds a new parameter which will be fitted uniformly in the range given
         by low_lim and high_lim
         '''
+        if name in ['a', 'P', 'rp', 'inc', 'ecc', 'w']:
+            negative_allowed = False
+        else:
+            negative_allowed = True
+
         self.priors[name].add_uniform_fit_param(low_lim, high_lim,
                                                 telescope_idx, filter_idx,
-                                                epoch_idx)
+                                                epoch_idx, negative_allowed)
 
         # Store some info for later
         if self.fitting_params is None:
@@ -162,10 +167,14 @@ class PriorInfo:
         #if name == 't0' and self.fit_ttv:
             # Set the Gaussian width to 0.1 days for ttv fitting mode
             #stdev = 0.1
+        if name in ['a', 'P', 'rp', 'inc', 'ecc', 'w']:
+            negative_allowed = False
+        else:
+            negative_allowed = True
 
         self.priors[name].add_gaussian_fit_param(mean, stdev,
                                                  telescope_idx, filter_idx,
-                                                 epoch_idx)
+                                                 epoch_idx, negative_allowed)
 
         # Store some info for later
         if self.fitting_params is None:

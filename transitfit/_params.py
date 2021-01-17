@@ -21,13 +21,14 @@ class _Param:
 
 
 class _UniformParam(_Param):
-    def __init__(self, low_lim, high_lim):
+    def __init__(self, low_lim, high_lim, negative_allowed=True):
         if low_lim >= high_lim:
             raise ValueError('low_lim >= high_lim')
 
         super().__init__((high_lim + low_lim)/2)
         self.low_lim = low_lim
         self.high_lim = high_lim
+        self.negative_allowed = negative_allowed
 
     def from_unit_interval(self, u):
         '''
@@ -36,10 +37,13 @@ class _UniformParam(_Param):
         '''
         if u > 1 or u < 0:
             raise ValueError('u must satisfy 0 < u < 1. ')
-        return u * (self.high_lim - self.low_lim) + self.low_lim
+        val = u * (self.high_lim - self.low_lim) + self.low_lim
+        if self.negative_allowed:
+            return val
+        return abs(val)
 
 class _GaussianParam(_Param):
-    def __init__(self, best, sigma):
+    def __init__(self, best, sigma, negative_allowed=True):
         '''
         A GaussianParam is one which is fitted using a Gaussian prior (normal)
         distribution.
@@ -48,6 +52,7 @@ class _GaussianParam(_Param):
         super().__init__(best)
         self.mean = best
         self.stdev = sigma
+        self.negative_allowed = negative_allowed
 
     def from_unit_interval(self, u):
         '''
@@ -56,4 +61,8 @@ class _GaussianParam(_Param):
         '''
         if u > 1 or u < 0:
             raise ValueError('u must satisfy 0 < u < 1')
-        return self.mean + self.stdev * np.sqrt(2) * erfinv(2 * u - 1)
+
+        val = self.mean + self.stdev * np.sqrt(2) * erfinv(2 * u - 1)
+        if self.negative_allowed:
+            return val
+        return abs(val)
