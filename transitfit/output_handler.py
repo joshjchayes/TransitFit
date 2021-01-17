@@ -593,7 +593,7 @@ class OutputHandler:
 
             if param[-3:] == '/r*':
                 param = param[:-3]
-            if not err == '-':
+            if not err == '-' or mode in ['all', 'batched']:
                 if tidx == '-':
                     tidx == None
                 else:
@@ -610,12 +610,14 @@ class OutputHandler:
                     eidx = int(eidx)
 
                 best = float(best)
-                err = float(err)
-
+                if err == '-':
+                    err = None
+                else:
+                    err = float(err)
                 if param in best_model_dict:
                     best_model_dict[param][tidx, fidx, eidx] = [best, err]
 
-        if mode in ['full', 'batched']:
+        if mode in ['all', 'batched']:
             self.best_model = best_model_dict
             return best_model_dict
 
@@ -885,6 +887,7 @@ class OutputHandler:
         os.makedirs(os.path.dirname(path), exist_ok=True)
 
         fig.savefig(os.path.join(folder, fname), bbox_inches='tight', dpi=100)
+        plt.close()
 
     def _plot_data(self, phase, flux, flux_err, model_phase, model_curve,
                        residuals, fname, title=None, folder='./plots',
