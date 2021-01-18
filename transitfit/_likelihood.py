@@ -98,12 +98,12 @@ class LikelihoodCalculator:
                 # eg a = ±10 - negative values are non-physical!
                 self.update_params(tidx, fidx, eidx,
                                    params['t0'][i],
-                                   abs(params['P'][i]),
-                                   abs(params['rp'][i]),
-                                   abs(params['a'][i]),
-                                   abs(params['inc'][i]),
-                                   abs(params['ecc'][i]),
-                                   abs(params['w'][i]),
+                                   params['P'][i],
+                                   params['rp'][i],
+                                   params['a'][i],
+                                   params['inc'][i],
+                                   params['ecc'][i],
+                                   params['w'][i],
                                    self.priors.limb_dark,
                                    u)
 
