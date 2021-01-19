@@ -247,10 +247,6 @@ class OutputHandler:
                     print(e)
                     print('Traceback:')
                     traceback.print_tb(e.__traceback__)
-                    #print('_plot_data inputs:')
-                    #print(phase, '/n',flux, '/n',plot_errors[j],'/n', model_phase,'/n',
-                    #            model_curve,'/n', residuals, '/n',fname,'/n', title, '/n',folder,
-                    #            figsize,'/n', marker_color, '/n',line_color)
 
     def save_complete_results(self, mode, global_prior, output_folder,
                               summary_file):
@@ -267,7 +263,8 @@ class OutputHandler:
                      output_folder='./output_parameters',
                      summary_file='summary_output.csv',
                      full_output_file='full_output.csv',
-                     samples_plot_folder='./plots', folded=False):
+                     samples_plot_folder='./plots', folded=False,
+                     plot_posteriors=True):
         '''
         Saves results to .csv files
 
@@ -309,15 +306,16 @@ class OutputHandler:
 
         for i, ri in enumerate(results):
             results_dicts.append(self.get_results_dict(ri, priors[i], lightcurves[i]))
-            try:
-                if folded:
-                    sample_folder = os.path.join(samples_plot_folder, 'folded')
-                else:
-                    sample_folder = os.path.join(samples_plot_folder, 'unfolded')
-                print(f'Plotting batch {i} samples to {os.path.join(sample_folder, f"batch_{i}_samples.png")}')
-                self._plot_samples(ri, priors[i], f'batch_{i}_samples.png', sample_folder)
-            except Exception as e:
-                print(e)
+            if plot_posteriors:
+                try:
+                    if folded:
+                        sample_folder = os.path.join(samples_plot_folder, 'folded')
+                    else:
+                        sample_folder = os.path.join(samples_plot_folder, 'unfolded')
+                    print(f'Plotting batch {i} samples to {os.path.join(sample_folder, f"batch_{i}_samples.png")}')
+                    self._plot_samples(ri, priors[i], f'batch_{i}_samples.png', sample_folder)
+                except Exception as e:
+                    print(e)
         best_vals, combined_results = self.get_best_vals(results_dicts, fit_ld)
 
         print(f'Saving summary results to {os.path.join(output_folder, summary_file)}')
