@@ -264,7 +264,7 @@ class OutputHandler:
                      summary_file='summary_output.csv',
                      full_output_file='full_output.csv',
                      samples_plot_folder='./plots', folded=False,
-                     plot_posteriors=True):
+                     plot_posteriors=True, batch_idx=None, stage=1):
         '''
         Saves results to .csv files
 
@@ -299,7 +299,7 @@ class OutputHandler:
             from the results dictionaries -
             [[best value, median, 16th percentile, 84th percentile, stdev],...]
         '''
-        print('Saving results...')
+        print('Saving full results...')
         fit_ld = priors[0].fit_ld
 
         results_dicts = []
@@ -659,6 +659,27 @@ class OutputHandler:
         self.best_model = best_model_dict
 
         return best_model_dict
+
+    def _quicksave_result(self, results, priors, lightcurves,
+                          base_output_path='./outputs', filter=None, batch=None):
+        '''
+        Quickly saves a batch result to file. The file will be overwritten when
+        the full result from all the batches is written.
+        '''
+        result_dict = self.get_results_dict(results, priors, lightcurves)
+        result_dict, _ = self.get_best_vals([result_dict], priors.fit_ld)
+        fname = ''
+        if filter is not None:
+            fname += f'filter_{filter}_'
+        else:
+            fname += 'all_filters_'
+        if batch is not None:
+            fname += f'batch_{batch}_'
+        fname += 'output.csv'
+        output_path = os.path.join(base_output_path, 'quicksaves', fname)
+        print(f'Quicksaving results to {output_path}')
+        self._save_results_dict(result_dict, output_path, False)
+
 
     def _save_results_dict(self, results_dict, path, batched):
         '''

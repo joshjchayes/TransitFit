@@ -303,7 +303,7 @@ class Retriever:
                                lightcurve_folder='./fitted_lightcurves',
                                plot=True, plot_folder='./plots',
                                marker_color='dimgrey', line_color='black',
-                               bound='multi'):
+                               bound='multi', filter_idx=None):
         '''
         Runs a retrieval using the given batches
 
@@ -337,6 +337,8 @@ class Retriever:
             all_results.append(results)
             all_priors.append(batch_prior)
             all_lightcurves.append(batch_lightcurves)
+
+            output_handler._quicksave_result(results, batch_prior, batch_lightcurves, output_folder, filter_idx, bi)
 
         # Make outputs etc
         if 'filter' in plot_folder:
@@ -403,7 +405,7 @@ class Retriever:
                                             lightcurve_folder=filter_lightcurve_folder,
                                             plot=plot, plot_folder=filter_plots_folder,
                                             marker_color=marker_color, line_color=line_color,
-                                            bound=bound)
+                                            bound=bound, filter_idx=fi)
 
             results_list.append(results)
             priors_list.append(priors)
