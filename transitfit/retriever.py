@@ -137,7 +137,7 @@ class Retriever:
     ##########################################################
     def _run_dynesty(self, lightcurves, priors, maxiter=None, maxcall=None,
                      sample='auto', nlive=300, dlogz=None, bound='multi',
-                     nprocs=mp.cpu_count() - 1):
+                     plot_folder='./plots'):
         '''
         Runs dynesty on the given lightcurves with the given priors. Returns
         the result.
@@ -159,12 +159,6 @@ class Retriever:
         # Make a LikelihoodCalculator
         likelihood_calc = LikelihoodCalculator(lightcurves, priors)
         print(priors)
-        #if nprocs == 1:
-        #    pool=None
-        #else:
-        #    print(nprocs, 'processes')
-        #    pool = mp.Pool(nprocs)
-        #    pool.size = nprocs
 
         #######################################################################
         #######################################################################
@@ -209,7 +203,7 @@ class Retriever:
             results = sampler.results
             results.best = results.samples[np.argmax(results.logl)]
             output_handler = OutputHandler(lightcurves, self._full_prior, self.host_r)
-            output_handler._plot_samples(results, priors, 'Exception_posteriors.png')
+            output_handler._plot_samples(results, priors, 'Exception_posteriors.png', plot_folder)
             raise
 
 
@@ -268,7 +262,7 @@ class Retriever:
         #print(priors)
         results, ndof = self._run_dynesty(lightcurves, priors,
                                           maxiter, maxcall, sample, nlive,
-                                          dlogz, bound)
+                                          dlogz, bound, plot_folder)
         return_results = deepcopy(results)
         # Print results to terminal
         try:
@@ -282,9 +276,6 @@ class Retriever:
                                              output_folder, summary_file,
                                              full_output_file)
 
-            #self._save_results([results], [priors], [lightcurves], output_folder,
-            #              summary_file, full_output_file, lightcurve_folder,
-            #              plot, plot_folder, marker_color, line_color)
         except Exception as e:
             print('Exception raised whilst saving results:')
             print(e)
@@ -332,7 +323,7 @@ class Retriever:
             # Run the retrieval!
             results, ndof = self._run_dynesty(batch_lightcurves, batch_prior, maxiter,
                                               maxcall, sample, nlive,
-                                              dlogz, bound)
+                                              dlogz, bound, plot_folder)
 
             all_results.append(results)
             all_priors.append(batch_prior)

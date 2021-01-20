@@ -11,6 +11,7 @@ import batman
 import itertools
 import traceback
 import corner
+import pickle
 
 # TODO: remove these? Should probably be left to the user
 #import matplotlib
@@ -663,22 +664,38 @@ class OutputHandler:
     def _quicksave_result(self, results, priors, lightcurves,
                           base_output_path='./outputs', filter=None, batch=None):
         '''
-        Quickly saves a batch result to file. The file will be overwritten when
-        the full result from all the batches is written.
+        Quickly saves a batch result to file and pickle the Result and Prior
+        objects
         '''
         result_dict = self.get_results_dict(results, priors, lightcurves)
         result_dict, _ = self.get_best_vals([result_dict], priors.fit_ld)
-        fname = ''
+        base_fname = ''
         if filter is not None:
-            fname += f'filter_{filter}_'
+            base_fname += f'filter_{filter}_'
         else:
-            fname += 'all_filters_'
+            base_fname += 'all_filters_'
         if batch is not None:
-            fname += f'batch_{batch}_'
-        fname += 'output.csv'
-        output_path = os.path.join(base_output_path, 'quicksaves', fname)
-        print(f'Quicksaving results to {output_path}')
+            base_fname += f'batch_{batch}_'
+        result_file_fname = base_fname + 'output.csv'
+        result_pickle_fname = base_fname +'results.pkl'
+        priors_pickle_fname = base_fname + 'priors.pkl'
+
+        # Quicksave best results
+        output_path = os.path.join(base_output_path, 'quicksaves', result_file_fname)
+        print(f'Quicksaving best results to {output_path}')
         self._save_results_dict(result_dict, output_path, False)
+
+        # Quicksave full results object
+        output_path = os.path.join(base_output_path, 'quicksaves', result_pickle_fname)
+        print(f'Quicksaving full results to {output_path}')
+        with open(output_path, 'wb') as f:
+            pickle.dump(results, f, pickle.HIGHEST_PROTOCOL)
+
+        # Quicksave priors
+        output_path = os.path.join(base_output_path, 'quicksaves', priors_pickle_fname)
+        print(f'Quicksaving priors to {output_path}')
+        with open(output_path, 'wb') as f:
+            pickle.dump(priors, f, pickle.HIGHEST_PROTOCOL)
 
 
     def _save_results_dict(self, results_dict, path, batched):
