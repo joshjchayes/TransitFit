@@ -85,13 +85,14 @@ class Retriever:
 
         # intialise detrending in each light curve
         for i, lc in np.ndenumerate(self.all_lightcurves):
-            detrending_idx = self.detrending_index_array[i]
-            detrending_method = detrending_list[detrending_idx]
+            if lc is not None:
+                detrending_idx = self.detrending_index_array[i]
+                detrending_method = detrending_list[detrending_idx]
 
-            if detrending_method[0] == 'nth order':
-                lc.set_detrending('nth order', order=detrending_method[1], method_idx=detrending_idx)
-            if detrending_method[0] == 'custom':
-                lc.set_detrending('custom', function=detrending_method[1], method_idx=detrending_idx)
+                if detrending_method[0] == 'nth order':
+                    lc.set_detrending('nth order', order=detrending_method[1], method_idx=detrending_idx)
+                if detrending_method[0] == 'custom':
+                    lc.set_detrending('custom', function=detrending_method[1], method_idx=detrending_idx)
 
         self.n_total_lightcurves = np.sum(self.all_lightcurves!=None)
 
