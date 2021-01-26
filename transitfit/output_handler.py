@@ -689,14 +689,19 @@ class OutputHandler:
         output_path = os.path.join(base_output_path, 'quicksaves', result_pickle_fname)
         print(f'Quicksaving full results to {output_path}')
         with open(output_path, 'wb') as f:
-            pickle.dump(results, f, pickle.HIGHEST_PROTOCOL)
+            try:
+                pickle.dump(results, f, pickle.HIGHEST_PROTOCOL)
+            except Exception as e:
+                print('Exception encountered:', e)
 
         # Quicksave priors
         output_path = os.path.join(base_output_path, 'quicksaves', priors_pickle_fname)
         print(f'Quicksaving priors to {output_path}')
         with open(output_path, 'wb') as f:
-            pickle.dump(priors, f, pickle.HIGHEST_PROTOCOL)
-
+            try:
+                pickle.dump(priors, f, pickle.HIGHEST_PROTOCOL)
+            except Exception as e:
+                print('Exception encountered:', e)
 
     def _save_results_dict(self, results_dict, path, batched):
         '''
