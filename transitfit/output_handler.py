@@ -733,7 +733,7 @@ class OutputHandler:
         failed_index = []
         for key in self.best_model.keys():
             for i, lc in np.ndenumerate(all_lightcurves):
-                if self.best_model[key][i] is None:
+                if self.best_model[key][i] is None and lc is not None:
                     failed_key.append(key)
                     failed_index.append(i)
         if len(failed_key) > 0:
