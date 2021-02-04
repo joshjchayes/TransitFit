@@ -1062,7 +1062,7 @@ class Retriever:
 
             # Flag to check if we have got batches containing the full range
             # of epoch/filter
-            done = False
+            done = n_curves == 0
 
             while not done:
                 # A single batch - telescope, filter, epoch indices
@@ -1119,7 +1119,7 @@ class Retriever:
 
                         # Now check to see if we have done all the lightcurves
                         # for the filter
-                        done = start_idx == n_curves-1
+                        done = start_idx == n_curves
                         break
 
             all_batches.append(filter_batches)
