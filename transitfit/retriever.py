@@ -926,26 +926,27 @@ class Retriever:
 
                 # Loop through lightcurves and detrend/normalise
                 for i, lc in np.ndenumerate(lcs):
-                    # Get some sub indices.
-                    tidx, fidx, eidx = i
-                    if prior.detrend:
-                        method_idx = lc.detrending_method_idx
-                        # Get the detrending coeffs for this lc
-                        detrending_coeffs = prior.detrending_coeffs[method_idx]
+                    if lc is not None:
+                        # Get some sub indices.
+                        tidx, fidx, eidx = i
+                        if prior.detrend:
+                            method_idx = lc.detrending_method_idx
+                            # Get the detrending coeffs for this lc
+                            detrending_coeffs = prior.detrending_coeffs[method_idx]
 
-                        best_d = [results_dict[d][i] for d in detrending_coeffs]
-                    else:
-                        best_d = None
+                            best_d = [results_dict[d][i] for d in detrending_coeffs]
+                        else:
+                            best_d = None
 
-                    norm = results_dict['norm'][i]
+                        norm = results_dict['norm'][i]
 
-                    # Make the detrended light curve and fold to the final t0
-                    detrended_curve = lc.create_detrended_LightCurve(best_d, norm)
+                        # Make the detrended light curve and fold to the final t0
+                        detrended_curve = lc.create_detrended_LightCurve(best_d, norm)
 
-                    # Fold the curve using the best t0 for the epoch and P
-                    # We are folding each curve to be centred on best_t0[0]
-                    folded_curve = detrended_curve.fold(best_t0[eidx], best_P, best_t0[0])
-                    final_batched_lightcurves[fi].append(folded_curve)
+                        # Fold the curve using the best t0 for the epoch and P
+                        # We are folding each curve to be centred on best_t0[0]
+                        folded_curve = detrended_curve.fold(best_t0[eidx], best_P, best_t0[0])
+                        final_batched_lightcurves[fi].append(folded_curve)
 
         # Now we go through detrended and folded lightcurve, and combine them
         # into one lightcurve per filter
