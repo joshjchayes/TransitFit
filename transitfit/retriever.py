@@ -1039,6 +1039,7 @@ class Retriever:
 
         # Loop through each filter
         for fi in range(self.n_filters):
+            print(fi)
             # All the batches for this filter
             filter_batches = []
 
@@ -1118,7 +1119,7 @@ class Retriever:
 
                         # Now check to see if we have done all the lightcurves
                         # for the filter
-                        done = start_idx == n_curves
+                        done = start_idx == n_curves-1
                         break
 
             all_batches.append(filter_batches)
