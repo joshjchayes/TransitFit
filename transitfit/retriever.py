@@ -779,6 +779,11 @@ class Retriever:
             n_epochs = len(unique_indices[2])
 
 
+        if self.host_r is not None:
+            host_r = self.host_r[0]
+        else:
+            host_r=None
+
         # Set up the basic PriorInfo
         if type(self._prior_input) == str:
             # read in priors from a file
@@ -788,7 +793,7 @@ class Retriever:
                                       n_epochs,
                                       self.limb_darkening_model,
                                       filter_indices,
-                                      folded, folded_P, folded_t0, self.host_r[0],
+                                      folded, folded_P, folded_t0, host_r,
                                       self.fit_ttv, lightcurve_subset,
                                       suppress_warnings)
         else:
@@ -800,7 +805,7 @@ class Retriever:
                                        self.limb_darkening_model,
                                        filter_indices,
                                        folded, folded_P, folded_t0,
-                                       self.host_r[0], self.fit_ttv, lightcurve_subset,
+                                       host_r, self.fit_ttv, lightcurve_subset,
                                        suppress_warnings)
 
         # Set up limb darkening
