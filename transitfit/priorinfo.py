@@ -188,7 +188,7 @@ class PriorInfo:
     ###############################################################
 
     def fit_detrending(self, lightcurves, method_list, method_index_array,
-                       low_lim=-10000, high_lim=10000):
+                       limits=None):
         '''
         '''
         if self.detrend:
@@ -208,6 +208,8 @@ class PriorInfo:
                 # We have a light curve, pull out the method info
                 method_idx = method_index_array[i]
                 method = method_list[method_idx]
+                low_lim = limits[method_idx][0]
+                high_lim = limits[method_idx][1]
 
                 if method[0] == 'off':
                     # No detrending - skip this curve

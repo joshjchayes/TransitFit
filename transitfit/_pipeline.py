@@ -21,7 +21,7 @@ def run_retrieval(data_files, priors, filter_info=None,
                   max_batch_parameters=25, batch_overlap=2,
                   host_T=None, host_logg=None, host_z=None, host_r=None,
                   nlive=300, dlogz=None, maxiter=None, maxcall=None,
-                  dynesty_sample='auto', dynesty_bounding='multi',
+                  dynesty_sample='rslice', dynesty_bounding='multi',
                   normalise=True, detrend=True,
                   results_output_folder='./output_parameters',
                   final_lightcurve_folder='./fitted_lightcurves',
@@ -30,7 +30,8 @@ def run_retrieval(data_files, priors, filter_info=None,
                   plot_folder='./plots', plot=True,
                   marker_color='dimgrey', line_color='black', ldtk_cache=None,
                   n_ld_samples=20000, do_ld_mc=False, data_skiprows=0,
-                  fit_ttv=False, filter_delimiter=None):
+                  fit_ttv=False, filter_delimiter=None,
+                  detrending_limits=None):
     '''
     Runs a full retrieval of posteriors using nested sampling on a transit
     light curve or a set of transit light curves. For more guidance on the use
@@ -278,6 +279,9 @@ def run_retrieval(data_files, priors, filter_info=None,
     filter_delimiter : str, optional
         The delimiter in filter profile files. Default is None, which will lead
         to pandas trying to auto detect the delimiter.
+    detrending_limits : list, optional
+        The bounds on detrending coefficients, given as (lower, upper) pair for
+        each detrending method. IF not provided, will default to ±1000
 
     Returns
     -------
@@ -296,7 +300,7 @@ def run_retrieval(data_files, priors, filter_info=None,
                           filter_info, detrending_list, limb_darkening_model,
                           host_T, host_logg, host_z, host_r, ldtk_cache,
                           data_skiprows, n_ld_samples, do_ld_mc, fit_ttv,
-                          filter_delimiter)
+                          filter_delimiter, detrending_limits)
 
     # Run the retrieval!
     results = retriever.run_retrieval(ld_fit_method, fitting_mode,

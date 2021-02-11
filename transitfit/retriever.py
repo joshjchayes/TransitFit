@@ -29,6 +29,8 @@ filter_dependent_params = ['rp', 'q0', 'q1', 'q2', 'q3', 'u0', 'u1', 'u2', 'u3']
 
 lightcurve_dependent_params = ['norm','d0','d1','d2','d3','d4','d5','d6','d7','d8']
 
+_default_detrending_limits = (-1000,1000)
+
 from .output_handler import OutputHandler
 
 
@@ -38,7 +40,7 @@ class Retriever:
                  limb_darkening_model='quadratic', host_T=None, host_logg=None,
                  host_z=None, host_r=None, ldtk_cache=None, data_skiprows=0,
                  n_ld_samples=20000, do_ld_mc=False, fit_ttv=False,
-                 filter_delimiter=None):
+                 filter_delimiter=None, detrending_limits=None):
         '''
 
         '''
@@ -56,6 +58,16 @@ class Retriever:
         self.fit_ttv = fit_ttv
 
         self.detrending_info = detrending_list
+        if detrending_limits is None:
+            self.detrending_limits = np.array([_default_detrending_limits for i in range(len(self.detrending_info))])
+        else:
+            detrending_limits = np.array(detrending_limits)
+            if not detrending_limits.ndim == 2:
+                raise ValueError(f'Detrending limits should be provided as a list of length {len(self.detrending_info)} where each entry is the  [lower, upper] limits on each method.')
+            if not detrending_limits.shape[1] == 2:
+                raise ValueError(f'Detrending limits should be provided as a list of length {len(self.detrending_info)} where each entry is the  [lower, upper] limits on each method.')
+
+            self.detrending_limits = detrending_limits
 
         # Host info
         self.host_T = host_T
@@ -413,7 +425,7 @@ class Retriever:
             quick_folder = os.path.join(plot_folder, 'folded_curves')
             quick_plot(lc, quick_fname, quick_folder, folded_t0, folded_P)
 
-            print('Filter {} quick look phase fold saved to {}'.format(lci, os.path.join(quick_folder, quick_fname)))
+            print('Filter {} quick look phase fold saved to {}'.format(lci[1], os.path.join(quick_folder, quick_fname)))
 
         # Get the batches, and remember that now we are not detrending or
         # normalising since that was done in the first stage
@@ -517,7 +529,7 @@ class Retriever:
         # Detrend but don't fold!
         detrended_curves = np.full(self.all_lightcurves.shape, None)
 
-        print('Detrending and normmalising light curves...')
+        print('Detrending and normalising light curves...')
         for i, lc in np.ndenumerate(self.all_lightcurves):
             if lc is not None:
                 method_idx = lc.detrending_method_idx
@@ -827,7 +839,8 @@ class Retriever:
 
         if detrend:
             priors.fit_detrending(lightcurve_subset,
-                                  self.detrending_info, detrending_indices)
+                                  self.detrending_info, detrending_indices,
+                                  self.detrending_limits)
 
         # Set up normalisation
         if normalise:
@@ -1040,7 +1053,6 @@ class Retriever:
 
         # Loop through each filter
         for fi in range(self.n_filters):
-            print(fi)
             # All the batches for this filter
             filter_batches = []
 
