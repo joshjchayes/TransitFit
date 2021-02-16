@@ -94,8 +94,6 @@ class LikelihoodCalculator:
                 u = self.priors.ld_handler.convert_qtou(*[params[qX][i] for qX in self.priors.limb_dark_coeffs])
 
                 # Need to update the parameters
-                # absolute values are used to avoid non-physical values
-                # eg a = ±10 - negative values are non-physical!
                 self.update_params(tidx, fidx, eidx,
                                    params['t0'][i],
                                    params['P'][i],
@@ -126,8 +124,8 @@ class LikelihoodCalculator:
                 else:
                     norm = 1
 
-                detrended_flux, err = self.lightcurves[i].detrend_flux(d, norm, use_full_times)
-
+                detrended_flux, err = self.lightcurves[i].detrend_flux(d, norm, use_full_times, True, params['t0'][i], params['P'][i])
+                
                 # Check that there is actually a transit in the model
                 # otherwise we impose a large penalty to the chi2 value
                 # This avoids a situation where the models try

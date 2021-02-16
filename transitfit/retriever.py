@@ -103,8 +103,12 @@ class Retriever:
 
                 if detrending_method[0] == 'nth order':
                     lc.set_detrending('nth order', order=detrending_method[1], method_idx=detrending_idx)
-                if detrending_method[0] == 'custom':
+                elif detrending_method[0] == 'custom':
                     lc.set_detrending('custom', function=detrending_method[1], method_idx=detrending_idx)
+                elif detrending_method[0] == 'off':
+                    lc.set_detrending('off', method_idx=detrending_idx)
+                else:
+                    raise ValueError(f'Unrecognised detrending method {detrending_method[0]}')
 
         self.n_total_lightcurves = np.sum(self.all_lightcurves!=None)
 
@@ -455,6 +459,7 @@ class Retriever:
         runs a second retrieval using the detrended curves.
         '''
 
+        raise NotImplimentedError('The detrending approach has changed - this function has not been updated yet.')
         # First up, run each filter as if for folding (epoch batches) and
         # use the results to detrend and normalise the lightcurves without
         # folding them
@@ -555,8 +560,6 @@ class Retriever:
                         summary_file=summary_file, full_output_file=full_output_file,
                         lightcurve_folder=lightcurve_folder, plot=plot, plot_folder=plot_folder,
                         marker_color=marker_color, line_color=line_color, bound=bound)
-
-
 
     def run_retrieval(self, ld_fit_method='independent', fitting_mode='auto',
                       max_parameters=25, maxiter=None, maxcall=None,
@@ -954,7 +957,7 @@ class Retriever:
                         norm = results_dict['norm'][i]
 
                         # Make the detrended light curve and fold to the final t0
-                        detrended_curve = lc.create_detrended_LightCurve(best_d, norm)
+                        detrended_curve = lc.create_detrended_LightCurve(best_d, norm, best_t0[eidx], best_P)
 
                         # Fold the curve using the best t0 for the epoch and P
                         # We are folding each curve to be centred on best_t0[0]

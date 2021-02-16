@@ -97,7 +97,7 @@ class OutputHandler:
                 # First, detrend and normalise the curve
 
 
-                flux, flux_err = lc.detrend_flux(d[i], self.best_model['norm'][i][0], normalise=True)
+                flux, flux_err = lc.detrend_flux(d[i], self.best_model['norm'][i][0], False, True, self.best_model['t0'][i][0], self.best_model['P'][i][0], force_normalise=True)
 
                 # Get phase
                 phase = lc.get_phases(self.best_model['t0'][i][0], self.best_model['P'][i][0])
@@ -147,7 +147,7 @@ class OutputHandler:
             if lc is not None:
                 # First, detrend and normalise the curve
 
-                flux, flux_err = lc.detrend_flux(d[i], self.best_model['norm'][i][0], normalise=True)
+                flux, flux_err = lc.detrend_flux(d[i], self.best_model['norm'][i][0], False, True, self.best_model['t0'][i][0], self.best_model['P'][i][0], force_normalise=True)
 
                 # Get phase
                 phase = lc.get_phases(self.best_model['t0'][i][0], self.best_model['P'][i][0])
@@ -190,26 +190,27 @@ class OutputHandler:
             flux = []
             flux_err = []
             residuals = []
+            model_phase = []
+            model_flux = []
 
             for ti, ei in itertools.product(range(all_lightcurves.shape[0]), range(all_lightcurves.shape[2])):
                 i = (ti, fi, ei)
                 lc = all_lightcurves[i]
                 if lc is not None:
-                    lc_flux, lc_flux_err = lc.detrend_flux(d[i], self.best_model['norm'][i][0], normalise=True)
+                    lc_flux, lc_flux_err = lc.detrend_flux(d[i], self.best_model['norm'][i][0], False, True, self.best_model['t0'][i][0], self.best_model['P'][i][0], force_normalise=True)
                     lc_phase = lc.get_phases(self.best_model['t0'][i][0], self.best_model['P'][i][0])
 
                     # Get the best fit model depths - use linspaced times for plot
                     # and the lc times for residuals
                     model_times = np.linspace(lc.times.min(), lc.times.max(), 1000)
                     model = batman.TransitModel(self.batman_params[i], model_times)
-                    model_curve = model.light_curve(self.batman_params[i])
+                    lc_model_curve = model.light_curve(self.batman_params[i])
                     time_wise_best_curve = self.batman_models[i].light_curve(self.batman_params[i])
 
                     # get model phase:
                     n = (model_times - (self.best_model['t0'][i][0] - 0.5 * self.best_model['P'][i][0]))//self.best_model['P'][i][0]
 
-                    model_phase = (model_times - self.best_model['t0'][i][0])/self.best_model['P'][i][0] - n + 0.5
-
+                    lc_model_phase = (model_times - self.best_model['t0'][i][0])/self.best_model['P'][i][0] - n + 0.5
 
                     lc_residuals = lc_flux - time_wise_best_curve
 
@@ -218,11 +219,15 @@ class OutputHandler:
                     flux += list(lc_flux)
                     flux_err += list(lc_flux_err)
                     residuals += list(lc_residuals)
+                    model_phase += list(lc_model_phase)
+                    model_flux += list(lc_model_curve)
 
             phase = np.array(phase).flatten()
             flux = np.array(flux).flatten()
             flux_err = np.array(flux_err).flatten()
             residuals = np.array(residuals).flatten()
+            model_phase = np.array(model_phase).flatten()
+            model_flux = np.array(model_flux).flatten()
 
             cadence = cadence / (self.best_model['P'][None, None, None][0] * 24 * 60)
 
@@ -239,7 +244,7 @@ class OutputHandler:
                 ####### PLOT! #########
                 try:
                     self._plot_data(phase, flux, plot_errors[j], model_phase,
-                                model_curve, residuals, fname, title, folder,
+                                model_flux, residuals, fname, title, folder,
                                 figsize, marker_color, line_color, bin_data,
                                 cadence)
 
@@ -1008,9 +1013,12 @@ class OutputHandler:
             # Histogram residuals
             rgba_color = colors.to_rgba(marker_color)
             facecolor = (rgba_color[0], rgba_color[1], rgba_color[2], 0.6)
-            hist_ax.hist(residuals, bins=30, orientation='horizontal',
-                         color=facecolor, edgecolor=rgba_color,
-                         histtype='stepfilled')
+
+            unbinned_counts, bins = np.histogram(residuals, bins=30)
+
+            hist_ax.hist(bins[:-1], bins, weights=unbinned_counts,
+                         orientation='horizontal', color=facecolor,
+                         edgecolor=rgba_color, histtype='stepfilled')
             hist_ax.axhline(0, linestyle='dashed', color='gray',
                             linewidth=1, zorder=1)
 
@@ -1018,9 +1026,17 @@ class OutputHandler:
             if bin_data:
                 rgba_color = colors.to_rgba(binned_colour)
                 facecolor = (rgba_color[0], rgba_color[1], rgba_color[2], 0.6)
-                hist_ax.hist(binned_residuals, bins=30, orientation='horizontal',
-                             color=facecolor, edgecolor=rgba_color,
-                             histtype='stepfilled')
+
+                binned_counts, _ = np.histogram(binned_residuals, bins)
+
+                print(binned_counts)
+                print(unbinned_counts.sum(), binned_counts.sum(), unbinned_counts.sum()/binned_counts.sum())
+
+                weighted_binned_counts = binned_counts * unbinned_counts.sum()/binned_counts.sum()
+
+                hist_ax.hist(bins[:-1], bins, weights=weighted_binned_counts,
+                             orientation='horizontal', color=facecolor,
+                             edgecolor=rgba_color, histtype='stepfilled',alpha=0.5)
 
                 hist_ax.text(0.02, 0.93, r'$\sigma_{unbinned} = $' + str(round(residuals_std, 5)), transform=hist_ax.transAxes)
                 hist_ax.text(0.02, 0.85, r'$\sigma_{binned}$ = ' + str(round(binned_residuals_std, 5)), transform=hist_ax.transAxes)
