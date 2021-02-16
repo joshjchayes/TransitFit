@@ -37,7 +37,7 @@ class LimbDarkeningHandler:
         '''
 
         if default_model not in ['linear','quadratic','squareroot','power2','nonlinear']:
-            raise ValueError('Unrecognised limb darkening model {}'.format(model))
+            raise ValueError('Unrecognised limb darkening model {}'.format(default_model))
 
         self.default_model = default_model
 

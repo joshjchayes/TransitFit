@@ -76,9 +76,10 @@ def read_priors_file(path, n_telescopes, n_filters, n_epochs,
         Required if folded is True. This is the t0 that the light curves are
         folded to
     host_radius : float, optional
-        The host radius in Solar radii. If this is provided, then will assume
-        that the orbital separation is given in AU rather than host radii and
-        will convert the values accordingly
+        The host radius in Solar radii.
+        If this is provided, then will assume that the orbital separation is
+        given in AU rather than host radii and will convert the values
+        accordingly.
 
     Notes
     -----

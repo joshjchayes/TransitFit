@@ -29,9 +29,10 @@ class LDTKHandler:
             The metalicity of the host, given as a (value, uncertainty) pair.
         filters : array_like
             The set of filters, given in [low, high] limits for the wavelengths
-            with the wavelengths given in nanometers. The ordering of the
-            filters should correspond to the filter_idx parameter used
-            elsewhere.
+            with the wavelengths given in nanometers if a uniform filter is to
+            be used, or [[wavelength...], [transmission]] if a fully-defined
+            profile is being used. The ordering of the filters should
+            correspond to the filter_idx parameter used elsewhere.
         ld_method : str, optional
             The model of limb darkening to use. Allowed values are 'linear',
             'quadratic', 'squareroot', 'power2', and 'nonlinear'. Default is
@@ -77,7 +78,7 @@ class LDTKHandler:
         #print('This may take some time as we may need to download files...')
         self.set_creator = LDPSetCreator(teff=host_T, logg=host_logg, z=host_z,
                                     filters=ldtk_filters, cache=cache_path)
-        
+
         # Get the LD profiles from the set creator
         #print('Obtaining LD profiles')
         self.profile_set = self.set_creator.create_profiles(nsamples=n_samples)
@@ -96,6 +97,7 @@ class LDTKHandler:
                 self.ratios[model] = self.coeffs[model][0] / self.coeffs[model][0][0]
             except Exception as e:
                 print(e)
+                print(f'Unable to initialise {model} model')
                 self._power2_available = False
 
     def estimate_values(self, ld0_values, ld_model):
@@ -144,7 +146,7 @@ class LDTKHandler:
         elif ld_model == 'nonlinear':
             coeff, err = self.profile_set.coeffs_nl()
         elif ld_model == 'power2':
-            if not not self._power2_available:
+            if not self._power2_available:
                 raise ValueError('power2 model is not available. If you want to use this, please use the development version of ldtk available on https://github.com/hpparvi/ldtk, rather than the pypi version.')
             coeff, err = self.profile_set.coeffs_p2()
         elif ld_model == 'squareroot':

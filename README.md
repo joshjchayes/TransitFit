@@ -21,7 +21,6 @@
 
 [Citing TransitFit](#citing)
 
-
 <a name="overview"></a>
 ## Overview
 TransitFit is designed for exoplanetary transmission spectroscopy studies and offers a flexible approach to fitting single or multiple transits of an exoplanet at different observation wavelengths.  It possesses the functionality to efficiently couple host limb-darkening parameters to a range of physical models across different wavelengths, through the use of the [Limb darkening toolkit (ldtk)](https://github.com/hpparvi/ldtk) and the [Kipping parameterisations of two-parameter limb darkening models](https://arxiv.org/abs/1308.0009). TransitFit uses [batman](https://www.cfa.harvard.edu/~lkreidberg/batman/index.html) to handle transit light curve modelling, and sampling and retrieval uses the nested sampling algorithm available through [dynesty](https://dynesty.readthedocs.io/en/latest/index.html).
@@ -35,6 +34,8 @@ User input is handled through external files (see [Input files](#inputs)), and i
 
 <a name="requirements"></a>
 ## Requirements
+Please note that TransitFit currently only runs on UNIX-based machines.
+
 Along with an installation of Python 3 (with the standard Conda distribution packages), TransitFit requires the following packages to be installed:
 
 - [dynesty](https://dynesty.readthedocs.io/en/latest/index.html)
@@ -66,8 +67,8 @@ filters = '/path/to/filter_info'
 
 # host info
 host_T = (5450, 130) # T in kelvin
-host_z = (0.32, 0.09) 
-host_r = (1.03, 0.05) # R in solar radii - this MUST be supplied if the prior for orbital separation is in AU. 
+host_z = (0.32, 0.09)
+host_r = (1.03, 0.05) # R in solar radii - this MUST be supplied if the prior for orbital separation is in AU.
 host_logg = (4.5, 0.1) # g in cm/s2
 
 # Let's assume we want quadratic detrending - can set this with the detrending_list
@@ -196,11 +197,11 @@ Detrending of light curves in TransitFit occurs in three different modes - `'nth
 
 - `nth order` mode: `['nth order', X]`,  where X is the order of the detrending polynomial.
 
-- `custom` mode: `['custom', f]`, where `f` is the custom detrending function. This can take any form but the first argument must be an array of times. 
+- `custom` mode: `['custom', f]`, where `f` is the custom detrending function. This can take any form but the first argument must be an array of times.
 
-- `off`: `['off', ]` - anything in the second entry will be ignored. 
+- `off`: `['off', ]` - anything in the second entry will be ignored.
 
-To use different methods, use the detrending index specified in the data paths file to refer to the entry in `detrending_list`. 
+To use different methods, use the detrending index specified in the data paths file to refer to the entry in `detrending_list`.
 
 <a name="lots_of_curves"></a>
 ## Fitting large numbers of light curves

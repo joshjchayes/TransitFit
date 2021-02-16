@@ -116,6 +116,10 @@ class LightCurve:
                 raise ValueError('You must provide the custom detrending function')
             self.detrending_function = DetrendingFunction(function)
             self.n_detrending_params = self.detrending_function.n_required_args - 1
+        elif method.lower() == 'off':
+            self.detrending_method_idx = method_idx
+            self.detrend = False
+            return
         else:
             raise ValueError('Unrecognised method {}'.format(method))
 
@@ -156,12 +160,6 @@ class LightCurve:
         Estimates the range for fitting a normalisation constant, and also
         finds a reasonable first guess.
 
-        Parameters
-        ----------
-        default_low : float, optional
-            The lowest value to consider as a multiplicative normalisation
-            constant. Default is 0.1.
-
         Returns
         -------
         median_factor : float
@@ -186,7 +184,8 @@ class LightCurve:
         return median_factor, low_factor, high_factor
 
 
-    def detrend_flux(self, d, norm=1, use_full_times=False, normalise=False):
+    def detrend_flux(self, d, norm=1, use_full_times=False,
+                     use_phase_space=False, t0=None, P=None, force_normalise=False):
         '''
         When given a normalisation constant and some detrending parameters,
         will return the detrended flux and errors
@@ -201,6 +200,17 @@ class LightCurve:
             If True, will use the full BJD value of the times. If False, will
             subtract the integer part of self.times[0] from all the time values
             before passing to the detrending function. Default is False
+        use_phase_space : bool, optional
+            If True, will phase fold the light curve before detrending. This
+            is an alternative approach to removing the full BJD part of times.
+            Requires t0 and P to be provided
+        t0 : float, optional
+            The t0 value ot use when phase folding.
+        P : float, optional
+            The period to phase fold to
+        force_normalise : bool, optional
+            Override to allow normalisation to be forced if the LightCurve does
+            not have normalisation initialised. Default is False.
 
         Returns
         -------
@@ -213,30 +223,48 @@ class LightCurve:
         detrended_errors = deepcopy(self.errors)
 
         if self.detrend and d is not None:
-            if use_full_times:
-                subtract_val = 0
-            else:
-                # Since times are in BJD, the detrending function results are
-                # MASSIVE. We detrend using only the fractional part of the
-                # times as this significantly reduces the range of each of the
-                # detrending coefficients
-                subtract_val = np.floor(self.times[0])
+            if use_phase_space:
+                # This is generally a better idea than subtracting BJD values
+                # as it is far more consistent and reproducable.
+                if P is None or t0 is None:
+                    raise ValueError('P and t0 must be provided to use phase space detrending')
+                phase = self.get_phases(t0, P)
 
-            detrend_values = self.detrending_function(self.times - subtract_val, *d)
+                detrend_values = self.detrending_function(phase, *d)
+                #print('Detrending_values limits:', detrend_values.min(), detrend_values.max())
+
+            else:
+                if use_full_times:
+                    subtract_val = 0
+                else:
+                    # Since times are in BJD, the detrending function results are
+                    # MASSIVE. We detrend using only the fractional part of the
+                    # times as this significantly reduces the range of each of the
+                    # detrending coefficients
+                    subtract_val = np.floor(self.times[0])
+
+                detrend_values = self.detrending_function(self.times - subtract_val, *d)
 
             detrended_flux -= detrend_values
+            #print('Detrended_flux limit (no normalisation):', detrended_flux.min(), detrended_flux.max())
 
-        if self.normalise or normalise:
+        if self.normalise or force_normalise:
+            #print('Normalisation factor:', norm)
             detrended_flux *= norm
             detrended_errors *= norm
 
+        #print('Final flux limits:', detrended_flux.min(), detrended_flux.max())
+
         return detrended_flux, detrended_errors
 
-    def create_detrended_LightCurve(self, d, norm):
+    def create_detrended_LightCurve(self, d, norm, t0=None, P=None):
         '''
         Creates a detrended LightCurve using detrend_flux() and returns it
         '''
-        detrended_flux, detrended_errors = self.detrend_flux(d, norm)
+        if t0 is not None and P is not None:
+            detrended_flux, detrended_errors = self.detrend_flux(d, norm, False, True, t0, P)
+        else:
+            detrended_flux, detrended_errors = self.detrend_flux(d, norm)
 
         return LightCurve(self.times, detrended_flux, detrended_errors,
                           self.telescope_idx, self.filter_idx,
@@ -341,7 +369,7 @@ class LightCurve:
         t0 : float
             The centre of a transit
         P : float
-            The estimated period of the planet
+            The estimated period of the planet in days
         t14 : float, optional
             The approximate transit duration in minutes.
         cutoff : float, optional

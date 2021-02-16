@@ -11,6 +11,7 @@ import batman
 import itertools
 import traceback
 import corner
+import pickle
 
 # TODO: remove these? Should probably be left to the user
 #import matplotlib
@@ -96,7 +97,7 @@ class OutputHandler:
                 # First, detrend and normalise the curve
 
 
-                flux, flux_err = lc.detrend_flux(d[i], self.best_model['norm'][i][0], normalise=True)
+                flux, flux_err = lc.detrend_flux(d[i], self.best_model['norm'][i][0], False, True, self.best_model['t0'][i][0], self.best_model['P'][i][0], force_normalise=True)
 
                 # Get phase
                 phase = lc.get_phases(self.best_model['t0'][i][0], self.best_model['P'][i][0])
@@ -146,7 +147,7 @@ class OutputHandler:
             if lc is not None:
                 # First, detrend and normalise the curve
 
-                flux, flux_err = lc.detrend_flux(d[i], self.best_model['norm'][i][0], normalise=True)
+                flux, flux_err = lc.detrend_flux(d[i], self.best_model['norm'][i][0], False, True, self.best_model['t0'][i][0], self.best_model['P'][i][0], force_normalise=True)
 
                 # Get phase
                 phase = lc.get_phases(self.best_model['t0'][i][0], self.best_model['P'][i][0])
@@ -189,26 +190,27 @@ class OutputHandler:
             flux = []
             flux_err = []
             residuals = []
+            model_phase = []
+            model_flux = []
 
             for ti, ei in itertools.product(range(all_lightcurves.shape[0]), range(all_lightcurves.shape[2])):
                 i = (ti, fi, ei)
                 lc = all_lightcurves[i]
                 if lc is not None:
-                    lc_flux, lc_flux_err = lc.detrend_flux(d[i], self.best_model['norm'][i][0], normalise=True)
+                    lc_flux, lc_flux_err = lc.detrend_flux(d[i], self.best_model['norm'][i][0], False, True, self.best_model['t0'][i][0], self.best_model['P'][i][0], force_normalise=True)
                     lc_phase = lc.get_phases(self.best_model['t0'][i][0], self.best_model['P'][i][0])
 
                     # Get the best fit model depths - use linspaced times for plot
                     # and the lc times for residuals
                     model_times = np.linspace(lc.times.min(), lc.times.max(), 1000)
                     model = batman.TransitModel(self.batman_params[i], model_times)
-                    model_curve = model.light_curve(self.batman_params[i])
+                    lc_model_curve = model.light_curve(self.batman_params[i])
                     time_wise_best_curve = self.batman_models[i].light_curve(self.batman_params[i])
 
                     # get model phase:
                     n = (model_times - (self.best_model['t0'][i][0] - 0.5 * self.best_model['P'][i][0]))//self.best_model['P'][i][0]
 
-                    model_phase = (model_times - self.best_model['t0'][i][0])/self.best_model['P'][i][0] - n + 0.5
-
+                    lc_model_phase = (model_times - self.best_model['t0'][i][0])/self.best_model['P'][i][0] - n + 0.5
 
                     lc_residuals = lc_flux - time_wise_best_curve
 
@@ -217,11 +219,15 @@ class OutputHandler:
                     flux += list(lc_flux)
                     flux_err += list(lc_flux_err)
                     residuals += list(lc_residuals)
+                    model_phase += list(lc_model_phase)
+                    model_flux += list(lc_model_curve)
 
             phase = np.array(phase).flatten()
             flux = np.array(flux).flatten()
             flux_err = np.array(flux_err).flatten()
             residuals = np.array(residuals).flatten()
+            model_phase = np.array(model_phase).flatten()
+            model_flux = np.array(model_flux).flatten()
 
             cadence = cadence / (self.best_model['P'][None, None, None][0] * 24 * 60)
 
@@ -238,7 +244,7 @@ class OutputHandler:
                 ####### PLOT! #########
                 try:
                     self._plot_data(phase, flux, plot_errors[j], model_phase,
-                                model_curve, residuals, fname, title, folder,
+                                model_flux, residuals, fname, title, folder,
                                 figsize, marker_color, line_color, bin_data,
                                 cadence)
 
@@ -247,10 +253,6 @@ class OutputHandler:
                     print(e)
                     print('Traceback:')
                     traceback.print_tb(e.__traceback__)
-                    #print('_plot_data inputs:')
-                    #print(phase, '/n',flux, '/n',plot_errors[j],'/n', model_phase,'/n',
-                    #            model_curve,'/n', residuals, '/n',fname,'/n', title, '/n',folder,
-                    #            figsize,'/n', marker_color, '/n',line_color)
 
     def save_complete_results(self, mode, global_prior, output_folder,
                               summary_file):
@@ -267,7 +269,8 @@ class OutputHandler:
                      output_folder='./output_parameters',
                      summary_file='summary_output.csv',
                      full_output_file='full_output.csv',
-                     samples_plot_folder='./plots', folded=False):
+                     samples_plot_folder='./plots', folded=False,
+                     plot_posteriors=True, batch_idx=None, stage=1):
         '''
         Saves results to .csv files
 
@@ -302,22 +305,23 @@ class OutputHandler:
             from the results dictionaries -
             [[best value, median, 16th percentile, 84th percentile, stdev],...]
         '''
-        print('Saving results...')
+        print('Saving full results...')
         fit_ld = priors[0].fit_ld
 
         results_dicts = []
 
         for i, ri in enumerate(results):
             results_dicts.append(self.get_results_dict(ri, priors[i], lightcurves[i]))
-            try:
-                if folded:
-                    sample_folder = os.path.join(samples_plot_folder, 'folded')
-                else:
-                    sample_folder = os.path.join(samples_plot_folder, 'unfolded')
-                print(f'Plotting batch {i} samples to {os.path.join(sample_folder, f"batch_{i}_samples.png")}')
-                self._plot_samples(ri, priors[i], f'batch_{i}_samples.png', sample_folder)
-            except Exception as e:
-                print(e)
+            if plot_posteriors:
+                try:
+                    if folded:
+                        sample_folder = os.path.join(samples_plot_folder, 'folded')
+                    else:
+                        sample_folder = os.path.join(samples_plot_folder, 'unfolded')
+                    print(f'Plotting batch {i} samples to {os.path.join(sample_folder, f"batch_{i}_samples.png")}')
+                    self._plot_samples(ri, priors[i], f'batch_{i}_samples.png', sample_folder)
+                except Exception as e:
+                    print(e)
         best_vals, combined_results = self.get_best_vals(results_dicts, fit_ld)
 
         print(f'Saving summary results to {os.path.join(output_folder, summary_file)}')
@@ -662,6 +666,48 @@ class OutputHandler:
 
         return best_model_dict
 
+    def _quicksave_result(self, results, priors, lightcurves,
+                          base_output_path='./outputs', filter=None, batch=None):
+        '''
+        Quickly saves a batch result to file and pickle the Result and Prior
+        objects
+        '''
+        result_dict = self.get_results_dict(results, priors, lightcurves)
+        result_dict, _ = self.get_best_vals([result_dict], priors.fit_ld)
+        base_fname = ''
+        if filter is not None:
+            base_fname += f'filter_{filter}_'
+        else:
+            base_fname += 'all_filters_'
+        if batch is not None:
+            base_fname += f'batch_{batch}_'
+        result_file_fname = base_fname + 'output.csv'
+        result_pickle_fname = base_fname +'results.pkl'
+        priors_pickle_fname = base_fname + 'priors.pkl'
+
+        # Quicksave best results
+        output_path = os.path.join(base_output_path, 'quicksaves', result_file_fname)
+        print(f'Quicksaving best results to {output_path}')
+        self._save_results_dict(result_dict, output_path, False)
+
+        # Quicksave full results object
+        output_path = os.path.join(base_output_path, 'quicksaves', result_pickle_fname)
+        print(f'Quicksaving full results to {output_path}')
+        with open(output_path, 'wb') as f:
+            try:
+                pickle.dump(results, f, pickle.HIGHEST_PROTOCOL)
+            except Exception as e:
+                print('Exception encountered:', e)
+
+        # Quicksave priors
+        output_path = os.path.join(base_output_path, 'quicksaves', priors_pickle_fname)
+        print(f'Quicksaving priors to {output_path}')
+        with open(output_path, 'wb') as f:
+            try:
+                pickle.dump(priors, f, pickle.HIGHEST_PROTOCOL)
+            except Exception as e:
+                print('Exception encountered:', e)
+
     def _save_results_dict(self, results_dict, path, batched):
         '''
         Saves a dict to csv
@@ -692,7 +738,7 @@ class OutputHandler:
         failed_index = []
         for key in self.best_model.keys():
             for i, lc in np.ndenumerate(all_lightcurves):
-                if self.best_model[key][i] is None:
+                if self.best_model[key][i] is None and lc is not None:
                     failed_key.append(key)
                     failed_index.append(i)
         if len(failed_key) > 0:
@@ -967,9 +1013,12 @@ class OutputHandler:
             # Histogram residuals
             rgba_color = colors.to_rgba(marker_color)
             facecolor = (rgba_color[0], rgba_color[1], rgba_color[2], 0.6)
-            hist_ax.hist(residuals, bins=30, orientation='horizontal',
-                         color=facecolor, edgecolor=rgba_color,
-                         histtype='stepfilled')
+
+            unbinned_counts, bins = np.histogram(residuals, bins=30)
+
+            hist_ax.hist(bins[:-1], bins, weights=unbinned_counts,
+                         orientation='horizontal', color=facecolor,
+                         edgecolor=rgba_color, histtype='stepfilled')
             hist_ax.axhline(0, linestyle='dashed', color='gray',
                             linewidth=1, zorder=1)
 
@@ -977,9 +1026,17 @@ class OutputHandler:
             if bin_data:
                 rgba_color = colors.to_rgba(binned_colour)
                 facecolor = (rgba_color[0], rgba_color[1], rgba_color[2], 0.6)
-                hist_ax.hist(binned_residuals, bins=30, orientation='horizontal',
-                             color=facecolor, edgecolor=rgba_color,
-                             histtype='stepfilled')
+
+                binned_counts, _ = np.histogram(binned_residuals, bins)
+
+                print(binned_counts)
+                print(unbinned_counts.sum(), binned_counts.sum(), unbinned_counts.sum()/binned_counts.sum())
+
+                weighted_binned_counts = binned_counts * unbinned_counts.sum()/binned_counts.sum()
+
+                hist_ax.hist(bins[:-1], bins, weights=weighted_binned_counts,
+                             orientation='horizontal', color=facecolor,
+                             edgecolor=rgba_color, histtype='stepfilled',alpha=0.5)
 
                 hist_ax.text(0.02, 0.93, r'$\sigma_{unbinned} = $' + str(round(residuals_std, 5)), transform=hist_ax.transAxes)
                 hist_ax.text(0.02, 0.85, r'$\sigma_{binned}$ = ' + str(round(binned_residuals_std, 5)), transform=hist_ax.transAxes)

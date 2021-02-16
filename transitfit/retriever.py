@@ -29,6 +29,8 @@ filter_dependent_params = ['rp', 'q0', 'q1', 'q2', 'q3', 'u0', 'u1', 'u2', 'u3']
 
 lightcurve_dependent_params = ['norm','d0','d1','d2','d3','d4','d5','d6','d7','d8']
 
+_default_detrending_limits = (-1000,1000)
+
 from .output_handler import OutputHandler
 
 
@@ -38,7 +40,7 @@ class Retriever:
                  limb_darkening_model='quadratic', host_T=None, host_logg=None,
                  host_z=None, host_r=None, ldtk_cache=None, data_skiprows=0,
                  n_ld_samples=20000, do_ld_mc=False, fit_ttv=False,
-                 filter_delimiter=None):
+                 filter_delimiter=None, detrending_limits=None):
         '''
 
         '''
@@ -56,6 +58,16 @@ class Retriever:
         self.fit_ttv = fit_ttv
 
         self.detrending_info = detrending_list
+        if detrending_limits is None:
+            self.detrending_limits = np.array([_default_detrending_limits for i in range(len(self.detrending_info))])
+        else:
+            detrending_limits = np.array(detrending_limits)
+            if not detrending_limits.ndim == 2:
+                raise ValueError(f'Detrending limits should be provided as a list of length {len(self.detrending_info)} where each entry is the  [lower, upper] limits on each method.')
+            if not detrending_limits.shape[1] == 2:
+                raise ValueError(f'Detrending limits should be provided as a list of length {len(self.detrending_info)} where each entry is the  [lower, upper] limits on each method.')
+
+            self.detrending_limits = detrending_limits
 
         # Host info
         self.host_T = host_T
@@ -85,13 +97,18 @@ class Retriever:
 
         # intialise detrending in each light curve
         for i, lc in np.ndenumerate(self.all_lightcurves):
-            detrending_idx = self.detrending_index_array[i]
-            detrending_method = detrending_list[detrending_idx]
+            if lc is not None:
+                detrending_idx = self.detrending_index_array[i]
+                detrending_method = detrending_list[detrending_idx]
 
-            if detrending_method[0] == 'nth order':
-                lc.set_detrending('nth order', order=detrending_method[1], method_idx=detrending_idx)
-            if detrending_method[0] == 'custom':
-                lc.set_detrending('custom', function=detrending_method[1], method_idx=detrending_idx)
+                if detrending_method[0] == 'nth order':
+                    lc.set_detrending('nth order', order=detrending_method[1], method_idx=detrending_idx)
+                elif detrending_method[0] == 'custom':
+                    lc.set_detrending('custom', function=detrending_method[1], method_idx=detrending_idx)
+                elif detrending_method[0] == 'off':
+                    lc.set_detrending('off', method_idx=detrending_idx)
+                else:
+                    raise ValueError(f'Unrecognised detrending method {detrending_method[0]}')
 
         self.n_total_lightcurves = np.sum(self.all_lightcurves!=None)
 
@@ -137,7 +154,7 @@ class Retriever:
     ##########################################################
     def _run_dynesty(self, lightcurves, priors, maxiter=None, maxcall=None,
                      sample='auto', nlive=300, dlogz=None, bound='multi',
-                     nprocs=mp.cpu_count() - 1):
+                     plot_folder='./plots'):
         '''
         Runs dynesty on the given lightcurves with the given priors. Returns
         the result.
@@ -159,12 +176,6 @@ class Retriever:
         # Make a LikelihoodCalculator
         likelihood_calc = LikelihoodCalculator(lightcurves, priors)
         print(priors)
-        #if nprocs == 1:
-        #    pool=None
-        #else:
-        #    print(nprocs, 'processes')
-        #    pool = mp.Pool(nprocs)
-        #    pool.size = nprocs
 
         #######################################################################
         #######################################################################
@@ -209,7 +220,7 @@ class Retriever:
             results = sampler.results
             results.best = results.samples[np.argmax(results.logl)]
             output_handler = OutputHandler(lightcurves, self._full_prior, self.host_r)
-            output_handler._plot_samples(results, priors, 'Exception_posteriors.png')
+            output_handler._plot_samples(results, priors, 'Exception_posteriors.png', plot_folder)
             raise
 
 
@@ -268,7 +279,7 @@ class Retriever:
         #print(priors)
         results, ndof = self._run_dynesty(lightcurves, priors,
                                           maxiter, maxcall, sample, nlive,
-                                          dlogz, bound)
+                                          dlogz, bound, plot_folder)
         return_results = deepcopy(results)
         # Print results to terminal
         try:
@@ -282,9 +293,6 @@ class Retriever:
                                              output_folder, summary_file,
                                              full_output_file)
 
-            #self._save_results([results], [priors], [lightcurves], output_folder,
-            #              summary_file, full_output_file, lightcurve_folder,
-            #              plot, plot_folder, marker_color, line_color)
         except Exception as e:
             print('Exception raised whilst saving results:')
             print(e)
@@ -303,7 +311,7 @@ class Retriever:
                                lightcurve_folder='./fitted_lightcurves',
                                plot=True, plot_folder='./plots',
                                marker_color='dimgrey', line_color='black',
-                               bound='multi'):
+                               bound='multi', filter_idx=None):
         '''
         Runs a retrieval using the given batches
 
@@ -332,11 +340,13 @@ class Retriever:
             # Run the retrieval!
             results, ndof = self._run_dynesty(batch_lightcurves, batch_prior, maxiter,
                                               maxcall, sample, nlive,
-                                              dlogz, bound)
+                                              dlogz, bound, plot_folder)
 
             all_results.append(results)
             all_priors.append(batch_prior)
             all_lightcurves.append(batch_lightcurves)
+
+            output_handler._quicksave_result(results, batch_prior, batch_lightcurves, output_folder, filter_idx, bi)
 
         # Make outputs etc
         if 'filter' in plot_folder:
@@ -403,7 +413,7 @@ class Retriever:
                                             lightcurve_folder=filter_lightcurve_folder,
                                             plot=plot, plot_folder=filter_plots_folder,
                                             marker_color=marker_color, line_color=line_color,
-                                            bound=bound)
+                                            bound=bound, filter_idx=fi)
 
             results_list.append(results)
             priors_list.append(priors)
@@ -419,7 +429,7 @@ class Retriever:
             quick_folder = os.path.join(plot_folder, 'folded_curves')
             quick_plot(lc, quick_fname, quick_folder, folded_t0, folded_P)
 
-            print('Filter {} quick look phase fold saved to {}'.format(lci, os.path.join(quick_folder, quick_fname)))
+            print('Filter {} quick look phase fold saved to {}'.format(lci[1], os.path.join(quick_folder, quick_fname)))
 
         # Get the batches, and remember that now we are not detrending or
         # normalising since that was done in the first stage
@@ -449,6 +459,7 @@ class Retriever:
         runs a second retrieval using the detrended curves.
         '''
 
+        raise NotImplimentedError('The detrending approach has changed - this function has not been updated yet.')
         # First up, run each filter as if for folding (epoch batches) and
         # use the results to detrend and normalise the lightcurves without
         # folding them
@@ -523,7 +534,7 @@ class Retriever:
         # Detrend but don't fold!
         detrended_curves = np.full(self.all_lightcurves.shape, None)
 
-        print('Detrending and normmalising light curves...')
+        print('Detrending and normalising light curves...')
         for i, lc in np.ndenumerate(self.all_lightcurves):
             if lc is not None:
                 method_idx = lc.detrending_method_idx
@@ -549,8 +560,6 @@ class Retriever:
                         summary_file=summary_file, full_output_file=full_output_file,
                         lightcurve_folder=lightcurve_folder, plot=plot, plot_folder=plot_folder,
                         marker_color=marker_color, line_color=line_color, bound=bound)
-
-
 
     def run_retrieval(self, ld_fit_method='independent', fitting_mode='auto',
                       max_parameters=25, maxiter=None, maxcall=None,
@@ -785,6 +794,11 @@ class Retriever:
             n_epochs = len(unique_indices[2])
 
 
+        if self.host_r is not None:
+            host_r = self.host_r[0]
+        else:
+            host_r=None
+
         # Set up the basic PriorInfo
         if type(self._prior_input) == str:
             # read in priors from a file
@@ -794,7 +808,7 @@ class Retriever:
                                       n_epochs,
                                       self.limb_darkening_model,
                                       filter_indices,
-                                      folded, folded_P, folded_t0, self.host_r[0],
+                                      folded, folded_P, folded_t0, host_r,
                                       self.fit_ttv, lightcurve_subset,
                                       suppress_warnings)
         else:
@@ -806,7 +820,7 @@ class Retriever:
                                        self.limb_darkening_model,
                                        filter_indices,
                                        folded, folded_P, folded_t0,
-                                       self.host_r[0], self.fit_ttv, lightcurve_subset,
+                                       host_r, self.fit_ttv, lightcurve_subset,
                                        suppress_warnings)
 
         # Set up limb darkening
@@ -828,7 +842,8 @@ class Retriever:
 
         if detrend:
             priors.fit_detrending(lightcurve_subset,
-                                  self.detrending_info, detrending_indices)
+                                  self.detrending_info, detrending_indices,
+                                  self.detrending_limits)
 
         # Set up normalisation
         if normalise:
@@ -927,26 +942,27 @@ class Retriever:
 
                 # Loop through lightcurves and detrend/normalise
                 for i, lc in np.ndenumerate(lcs):
-                    # Get some sub indices.
-                    tidx, fidx, eidx = i
-                    if prior.detrend:
-                        method_idx = lc.detrending_method_idx
-                        # Get the detrending coeffs for this lc
-                        detrending_coeffs = prior.detrending_coeffs[method_idx]
+                    if lc is not None:
+                        # Get some sub indices.
+                        tidx, fidx, eidx = i
+                        if prior.detrend:
+                            method_idx = lc.detrending_method_idx
+                            # Get the detrending coeffs for this lc
+                            detrending_coeffs = prior.detrending_coeffs[method_idx]
 
-                        best_d = [results_dict[d][i] for d in detrending_coeffs]
-                    else:
-                        best_d = None
+                            best_d = [results_dict[d][i] for d in detrending_coeffs]
+                        else:
+                            best_d = None
 
-                    norm = results_dict['norm'][i]
+                        norm = results_dict['norm'][i]
 
-                    # Make the detrended light curve and fold to the final t0
-                    detrended_curve = lc.create_detrended_LightCurve(best_d, norm)
+                        # Make the detrended light curve and fold to the final t0
+                        detrended_curve = lc.create_detrended_LightCurve(best_d, norm, best_t0[eidx], best_P)
 
-                    # Fold the curve using the best t0 for the epoch and P
-                    # We are folding each curve to be centred on best_t0[0]
-                    folded_curve = detrended_curve.fold(best_t0[eidx], best_P, best_t0[0])
-                    final_batched_lightcurves[fi].append(folded_curve)
+                        # Fold the curve using the best t0 for the epoch and P
+                        # We are folding each curve to be centred on best_t0[0]
+                        folded_curve = detrended_curve.fold(best_t0[eidx], best_P, best_t0[0])
+                        final_batched_lightcurves[fi].append(folded_curve)
 
         # Now we go through detrended and folded lightcurve, and combine them
         # into one lightcurve per filter
@@ -1062,7 +1078,7 @@ class Retriever:
 
             # Flag to check if we have got batches containing the full range
             # of epoch/filter
-            done = False
+            done = n_curves == 0
 
             while not done:
                 # A single batch - telescope, filter, epoch indices
