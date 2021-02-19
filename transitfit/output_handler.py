@@ -752,7 +752,7 @@ class OutputHandler:
                     # some extra checking:
                     if key[0] == 'd':
                         method_idx = self.full_prior._detrend_method_index_array[i]
-                        if key not in self.full_prior.detrending_coeffs[method_idx]:
+                        if key in self.full_prior.detrending_coeffs[method_idx]:
                             failed_key.append(key)
                             failed_index.append(i)
                     else:
@@ -762,6 +762,7 @@ class OutputHandler:
             print('Best model failed keys:', failed_key)
             print('Best model failed indices:', failed_index)
             raise RuntimeError('Something has gone wrong with the best model generation')
+
 
         print('Initialising best batman models')
 
