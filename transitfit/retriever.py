@@ -570,7 +570,8 @@ class Retriever:
                       full_output_file='full_output.csv',
                       plot_folder='./plots', marker_color='dimgray',
                       line_color='black', bound='multi',
-                      normalise=True, detrend=True, overlap=2):
+                      normalise=True, detrend=True, overlap=2,
+                      bin_data=True, cadence=2, binned_color='red'):
         '''
         Runs dynesty on the data. Different modes exist and can be specified
         using the kwargs.
@@ -673,7 +674,7 @@ class Retriever:
             results = self._run_full_retrieval(ld_fit_method, detrend, normalise,
                     maxiter, maxcall, sample, nlive, dlogz, output_folder,
                     summary_file, full_output_file, lightcurve_folder, plot,
-                    plot_folder, marker_color, line_color, bound)
+                    plot_folder, marker_color, line_color, bound, bin_data, cadence)
 
         elif fitting_mode.lower() == 'batched':
             # In this mode, we are generating batches which contain all
@@ -711,7 +712,7 @@ class Retriever:
 
         output_handler.save_final_light_curves(self.all_lightcurves, self._full_prior, lightcurve_folder)
 
-        output_handler.plot_final_light_curves(self.all_lightcurves, self._full_prior, plot_folder, marker_color=marker_color, line_color=line_color)
+        output_handler.plot_final_light_curves(self.all_lightcurves, self._full_prior, plot_folder, marker_color=marker_color, line_color=line_color, bin_data=True, cadence=2, binned_color=binned_color)
 
     ##########################################################
     #            PRIOR MANIPULATION                          #

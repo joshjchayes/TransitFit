@@ -31,7 +31,8 @@ def run_retrieval(data_files, priors, filter_info=None,
                   marker_color='dimgrey', line_color='black', ldtk_cache=None,
                   n_ld_samples=20000, do_ld_mc=False, data_skiprows=0,
                   fit_ttv=False, filter_delimiter=None,
-                  detrending_limits=None):
+                  detrending_limits=None, bin_data=True, cadence=2,
+                  binned_color='red'):
     '''
     Runs a full retrieval of posteriors using nested sampling on a transit
     light curve or a set of transit light curves. For more guidance on the use
@@ -81,14 +82,18 @@ def run_retrieval(data_files, priors, filter_info=None,
                      darkening coefficients.
     filter_info : str, optional
         Path to a .csv file containing information on the wavelengths of the
-        filters that observations were made at. TransitFit currently can only
-        handle uniform box filters, and so we recommend using the equivalent
-        width values of filters where possible. The columns should be in the
-        order
-        -----------------------------------------
-        |   filter_idx  |   low_wl  |   high_wl |
-        -----------------------------------------
-        where low_wl and high_wl are in nm.
+        filters that observations were made at. TransitFit currently can handle
+        uniform box filters or fully defined filter profiles provided as a csv
+        file with columns of wavelength in nm and transmission fraction.
+        The columns for this file should be in the order
+        -------------------------------------------
+        |   filter_idx  |   input_A  |   input_B  |
+        -------------------------------------------
+        For a uniform box filter, input_A is the lower bound in nm and input_B
+        is the upper bound in nm.
+        For a fully defined filter, input_A should be the path to the file
+        containing the filter profile.
+
         This is required if ld_fit_method is `'single'` or `'coupled'`. If not
         None and host_T, host_logg and host_z are not None, retrieval will
         include fitting realistic limb darkening parameters for the filters.
@@ -282,6 +287,14 @@ def run_retrieval(data_files, priors, filter_info=None,
     detrending_limits : list, optional
         The bounds on detrending coefficients, given as (lower, upper) pair for
         each detrending method. IF not provided, will default to ±1000
+    bin_data : bool, optional
+        If True, any folded light curves will be plotted with data binned to an
+        observing cadence given by `cadence`. Default is True.
+    cadence : float, optional
+        The observing cadence, in minutes, to bin data to if `bin_data` is
+        True. Default is 2 (mirroring TESS observations)
+    binned_color : str, optional
+        The color to use for binned data. Default is `'red'`.
 
     Returns
     -------
@@ -310,6 +323,6 @@ def run_retrieval(data_files, priors, filter_info=None,
                                       final_lightcurve_folder, summary_file,
                                       full_output_file, plot_folder,
                                       marker_color, line_color, dynesty_bounding, normalise,
-                                      detrend, batch_overlap)
+                                      detrend, batch_overlap, bin_data, cadence)
 
     return results

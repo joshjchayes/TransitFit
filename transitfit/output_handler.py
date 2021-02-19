@@ -118,10 +118,14 @@ class OutputHandler:
                                 folder='./plots', figsize=(12,8),
                                 marker_color='dimgrey', line_color='black',
                                 plot_folded=True, titles=False, bin_data=True,
-                                cadence=2):
+                                cadence=2, binned_color='red'):
         '''
         Plots the detrended light curves with the global best-fit model
 
+        Parameters
+        ----------
+        cadence : float, optional
+            The cadence to bin to in minutes
 
         '''
         print('Plotting final curves')
@@ -229,7 +233,12 @@ class OutputHandler:
             model_phase = np.array(model_phase).flatten()
             model_flux = np.array(model_flux).flatten()
 
-            cadence = cadence / (self.best_model['P'][None, None, None][0] * 24 * 60)
+            P = self.best_model['P'][None, None, None][0]
+            t0 = self.best_model['t0'][None, None, 0][0]
+
+            cadence_days = cadence / (P * 24 * 60)
+
+            cadence_phase = (cadence_days - t0)/P - (cadence_days - (t0 * 0.5*P))//P + 0.5
 
             plot_errors = [flux_err, None]
             sub_folder = ['with_errorbars', 'without_errorbars']
@@ -246,7 +255,7 @@ class OutputHandler:
                     self._plot_data(phase, flux, plot_errors[j], model_phase,
                                 model_flux, residuals, fname, title, folder,
                                 figsize, marker_color, line_color, bin_data,
-                                cadence)
+                                cadence_phase, binned_color)
 
                 except Exception as e:
                     print('Exception raised while plotting:')
@@ -739,8 +748,16 @@ class OutputHandler:
         for key in self.best_model.keys():
             for i, lc in np.ndenumerate(all_lightcurves):
                 if self.best_model[key][i] is None and lc is not None:
-                    failed_key.append(key)
-                    failed_index.append(i)
+                    # If the failed key is a detrending coeff, we need to do
+                    # some extra checking:
+                    if key[0] == 'd':
+                        method_idx = self.full_prior._detrend_method_index_array[i]
+                        if key not in self.full_prior.detrending_coeffs[method_idx]:
+                            failed_key.append(key)
+                            failed_index.append(i)
+                    else:
+                        failed_key.append(key)
+                        failed_index.append(i)
         if len(failed_key) > 0:
             print('Best model failed keys:', failed_key)
             print('Best model failed indices:', failed_index)
