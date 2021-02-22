@@ -754,7 +754,7 @@ class OutputHandler:
                         method_idx = self.full_prior._detrend_method_index_array[i]
                         if key in self.full_prior.detrending_coeffs[method_idx]:
                             # If the key is associated with the lc, then this
-                            # has failed. 
+                            # has failed.
                             failed_key.append(key)
                             failed_index.append(i)
                     else:
@@ -1049,10 +1049,7 @@ class OutputHandler:
 
                 binned_counts, _ = np.histogram(binned_residuals, bins)
 
-                print(binned_counts)
-                print(unbinned_counts.sum(), binned_counts.sum(), unbinned_counts.sum()/binned_counts.sum())
-
-                weighted_binned_counts = binned_counts * unbinned_counts.sum()/binned_counts.sum()
+                weighted_binned_counts = binned_counts * unbinned_counts.max()/binned_counts.max()
 
                 hist_ax.hist(bins[:-1], bins, weights=weighted_binned_counts,
                              orientation='horizontal', color=facecolor,
