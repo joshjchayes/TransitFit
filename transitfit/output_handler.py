@@ -753,6 +753,8 @@ class OutputHandler:
                     if key[0] == 'd':
                         method_idx = self.full_prior._detrend_method_index_array[i]
                         if key in self.full_prior.detrending_coeffs[method_idx]:
+                            # If the key is associated with the lc, then this
+                            # has failed. 
                             failed_key.append(key)
                             failed_index.append(i)
                     else:

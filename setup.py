@@ -43,5 +43,6 @@ setuptools.setup(
     python_requires='>=3.6',
     install_requires=['batman-package', 'dynesty', 'numpy', 'matplotlib',
                       'pandas', 'ldtk', 'corner', 'semantic_version'],
-    zip_safe=False
+    zip_safe=False,
+    package_data={'transitfit' : ['../filters/*.csv']}
 )
