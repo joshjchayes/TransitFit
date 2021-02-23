@@ -32,7 +32,7 @@ def run_retrieval(data_files, priors, filter_info=None,
                   n_ld_samples=20000, do_ld_mc=False, data_skiprows=0,
                   fit_ttv=False, filter_delimiter=None,
                   detrending_limits=None, bin_data=True, cadence=2,
-                  binned_color='red'):
+                  binned_color='red', walks=100, slices=10):
     '''
     Runs a full retrieval of posteriors using nested sampling on a transit
     light curve or a set of transit light curves. For more guidance on the use
@@ -323,6 +323,7 @@ def run_retrieval(data_files, priors, filter_info=None,
                                       final_lightcurve_folder, summary_file,
                                       full_output_file, plot_folder,
                                       marker_color, line_color, dynesty_bounding, normalise,
-                                      detrend, batch_overlap, bin_data, cadence)
+                                      detrend, batch_overlap, bin_data, cadence,
+                                      walks, slices)
 
     return results
