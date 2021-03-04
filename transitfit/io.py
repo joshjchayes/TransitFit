@@ -334,13 +334,19 @@ def _read_data_txt(path, skiprows=0, usecols=None, delimiter=' '):
     '''
     Reads a txt data file with columns
     '''
-    data = pd.read_csv(path, usecols=usecols, dtype=float, delimiter=delimiter)
+    try:
+        data = pd.read_csv(path, usecols=usecols, dtype=float, delimiter=delimiter)
 
-    times, flux, errors = data.values.T
+        times, flux, errors = data.values.T
 
-    non_nan = np.invert(np.any(pd.isna(data.values.T), axis=0))
+        non_nan = np.invert(np.any(pd.isna(data.values.T), axis=0))
 
-    return times[non_nan], flux[non_nan], errors[non_nan]
+        return times[non_nan], flux[non_nan], errors[non_nan]
+    except Exception as e:
+         times, flux, errors = np.loadtxt(path, skiprows=skiprows, usecols=usecols).T
+         return times, flux, errors
+
+         raise e
 
 def read_data_file(path, skiprows=0, folder=None, usecols=None, delimiter=None):
     '''
@@ -379,8 +385,10 @@ def read_data_file(path, skiprows=0, folder=None, usecols=None, delimiter=None):
 
     if path[-4:] == '.csv':
         times, flux, errors = _read_data_csv(os.path.join(folder, path), usecols)
-    if path[-4:] == '.txt':
+    elif path[-4:] == '.txt':
         times, flux, errors = _read_data_txt(os.path.join(folder, path), skiprows, usecols)
+    else:
+        raise ValueError(f'Data files must be .csv or .txt, not {path[-4:]}')
 
     return times, flux, errors
 
