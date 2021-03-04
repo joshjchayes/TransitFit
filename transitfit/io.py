@@ -336,12 +336,10 @@ def _read_data_txt(path, skiprows=0, usecols=None, delimiter=' '):
     '''
     try:
         data = pd.read_csv(path, usecols=usecols, dtype=float, delimiter=delimiter)
-
         times, flux, errors = data.values.T
-
         non_nan = np.invert(np.any(pd.isna(data.values.T), axis=0))
-
         return times[non_nan], flux[non_nan], errors[non_nan]
+
     except Exception as e:
          times, flux, errors = np.loadtxt(path, skiprows=skiprows, usecols=usecols).T
          return times, flux, errors
@@ -505,7 +503,7 @@ def parse_filter_list(filter_list, delimiter=None, unit='nanometers'):
             # Get either the path from input or replace path for provided filters
             path, unit = get_filter_path(filter_list[i, 1], unit)
             # Load in the filter profile
-            filter_profile = pd.read_csv(path.strip(), sep=delimiter, dtype=float).values.T
+            filter_profile = pd.read_csv(path, sep=delimiter, dtype=float).values.T
 
             # Since filter wavelengths need to be in nm, we should convert them
             # from angstroms if necessary:
@@ -577,6 +575,8 @@ def get_filter_path(input_str, unit):
     path : str
         The path to the relevant filter
     '''
+    input_str = input_str.strip()
+
     if os.path.exists(input_str):
         return input_str, unit
 
