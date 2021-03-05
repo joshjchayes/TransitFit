@@ -1,0 +1,308 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>Getting Started &mdash; TransitFit 2.1 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Config Files" href="configfiles.html" />
+    <link rel="prev" title="Welcome to TransitFit!" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html" class="icon icon-home"> TransitFit
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Getting Started</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#a-note-on-time-standards">A note on time standards</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#an-illustration">An illustration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#some-toy-observations">Some toy observations</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#running-transitfit-on-these-data">Running <code class="docutils literal notranslate"><span class="pre">TransitFit</span></code> on these data</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#transitfit-outputs"><code class="docutils literal notranslate"><span class="pre">TransitFit</span></code> outputs</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="configfiles.html">Config Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="limb_darkening.html">Limb-darkening</a></li>
+<li class="toctree-l1"><a class="reference internal" href="detrending.html">Detrending</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">TransitFit</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>Getting Started</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="_sources/quickstart.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="getting-started">
+<h1>Getting Started<a class="headerlink" href="#getting-started" title="Permalink to this headline">¶</a></h1>
+<p><code class="docutils literal notranslate"><span class="pre">TransitFit</span></code> operation is based around three <a class="reference internal" href="configfiles.html#config-files"><span class="std std-ref">config files</span></a> (the <em>data path file</em>, the <em>priors file</em> and the <em>filter info file</em>) and a single Python wrapper function (<code class="xref py py-meth docutils literal notranslate"><span class="pre">run_retrieval()</span></code>). There’s a lot more going on under the hood but, for everyday use, you don’t need to worry about that.</p>
+<div class="section" id="a-note-on-time-standards">
+<h2>A note on time standards<a class="headerlink" href="#a-note-on-time-standards" title="Permalink to this headline">¶</a></h2>
+<p><strong>TransitFit assumes that all time values are in BJD</strong>. If you are using BJD-2450000, or any variation on this, you will be okay as long as you are consistent. Using HJD, local time, or any time system that is not based on BJD will end in incorrect results and probably tears.</p>
+</div>
+<div class="section" id="an-illustration">
+<h2>An illustration<a class="headerlink" href="#an-illustration" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="some-toy-observations">
+<h3>Some toy observations<a class="headerlink" href="#some-toy-observations" title="Permalink to this headline">¶</a></h3>
+<p>Let’s assume we have observations of 3 transits of a planet with a 6-day period:</p>
+<dl class="simple">
+<dt><em>Observation 1</em></dt><dd><p>Taken with telescope A, using an R-band filter, on Day 0.</p>
+</dd>
+<dt><em>Observation 2</em></dt><dd><p>Taken with telescope A, using a filter with uniform transmission between 400nm and 500nm, on Day 12.</p>
+</dd>
+<dt><em>Observation 3</em></dt><dd><p>Taken with telescope B, using an R-band filter, on Day 42.</p>
+</dd>
+</dl>
+<p>The config files for this might look something like</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">'input_data.csv'</span></code>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Path</span><span class="p">,</span>                   <span class="n">Telescope</span><span class="p">,</span>  <span class="n">Filter</span><span class="p">,</span>     <span class="n">Epoch</span><span class="p">,</span>      <span class="n">Detrending</span>
+<span class="o">/</span><span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">observation1</span><span class="p">,</span>  <span class="mi">0</span><span class="p">,</span>          <span class="mi">0</span><span class="p">,</span>          <span class="mi">0</span><span class="p">,</span>          <span class="mi">0</span>
+<span class="o">/</span><span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">observation2</span><span class="p">,</span>  <span class="mi">0</span><span class="p">,</span>          <span class="mi">1</span><span class="p">,</span>          <span class="mi">1</span><span class="p">,</span>          <span class="mi">0</span>
+<span class="o">/</span><span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">observation3</span><span class="p">,</span>  <span class="mi">1</span><span class="p">,</span>          <span class="mi">0</span><span class="p">,</span>          <span class="mi">2</span><span class="p">,</span>          <span class="mi">0</span>
+</pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'priors.csv'</span></code>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Parameter</span><span class="p">,</span> <span class="n">Distribution</span><span class="p">,</span> <span class="n">InputA</span><span class="p">,</span>        <span class="n">InputB</span><span class="p">,</span> <span class="n">Filter</span>
+<span class="n">P</span><span class="p">,</span>         <span class="n">gaussian</span><span class="p">,</span>     <span class="mi">6</span><span class="p">,</span>             <span class="mf">0.001</span><span class="p">,</span>
+<span class="n">t0</span><span class="p">,</span>        <span class="n">gaussian</span><span class="p">,</span>     <span class="mf">2457843.45246</span><span class="p">,</span> <span class="mf">0.007</span><span class="p">,</span>
+<span class="n">a</span><span class="p">,</span>         <span class="n">gaussian</span><span class="p">,</span>     <span class="mf">7.64</span><span class="p">,</span>          <span class="mf">0.5</span><span class="p">,</span>
+<span class="n">inc</span><span class="p">,</span>       <span class="n">gaussian</span><span class="p">,</span>     <span class="mf">88.5</span><span class="p">,</span>          <span class="mf">1.2</span><span class="p">,</span>
+<span class="n">rp</span><span class="p">,</span>        <span class="n">uniform</span><span class="p">,</span>      <span class="mf">0.13</span><span class="p">,</span>          <span class="mf">0.19</span><span class="p">,</span>   <span class="mi">0</span>
+<span class="n">rp</span><span class="p">,</span>        <span class="n">uniform</span><span class="p">,</span>      <span class="mf">0.13</span><span class="p">,</span>          <span class="mi">0</span><span class="p">,</span><span class="mi">19</span><span class="p">,</span>   <span class="mi">1</span>
+<span class="n">ecc</span><span class="p">,</span>       <span class="n">fixed</span><span class="p">,</span>        <span class="mi">0</span><span class="p">,</span>             <span class="p">,</span>
+</pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'filter_profiles.csv'</span></code>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Filter</span> <span class="n">index</span><span class="p">,</span>   <span class="n">InputA</span><span class="p">,</span>   <span class="n">InputB</span>
+<span class="mi">0</span><span class="p">,</span>              <span class="n">R</span><span class="p">,</span>
+<span class="mi">1</span><span class="p">,</span>              <span class="mi">400</span><span class="p">,</span>      <span class="mi">500</span>
+</pre></div>
+</div>
+</li>
+</ul>
+<p>See <a class="reference internal" href="configfiles.html#config-files"><span class="std std-ref">here</span></a> for more information on exactly what these mean and how to set them up.</p>
+</div>
+<div class="section" id="running-transitfit-on-these-data">
+<h3>Running <code class="docutils literal notranslate"><span class="pre">TransitFit</span></code> on these data<a class="headerlink" href="#running-transitfit-on-these-data" title="Permalink to this headline">¶</a></h3>
+<p>Once we have the config files set up, it is incredibly easy to retrieve a best-fit model using <code class="docutils literal notranslate"><span class="pre">TransitFit</span></code>.</p>
+<p>To fit these observations with basic linear detrending and a bog-standard quadratic limb darkening model without using the LDC coupling offered by <code class="docutils literal notranslate"><span class="pre">TransitFit</span></code>, run:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">transitfit</span> <span class="kn">import</span> <span class="n">run_retrieval</span>
+
+<span class="n">results</span> <span class="o">=</span> <span class="n">run_retrieval</span><span class="p">(</span><span class="s1">&#39;input_data.csv, priors.csv&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>This is a simple approach which is useful for getting some preliminary results, as it is generally the fastest-running method. However, <code class="docutils literal notranslate"><span class="pre">TransitFit</span></code> can do better.</p>
+<p>Let’s now imagine we have decided to use a quadratic detrending model, and also want to take advantage of the coupled LDC fitting. To do this, we still use <code class="xref py py-meth docutils literal notranslate"><span class="pre">run_retrieval()</span></code>, but have to specify a few more arguments, including providing filter profiles and host information.:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">transitfit</span> <span class="kn">import</span> <span class="n">run_retrieval</span>
+
+<span class="c1"># Set up the host info, using arbitrary values.</span>
+<span class="c1"># These are all given in (value, uncertainty) tuples</span>
+<span class="n">host_T</span> <span class="o">=</span> <span class="p">(</span><span class="mi">5450</span><span class="p">,</span> <span class="mi">130</span><span class="p">)</span> <span class="c1"># Effective temperature in Kelvin</span>
+<span class="n">host_z</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.32</span><span class="p">,</span> <span class="mf">0.09</span><span class="p">)</span> <span class="c1"># The metalicity</span>
+<span class="n">host_r</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.03</span><span class="p">,</span> <span class="mf">0.05</span><span class="p">)</span> <span class="c1"># Host radius in solar radii - this MUST be supplied if the prior for orbital separation is in AU.</span>
+<span class="n">host_logg</span> <span class="o">=</span> <span class="p">(</span><span class="mf">4.5</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">)</span> <span class="c1"># log10(suface gravity) in cm/s2</span>
+
+<span class="c1"># Set up the detrending model</span>
+<span class="c1"># We want to use a quadratic (2nd order) model</span>
+<span class="n">detrending_models</span> <span class="o">=</span> <span class="p">[[</span><span class="s1">&#39;nth order&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">]]</span>
+
+<span class="c1"># Now we can run the retrieval!</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">run_retrieval</span><span class="p">(</span><span class="s1">&#39;input_data.csv&#39;</span><span class="p">,</span> <span class="s1">&#39;priors.csv&#39;</span><span class="p">,</span> <span class="s1">&#39;filter_profiles.csv&#39;</span><span class="p">,</span>  <span class="c1"># Config paths</span>
+                        <span class="n">detrending_list</span><span class="o">=</span><span class="n">detrending_models</span><span class="p">,</span>  <span class="c1"># Set up detrending models</span>
+                        <span class="n">ld_fit_method</span><span class="o">=</span><span class="s1">&#39;coupled&#39;</span>  <span class="c1"># Turn on coupled LDC fitting</span>
+                        <span class="n">host_T</span><span class="o">=</span><span class="n">host_T</span><span class="p">,</span> <span class="n">host_logg</span><span class="o">=</span><span class="n">host_logg</span><span class="p">,</span> <span class="n">host_z</span><span class="o">=</span><span class="n">host_z</span><span class="p">,</span> <span class="n">host_r</span><span class="o">=</span><span class="n">host_r</span>  <span class="c1"># host params)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="transitfit-outputs">
+<h3><code class="docutils literal notranslate"><span class="pre">TransitFit</span></code> outputs<a class="headerlink" href="#transitfit-outputs" title="Permalink to this headline">¶</a></h3>
+<p>Talk about the things!!</p>
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="configfiles.html" class="btn btn-neutral float-right" title="Config Files" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="index.html" class="btn btn-neutral float-left" title="Welcome to TransitFit!" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Joshua Hayes.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

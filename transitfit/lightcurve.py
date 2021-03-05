@@ -172,7 +172,7 @@ class LightCurve:
         Notes
         -----
         We use
-            ``1/f_min <= c_n <= 1/f_max``
+            ``1/f_max <= c_n <= 1/f_min``
         as the default range.
         '''
         median_factor = 1/np.median(self.flux)

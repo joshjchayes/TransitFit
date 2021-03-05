@@ -1,3 +1,12 @@
 # docs/requirements.txt
 sphinx=3.5.1
 sphinx_rtd_theme=0.5.1
+numpy
+scipy
+matplotlib
+dynesty
+ldtk
+batman-package
+corner
+pandas
+semantic_version
