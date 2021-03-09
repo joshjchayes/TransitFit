@@ -4,7 +4,7 @@
 **Author** - Joshua Hayes (joshjchayes@gmail.com), as part of the [SPEARNET collaboration (SPEARNET LINK)](deadlink).
 
 ## Overview
-TransitFit is designed for exoplanetary transmission spectroscopy studies and offers a flexible approach to fitting single or multiple transits of an exoplanet at different observation wavelengths.  It possesses the functionality to efficiently couple host limb-darkening parameters to a range of physical models across different wavelengths, through the use of the [Limb darkening toolkit (ldtk)](https://github.com/hpparvi/ldtk) and the [Kipping parameterisations of two-parameter limb darkening models](https://arxiv.org/abs/1308.0009). TransitFit uses [batman](https://www.cfa.harvard.edu/~lkreidberg/batman/index.html) to handle transit light curve modelling, and sampling and retrieval uses the nested sampling algorithm available through [dynesty](https://dynesty.readthedocs.io/en/latest/index.html).
+[TransitFit](https://transitfit.readthedocs.io/en/latest/) is designed for exoplanetary transmission spectroscopy studies and offers a flexible approach to fitting single or multiple transits of an exoplanet at different observation wavelengths.  It possesses the functionality to efficiently couple host limb-darkening parameters to a range of physical models across different wavelengths, through the use of the [Limb darkening toolkit (ldtk)](https://github.com/hpparvi/ldtk) and the [Kipping parameterisations of two-parameter limb darkening models](https://arxiv.org/abs/1308.0009). TransitFit uses [batman](https://www.cfa.harvard.edu/~lkreidberg/batman/index.html) to handle transit light curve modelling, and sampling and retrieval uses the nested sampling algorithm available through [dynesty](https://dynesty.readthedocs.io/en/latest/index.html).
 
 <a name="installation"></a>
 ## Installation
@@ -22,7 +22,7 @@ Along with an installation of Python 3 (with the standard Conda distribution pac
 
 <a name="guide"></a>
 ## User guide
-The documentation for TransitFit can be found [here (LINK TO FOLLOW)](deadlink)
+The documentation for TransitFit can be found [here](https://transitfit.readthedocs.io/en/latest/)
 
 <a name="citing"></a>
 ## Citing TransitFit
