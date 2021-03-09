@@ -5,6 +5,7 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
 import sphinx_rtd_theme
+from transitfit import __version__
 
 # -- Path setup --------------------------------------------------------------
 
@@ -24,7 +25,7 @@ copyright = '2021, Joshua Hayes and collaborators'
 author = 'Joshua Hayes'
 
 # The full version, including alpha/beta/rc tags
-release = '2.1'
+release = __version__
 
 
 # -- General configuration ---------------------------------------------------

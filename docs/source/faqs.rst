@@ -14,7 +14,7 @@ Why have you only included nested sampling? Why can't I use MCMC?
     This comes down partly to the personal preference of the developement team, but mostly because ``TransitFit`` often has to deal with high-dimensioned fitting problems. MCMC routines often struggle in this situation, especially when the posterior space can be fairly degenerate or spiky. Nested sampling can handle these situations in a more stable way.
 
 I've found a bug - what can I do?
-    Raise the issue on the `GitHub page _LINK HERE <LINK>`_. Make sure to include as much information as possible, including any traceback messages and information on your priors etc.
+    Raise the issue on the `GitHub page <https://github.com/joshjchayes/TransitFit>`_. Make sure to include as much information as possible, including any traceback messages and information on your priors etc.
 
 Can I contribute to the project?
     Absolutely! ``TransitFit`` is an open-source project (GPL-3.0 licence) - please raise a pull request for any additions, changes, or improvements want to suggest.

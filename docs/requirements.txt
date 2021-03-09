@@ -10,3 +10,4 @@ batman-package
 corner
 pandas
 semantic_version
+transitfit
