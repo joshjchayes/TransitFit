@@ -9,6 +9,7 @@ from .detrending_funcs import NthOrderDetrendingFunction
 from .detrender import DetrendingFunction
 from copy import deepcopy
 import csv
+from scipy.optimize import curve_fit
 
 class LightCurve:
     def __init__(self, times, flux, errors, telescope_idx=None,
@@ -183,7 +184,6 @@ class LightCurve:
 
         return median_factor, low_factor, high_factor
 
-
     def detrend_flux(self, d, norm=1, use_full_times=False,
                      use_phase_space=False, t0=None, P=None, force_normalise=False):
         '''
@@ -231,7 +231,6 @@ class LightCurve:
                 phase = self.get_phases(t0, P)
 
                 detrend_values = self.detrending_function(phase, *d)
-                #print('Detrending_values limits:', detrend_values.min(), detrend_values.max())
 
             else:
                 if use_full_times:
@@ -246,14 +245,10 @@ class LightCurve:
                 detrend_values = self.detrending_function(self.times - subtract_val, *d)
 
             detrended_flux -= detrend_values
-            #print('Detrended_flux limit (no normalisation):', detrended_flux.min(), detrended_flux.max())
 
         if self.normalise or force_normalise:
-            #print('Normalisation factor:', norm)
             detrended_flux *= norm
             detrended_errors *= norm
-
-        #print('Final flux limits:', detrended_flux.min(), detrended_flux.max())
 
         return detrended_flux, detrended_errors
 
@@ -398,8 +393,6 @@ class LightCurve:
         # Convert t14 to days:
         t14 /= 60 * 24
 
-        print(f't14 is {t14} days')
-
         # Work out the times, flux, and errors for each epoch
         t_new = [[] for i in range(n_periods)]
         f_new = [[] for i in range(n_periods)]
@@ -536,10 +529,6 @@ class LightCurve:
                 err[i] = 1/np.sqrt(np.sum(1/(bin_err**2)))
 
             points_in_bin[i] = np.sum(mask)
-
-        print('Average points in each bin:', np.average(points_in_bin))
-
-        print('Expected RMS improvement from binning:', np.sqrt(np.average(points_in_bin)))
 
         return_mask = (points_in_bin > 0)
 

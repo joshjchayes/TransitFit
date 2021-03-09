@@ -31,8 +31,9 @@ def run_retrieval(data_files, priors, filter_info=None,
                   marker_color='dimgrey', line_color='black', ldtk_cache=None,
                   n_ld_samples=20000, do_ld_mc=False, data_skiprows=0,
                   allow_ttv=False, filter_delimiter=None,
-                  detrending_limits=None):
-    """
+                  detrending_limits=None, bin_data=False, cadence=2,
+                  binned_color='red', walks=100, slices=10):
+    '''
     Runs a full retrieval of posteriors using nested sampling on a transit
     light curve or a set of transit light curves. For more guidance on the use
     of input files and structuring, see the TransitFit documentation.
@@ -284,8 +285,16 @@ def run_retrieval(data_files, priors, filter_info=None,
         lead to ``pandas`` trying to auto detect the delimiter.
 
     detrending_limits : list, optional
-        The bounds on detrending coefficients, given as ``(lower, upper)`` pair
-        for each detrending method. If not provided, will default to ``±1000``
+        The bounds on detrending coefficients, given as (lower, upper) pair for
+        each detrending method. IF not provided, will default to ±10
+    bin_data : bool, optional
+        If True, any folded light curves will be plotted with data binned to an
+        observing cadence given by `cadence`. Default is False.
+    cadence : float, optional
+        The observing cadence, in minutes, to bin data to if `bin_data` is
+        True. Default is 2 (mirroring TESS observations)
+    binned_color : str, optional
+        The color to use for binned data. Default is `'red'`.
 
     Returns
     -------
@@ -314,6 +323,7 @@ def run_retrieval(data_files, priors, filter_info=None,
                                       final_lightcurve_folder, summary_file,
                                       full_output_file, plot_folder,
                                       marker_color, line_color, dynesty_bounding, normalise,
-                                      detrend, batch_overlap)
+                                      detrend, batch_overlap, bin_data, cadence, binned_color,
+                                      walks, slices)
 
     return results

@@ -334,13 +334,17 @@ def _read_data_txt(path, skiprows=0, usecols=None, delimiter=' '):
     '''
     Reads a txt data file with columns
     '''
-    data = pd.read_csv(path, usecols=usecols, dtype=float, delimiter=delimiter)
+    try:
+        data = pd.read_csv(path, usecols=usecols, dtype=float, delimiter=delimiter)
+        times, flux, errors = data.values.T
+        non_nan = np.invert(np.any(pd.isna(data.values.T), axis=0))
+        return times[non_nan], flux[non_nan], errors[non_nan]
 
-    times, flux, errors = data.values.T
+    except Exception as e:
+         times, flux, errors = np.loadtxt(path, skiprows=skiprows, usecols=usecols).T
+         return times, flux, errors
 
-    non_nan = np.invert(np.any(pd.isna(data.values.T), axis=0))
-
-    return times[non_nan], flux[non_nan], errors[non_nan]
+         raise e
 
 def read_data_file(path, skiprows=0, folder=None, usecols=None, delimiter=None):
     '''
@@ -379,8 +383,10 @@ def read_data_file(path, skiprows=0, folder=None, usecols=None, delimiter=None):
 
     if path[-4:] == '.csv':
         times, flux, errors = _read_data_csv(os.path.join(folder, path), usecols)
-    if path[-4:] == '.txt':
+    elif path[-4:] == '.txt':
         times, flux, errors = _read_data_txt(os.path.join(folder, path), skiprows, usecols)
+    else:
+        raise ValueError(f'Data files must be .csv or .txt, not {path[-4:]}')
 
     return times, flux, errors
 
@@ -461,7 +467,7 @@ def parse_data_path_list(data_path_list):
 #############################################################
 #                         FILTERS                           #
 #############################################################
-def parse_filter_list(filter_list, delimiter=None):
+def parse_filter_list(filter_list, delimiter=None, unit='nanometers'):
     '''
     Parses a list of filter information into a usable form for the `'filters'`
     argument in PriorInfo.fit_limb_darkening.
@@ -494,9 +500,22 @@ def parse_filter_list(filter_list, delimiter=None):
     for i in range(n_filters):
         fidx = filter_list[i, 0]
         if type(filter_list[i, 1]) == str:
-            # Path provided, load in the filter
-            filter_profile = pd.read_csv(filter_list[i, 1].strip(), sep=delimiter).values.T
-            filter_info[i,0] = filter_profile[0]
+            # Get either the path from input or replace path for provided filters
+            path, unit = get_filter_path(filter_list[i, 1], unit)
+            # Load in the filter profile
+            filter_profile = pd.read_csv(path, sep=delimiter, dtype=float).values.T
+
+            # Since filter wavelengths need to be in nm, we should convert them
+            # from angstroms if necessary:
+            if unit.lower() in ['nm', 'nanometers']:
+                factor = 1
+            elif unit.lower() in ['angstroms', 'angstrom', 'a']:
+                factor = 0.1
+            elif unit.lower() in ['m','meters','metres']:
+                factor = 1e-9
+            else:
+                raise ValueError(f'Unrecognised unit {unit} given for filter profiles. TransitFit can only recognise "m", "nm", or "angstroms".')
+            filter_info[i,0] = filter_profile[0] * factor
             filter_info[i,1] = filter_profile[1]
         else:
             # box limits provided
@@ -504,7 +523,7 @@ def parse_filter_list(filter_list, delimiter=None):
 
     return filter_info
 
-def read_filter_info(path, delimiter=None):
+def read_filter_info(path, delimiter=None, unit='nanometers'):
     '''
     Reads in information on the filters from .csv file and puts them in a
     format which can be passed to the ``filters`` argument in
@@ -541,6 +560,70 @@ def read_filter_info(path, delimiter=None):
     info = pd.read_csv(path).values
 
     return parse_filter_list(info, delimiter)
+
+def get_filter_path(input_str, unit):
+    '''
+    Checks if a path or name of a default provided filter is given.
+
+    Parameters
+    ----------
+    input : str
+        The input string from the filter file input
+
+    Returns
+    -------
+    path : str
+        The path to the relevant filter
+    '''
+    input_str = input_str.strip()
+
+    if os.path.exists(input_str):
+        return input_str, unit
+
+    filter_folder = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+    # Johnson UBVRI
+    if input_str == 'U':
+        return os.path.join(filter_folder, 'filters/JohnsonU.csv'), 'angstroms'
+    if input_str == 'B':
+        return os.path.join(filter_folder, 'filters/JohnsonB.csv'), 'angstroms'
+    if input_str == 'V':
+        return os.path.join(filter_folder, 'filters/JohnsonV.csv'), 'angstroms'
+    if input_str == 'R':
+        return os.path.join(filter_folder, 'filters/CousinsR.csv'), 'angstroms'
+    if input_str == 'I':
+        return os.path.join(filter_folder, 'filters/CousinsI.csv'), 'angstroms'
+
+    # SDSS filters:
+    if input_str == 'g':
+        return os.path.join(filter_folder, 'filters/SLOAN_g.csv'), 'angstroms'
+    if input_str == 'g_prime':
+        return os.path.join(filter_folder, 'filters/SLOAN_gprime.csv'), 'angstroms'
+    if input_str == 'i':
+        return os.path.join(filter_folder, 'filters/SLOAN_i.csv'), 'angstroms'
+    if input_str == 'i_prime':
+        return os.path.join(filter_folder, 'filters/SLOAN_iprime.csv'), 'angstroms'
+    if input_str == 'r':
+        return os.path.join(filter_folder, 'filters/SLOAN_r.csv'), 'angstroms'
+    if input_str == 'r_prime':
+        return os.path.join(filter_folder, 'filters/SLOAN_rprime.csv'), 'angstroms'
+    if input_str == 'u':
+        return os.path.join(filter_folder, 'filters/SLOAN_u.csv'), 'angstroms'
+    if input_str == 'u_prime':
+        return os.path.join(filter_folder, 'filters/SLOAN_uprime.csv'), 'angstroms'
+    if input_str == 'z':
+        return os.path.join(filter_folder, 'filters/SLOAN_z.csv'), 'angstroms'
+    if input_str == 'z_prime':
+        return os.path.join(filter_folder, 'filters/SLOAN_zprime.csv'), 'angstroms'
+
+    # Kepler and TESS
+    if input_str == 'kepler':
+        return os.path.join(filter_folder, '../filters/Kepler.csv'), 'angstroms'
+    if input_str == 'tess':
+        return os.path.join(filter_folder, '../filters/TESS.csv'), 'angstroms'
+
+
+    raise ValueError(f'Unable to convert "{input_str}" into a path to a filter file')
+
 
 #############################################################
 #                         OUTPUTS                           #
