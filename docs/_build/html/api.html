@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>API &mdash; TransitFit 2.1 documentation</title>
+  <title>API &mdash; TransitFit 2.1.6dev documentation</title>
   
 
   
@@ -172,19 +172,88 @@
 priors!</p>
 <dl class="py function">
 <dt id="transitfit._pipeline.run_retrieval">
-<code class="sig-prename descclassname"><span class="pre">transitfit._pipeline.</span></code><code class="sig-name descname"><span class="pre">run_retrieval</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data_files</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">priors</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_info</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">detrending_list</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[['nth</span> <span class="pre">order',</span> <span class="pre">1]]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">limb_darkening_model</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'quadratic'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ld_fit_method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'independent'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fitting_mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'auto'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_batch_parameters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">25</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_overlap</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">host_T</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">host_logg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">host_z</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">host_r</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nlive</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">300</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dlogz</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">maxiter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">maxcall</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dynesty_sample</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'rslice'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dynesty_bounding</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'multi'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalise</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">detrend</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">results_output_folder</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'./output_parameters'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">final_lightcurve_folder</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'./fitted_lightcurves'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">summary_file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'summary_output.csv'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">full_output_file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'full_output.csv'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot_folder</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'./plots'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">marker_color</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'dimgrey'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">line_color</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'black'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ldtk_cache</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_ld_samples</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">do_ld_mc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data_skiprows</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fit_ttv</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_delimiter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">detrending_limits</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#transitfit._pipeline.run_retrieval" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname"><span class="pre">transitfit._pipeline.</span></code><code class="sig-name descname"><span class="pre">run_retrieval</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data_files</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">priors</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_info</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">detrending_list</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[['nth</span> <span class="pre">order',</span> <span class="pre">1]]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">limb_darkening_model</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'quadratic'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ld_fit_method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'independent'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fitting_mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'auto'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_batch_parameters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">25</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_overlap</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">host_T</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">host_logg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">host_z</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">host_r</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nlive</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">300</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dlogz</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">maxiter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">maxcall</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dynesty_sample</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'rslice'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dynesty_bounding</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'multi'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalise</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">detrend</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">results_output_folder</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'./output_parameters'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">final_lightcurve_folder</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'./fitted_lightcurves'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">summary_file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'summary_output.csv'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">full_output_file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'full_output.csv'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot_folder</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'./plots'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">marker_color</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'dimgrey'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">line_color</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'black'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ldtk_cache</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_ld_samples</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">do_ld_mc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data_skiprows</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">allow_ttv</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_delimiter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">detrending_limits</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bin_data</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cadence</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">binned_color</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'red'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">walks</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">slices</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#transitfit._pipeline.run_retrieval" title="Permalink to this definition">¶</a></dt>
 <dd><p>Runs a full retrieval of posteriors using nested sampling on a transit
 light curve or a set of transit light curves. For more guidance on the use
-of input files and structuring, see the TransitFit documentation.</p>
+of input files and structuring, see the TransitFit README.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>data_files</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a>) – The path to the data input .csv file, which contains the paths to the
-light curve data.</p></li>
-<li><p><strong>priors</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a>) – Path to a .csv file containing prior information on each variable to be
-fitted.</p></li>
+light curve data. Within this file, columns should be in the order
+————————————————————
+|  path  |  telescope  |  filter  |  epoch  |  detrending  |
+————————————————————
+where detrending is an index which refers to the detrending method from
+detrending_method_list to use for a given light curve</p></li>
+<li><p><strong>priors</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a>) – <p>Path to a .csv file containing prior information on each variable to be
+fitted. The columns for should be in the order
+——————————————————–
+|  key  |   mode  |  input_A  |   input_B   |  filter  |
+——————————————————–</p>
+<p>The available modes and the expected values of inputs A and B are:</p>
+<ul>
+<li><dl class="simple">
+<dt>’uniform’: input A should be lower limit, input B should be upper</dt><dd><p>limit</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>’gaussian’: input_A should be mean, input_B should be standard</dt><dd><p>deviation.</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>’fixed’: input_A should be the fixed value. input_B is not used and</dt><dd><p>should be left blank.</p>
+</dd>
+</dl>
+</li>
+</ul>
+<dl class="simple">
+<dt>The recognised key values are:</dt><dd><ul>
+<li><p>’P’ : orbital period. Should be in the same time units as t0</p></li>
+<li><dl class="simple">
+<dt>’rp’<span class="classifier">planet radius (filter specific). One should be provided</span></dt><dd><p>for each filter being used</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>’a’<span class="classifier">orbital radius in host radii, or AU. If given in AU, host_r</span></dt><dd><p>must be provided.</p>
+</dd>
+</dl>
+</li>
+<li><p>’inc’ : orbital inclination in degrees</p></li>
+<li><dl class="simple">
+<dt>’t0’<span class="classifier">a t0 value for one of the light curves being used. This</span></dt><dd><p>should be in the same time units as the period</p>
+</dd>
+</dl>
+</li>
+<li><p>’ecc’ : the orbital eccentricity</p></li>
+<li><p>’w’ : the longitude of periastron in degrees</p></li>
+<li><dl class="simple">
+<dt>{‘q0’, ‘q1’, ‘q2’, ‘q3’}<span class="classifier">the Kipping limb darkening parameters.</span></dt><dd><p>These should only be set in the priors file if
+ld_fit_method is <cite>‘off’</cite> and in this case you can use the
+priors to set the fixed value to use for the limb
+darkening coefficients.</p>
+</dd>
+</dl>
+</li>
+</ul>
+</dd>
+</dl>
+</p></li>
 <li><p><strong>filter_info</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – <p>Path to a .csv file containing information on the wavelengths of the
-filters that observations were made at.</p>
+filters that observations were made at. TransitFit currently can handle
+uniform box filters or fully defined filter profiles provided as a csv
+file with columns of wavelength in nm and transmission fraction.
+The columns for this file should be in the order
+——————————————-
+|   filter_idx  |   input_A  |   input_B  |
+——————————————-
+For a uniform box filter, input_A is the lower bound in nm and input_B
+is the upper bound in nm.
+For a fully defined filter, input_A should be the path to the file
+containing the filter profile.</p>
 <p>This is required if ld_fit_method is <cite>‘single’</cite> or <cite>‘coupled’</cite>. If not
 None and host_T, host_logg and host_z are not None, retrieval will
 include fitting realistic limb darkening parameters for the filters.
@@ -194,109 +263,111 @@ Default is None.</p>
 of a method and a second parameter dependent on the method.
 Accepted methods are</p>
 <blockquote>
-<div><p><code class="docutils literal notranslate"><span class="pre">['nth</span> <span class="pre">order',</span> <span class="pre">order]</span></code></p>
-<p><code class="docutils literal notranslate"><span class="pre">['custom',</span> <span class="pre">``function</span></code>, [global fit indices, filter fit indices, epoch fit indices]]``</p>
-<p><code class="docutils literal notranslate"><span class="pre">['off',</span> <span class="pre">]</span></code></p>
+<div><p>[‘nth order’, order]
+[‘custom’, function, [global fit indices, filter fit indices, epoch fit indices]]
+[‘off’, ]</p>
 </div></blockquote>
-<p><code class="docutils literal notranslate"><span class="pre">function</span></code> here is a custom detrending function. TransitFit assumes
+<p>function here is a custom detrending function. TransitFit assumes
 that the first argument to this function is times and that all
 other arguments are single-valued - TransitFit cannot fit
 list/array variables. If ‘off’ is used, no detrending will be
-applied to the <a href="#id1"><span class="problematic" id="id2">``</span></a>LightCurve``s using this model.</p>
+applied to the <a href="#id1"><span class="problematic" id="id2">`</span></a>LightCurve`s using this model.</p>
 <p>If a custom function is used, and some inputs to the function
 should not be fitted individually for each light curve, but should
 instead be shared either globally, within a given filter, or within
 a given epoch, the indices of where these fall within the arguments
 of the detrending function should be given as a list. If there are
 no indices to be given, then use an empty list: []
-e.g. if the detrending function is given by:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">foo</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">c</span><span class="p">):</span>
-    <span class="c1"># do something</span>
-</pre></div>
-</div>
-<p>and a should be fitted globally, then the entry in the method_list
-would be <code class="docutils literal notranslate"><span class="pre">['custom',</span> <span class="pre">foo,</span> <span class="pre">[1],</span> <span class="pre">[],</span> <span class="pre">[]]</span></code>.</p>
-</p></li>
-<li><p><strong>ld_model</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – <p>The limb darkening model to use. Allowed models are</p>
+e.g. if the detrending function is given by</p>
 <blockquote>
-<div><ul>
-<li><p><code class="docutils literal notranslate"><span class="pre">'linear'</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">'quadratic'</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">'squareroot'</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">'power2'</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">'nonlinear'</span></code></p></li>
-</ul>
+<div><p><a href="#id3"><span class="problematic" id="id4">``</span></a>`
+foo(times, a, b, c):</p>
+<blockquote>
+<div><p># do something</p>
 </div></blockquote>
+<p><a href="#id5"><span class="problematic" id="id6">``</span></a><a href="#id7"><span class="problematic" id="id8">`</span></a></p>
+</div></blockquote>
+<p>and a should be fitted globally, then the entry in the method_list
+would be [‘custom’, foo, [1], [], []].</p>
+</p></li>
+<li><p><strong>ld_model</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – <dl class="simple">
+<dt>The limb darkening model to use. Allowed models are</dt><dd><ul>
+<li><p>’linear’</p></li>
+<li><p>’quadratic’</p></li>
+<li><p>’squareroot’</p></li>
+<li><p>’power2’</p></li>
+<li><p>’nonlinear’</p></li>
+</ul>
+</dd>
+</dl>
 <p>With the exception of the non-linear model, all models are constrained
 by the method in Kipping (2013), which can be found at
-<a class="reference external" href="https://arxiv.org/abs/1308.0009">https://arxiv.org/abs/1308.0009</a>.
+<a class="reference external" href="https://arxiv.org/abs/1308.0009">https://arxiv.org/abs/1308.0009</a>. Use <cite>ldc_low_lim</cite> and <cite>ldc_high_lim</cite>
+to control the behaviour of unconstrained coefficients.
 Default is ‘quadratic’.</p>
 </p></li>
 <li><p><strong>ld_fit_method</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – <p>Determines the mode of fitting of limb darkening parameters. The
 available modes are:</p>
 <blockquote>
 <div><ul>
-<li><p><code class="docutils literal notranslate"><span class="pre">'coupled'</span></code> : all limb darkening parameters are fitted
+<li><p><cite>’coupled’</cite> : all limb darkening parameters are fitted
 independently, but are coupled to a wavelength dependent
 model based on the host parameters through <cite>ldkt</cite></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">'single'</span></code> : LD parameters are still tied to a model, but only
+<li><p><cite>’single’</cite> : LD parameters are still tied to a model, but only
 the first filter is actively fitted. The remaining filters
 are estimated based off the ratios given by ldtk for a host
 with the given parameters. This mode is useful for a large
 number of filters, as ‘coupled’ or ‘independent’ fitting will
 lead to much higher computation times.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">'independent'</span></code> : Each LD coefficient is fitted separately for
+<li><p><cite>’independent’</cite> : Each LD coefficient is fitted separately for
 each filter, with no coupling to the ldtk models.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">'off'</span></code> : no limb darkening fitting will occurr. If using this
+<li><p><cite>’off’</cite> : no limb darkening fitting will occurr. If using this
 mode, it it strongly recommended to set values for the
 Kipping q parameters using the priors file.</p></li>
 </ul>
 </div></blockquote>
 <p>Default is <cite>‘independent’</cite></p>
 </p></li>
-<li><p><strong>fitting_mode</strong> ({<code class="docutils literal notranslate"><span class="pre">'auto'</span></code>, <code class="docutils literal notranslate"><span class="pre">'all'</span></code>, <code class="docutils literal notranslate"><span class="pre">'2_stage'</span></code>, <code class="docutils literal notranslate"><span class="pre">'folded'</span></code>, <code class="docutils literal notranslate"><span class="pre">'batched'</span></code>}, optional) – <p>The approach TransitFit takes towards limiting the number of parameters
+<li><p><strong>fitting_mode</strong> ({<cite>‘auto’</cite>, <cite>‘all’</cite>, <cite>‘2_stage’</cite>, <cite>‘folded’</cite>, <cite>‘batched’</cite>}, optional) – <p>The approach TransitFit takes towards limiting the number of parameters
 being simultaneously fitted. The available modes are:
-- <code class="docutils literal notranslate"><span class="pre">'auto'</span></code> : Will calculate the number of parameters required to fit</p>
+- <cite>‘auto’</cite> : Will calculate the number of parameters required to fit</p>
 <blockquote>
 <div><p>all the data simulataneously. If this is less than max_parameters,
-will set to <code class="docutils literal notranslate"><span class="pre">'all'</span></code> mode, else will set to <code class="docutils literal notranslate"><span class="pre">'folded'</span></code> if at least
-one filter has at least 3 epochs in it. Otherwise will set to
-<code class="docutils literal notranslate"><span class="pre">'batched'</span></code></p>
+will set to <cite>‘all’</cite> mode, else will set to <cite>‘folded’</cite> if at least one
+filter has at least 3 epochs in it. Otherwise will set to <cite>‘batched’</cite></p>
 </div></blockquote>
 <ul>
-<li><p><code class="docutils literal notranslate"><span class="pre">'all'</span></code> : Fits all parameters simultaneously, with no folding or
+<li><p><cite>’all’</cite> : Fits all parameters simultaneously, with no folding or
 batching of curves. Should be used with caution when fitting very
 large (~&lt; 30) numbers of parameters.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">'2_stage'</span></code> : Fits in 2 stages, first detrending the light curves
-and then fitting the detrended curves simultaneously, using the
-<code class="docutils literal notranslate"><span class="pre">'batched'</span></code> approach if required.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">'folded'</span></code> : Useful for fitting curves with multiple epochs for each
+<li><p><cite>’2_stage’</cite> : Fits in 2 stages, first detrending the light curves and
+then fitting the detrended curves simultaneously, using the
+<cite>‘batched’</cite> approach if required.</p></li>
+<li><p><cite>’folded’</cite> : Useful for fitting curves with multiple epochs for each
 filter. TransitFit will fit each filter separately and produce a
 period-folded light curve for each filter, before fitting these
-simultaneously, using the <code class="docutils literal notranslate"><span class="pre">'batched'</span></code> approach if required.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">'batched'</span></code> : Useful for large numbers of light curves with
-relatively few shared filters, so <code class="docutils literal notranslate"><span class="pre">'folded'</span></code> loses large amounts of
+simultaneously, using the <cite>‘batched’</cite> approach if required.</p></li>
+<li><p><cite>’batched’</cite> : Useful for large numbers of light curves with
+relatively few shared filters, so <cite>‘folded’</cite> loses large amounts of
 multi-epoch information. This mode splits the filters into sets of
 overlapping batches, runs each batch and uses the weighted means of
 each batch to produce a final result.</p></li>
 </ul>
-<p>Default is <code class="docutils literal notranslate"><span class="pre">'auto'</span></code>.</p>
+<p>Default is <cite>‘auto’</cite>.</p>
 </p></li>
 <li><p><strong>max_batch_parameters</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – The maximum number of parameters to use in a single retrieval when
-using <code class="docutils literal notranslate"><span class="pre">'folded'</span></code> or <code class="docutils literal notranslate"><span class="pre">'batched'</span></code> fitting modes. Default is 25.</p></li>
+using folded or batched fitting modes. Default is 25.</p></li>
 <li><p><strong>batch_overlap</strong> (<em>in</em><em>, </em><em>optional</em>) – The number of filters or epochs to overlap adjacent batches by where
 possible. This ensures that adjacent batches share information. Default
 is 2.</p></li>
 <li><p><strong>host_T</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.9)"><em>tuple</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.9)"><em>None</em></a><em>, </em><em>optional</em>) – The effective temperature of the host star, in Kelvin. Should be given
-as a (value, uncertainty) pair. Required if ld_fit_method is
-<code class="docutils literal notranslate"><span class="pre">'single'</span></code> or <code class="docutils literal notranslate"><span class="pre">'coupled'</span></code>. Default is None.</p></li>
+as a (value, uncertainty) pair. Required if ld_fit_method is <cite>‘single’</cite>
+or <cite>‘coupled’</cite>. Default is None.</p></li>
 <li><p><strong>host_logg</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.9)"><em>tuple</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.9)"><em>None</em></a><em>, </em><em>optional</em>) – The log_10 of the surface gravity of the host star, with gravity
 measured in cm/s2. Should be given as a (value, uncertainty) pair.
-Required if ld_fit_method is <code class="docutils literal notranslate"><span class="pre">'single'</span></code> or <code class="docutils literal notranslate"><span class="pre">'coupled'</span></code>. Default is
-None</p></li>
+Required if ld_fit_method is <cite>‘single’</cite> or <cite>‘coupled’</cite>. Default is None</p></li>
 <li><p><strong>host_z</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.9)"><em>tuple</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.9)"><em>None</em></a><em>, </em><em>optional</em>) – The metalicity of the host, given as a (value, uncertainty) pair.
-Required if ld_fit_method is <code class="docutils literal notranslate"><span class="pre">'single'</span></code> or <code class="docutils literal notranslate"><span class="pre">'coupled'</span></code>. Default is
-None</p></li>
+Required if ld_fit_method is <cite>‘single’</cite> or <cite>‘coupled’</cite>. Default is None</p></li>
 <li><p><strong>host_r</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.9)"><em>tuple</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.9)"><em>None</em></a><em>, </em><em>optional</em>) – The host radius in Solar radii, given as a (value, uncertainty) pair.
 Required for conversion of host-planet separation from AU to host radii</p></li>
 <li><p><strong>nlive</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – The number of live points to use in the nested sampling retrieval.</p></li>
@@ -304,75 +375,80 @@ Required for conversion of host-planet separation from AU to host radii</p></li>
 will fit normalisation constants within the retrieval. The range to
 fit normalisation constants c_n are automatically detected using</p>
 <blockquote>
-<div><p><code class="docutils literal notranslate"><span class="pre">1/f_max</span> <span class="pre">&lt;=</span> <span class="pre">c_n</span> <span class="pre">&lt;=</span> <span class="pre">1/f_min</span></code></p>
+<div><p><code class="docutils literal notranslate"><span class="pre">1/f_min</span> <span class="pre">&lt;=</span> <span class="pre">c_n</span> <span class="pre">&lt;=</span> <span class="pre">1/f_max</span></code></p>
 </div></blockquote>
-<p>as the default range, where <code class="docutils literal notranslate"><span class="pre">f_min</span></code> and <code class="docutils literal notranslate"><span class="pre">f_max</span></code> are the minimum and
-maximum flux values for a given light curve. Default is <code class="docutils literal notranslate"><span class="pre">True</span></code>.</p>
+<p>as the default range, where f_min and f_max are the minimum and maximum
+flux values for a given light curve. Default is True.</p>
 </p></li>
 <li><p><strong>detrend</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – If False, no detrending will be attempted, even if specified by
-detrending list. Default is <code class="docutils literal notranslate"><span class="pre">True</span></code></p></li>
+detrending list. Default is True</p></li>
 <li><p><strong>dlogz</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a><em>, </em><em>optional</em>) – Retrieval iteration will stop when the estimated contribution of the
 remaining prior volume to the total evidence falls below this
 threshold. Explicitly, the stopping criterion is
-<code class="docutils literal notranslate"><span class="pre">ln(z</span> <span class="pre">+</span> <span class="pre">z_est)</span> <span class="pre">-</span> <span class="pre">ln(z)</span> <span class="pre">&lt;</span> <span class="pre">dlogz</span></code>, where <code class="docutils literal notranslate"><span class="pre">z</span></code> is the current evidence
+<cite>ln(z + z_est) - ln(z) &lt; dlogz</cite>, where z is the current evidence
 from all saved samples and z_est is the estimated contribution from
-the remaining volume. The default is <code class="docutils literal notranslate"><span class="pre">1e-3</span> <span class="pre">*</span> <span class="pre">(nlive</span> <span class="pre">-</span> <span class="pre">1)</span> <span class="pre">+</span> <span class="pre">0.01</span></code>.</p></li>
+the remaining volume. The default is <cite>1e-3 * (nlive - 1) + 0.01</cite>.</p></li>
 <li><p><strong>maxiter</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.9)"><em>None</em></a><em>, </em><em>optional</em>) – The maximum number of iterations to run. If None, will
-continue until stopping criterion is reached. Default is <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p></li>
+continue until stopping criterion is reached. Default is None.</p></li>
 <li><p><strong>maxcall</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.9)"><em>None</em></a><em>, </em><em>optional</em>) – The maximum number of likelihood calls in retrieval. If None, will
-continue until stopping criterion is reached. Default is <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p></li>
+continue until stopping criterion is reached. Default is None.</p></li>
 <li><p><strong>dynesty_sample</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – Method used to sample uniformly within the likelihood constraint,
 conditioned on the provided bounds. Unique methods available are:
-uniform sampling within the bounds(<code class="docutils literal notranslate"><span class="pre">'unif'</span></code>), random walks with fixed
-proposals (<code class="docutils literal notranslate"><span class="pre">'rwalk'</span></code>), random walks with variable (“staggering”)
-proposals (<code class="docutils literal notranslate"><span class="pre">'rstagger'</span></code>), multivariate slice sampling along preferred
-orientations (<code class="docutils literal notranslate"><span class="pre">'slice'</span></code>), “random” slice sampling along all
-orientations (<code class="docutils literal notranslate"><span class="pre">'rslice'</span></code>), “Hamiltonian” slices along random
-trajectories (<code class="docutils literal notranslate"><span class="pre">'hslice'</span></code>), and any callable function which follows
+uniform sampling within the bounds(‘unif’), random walks with fixed
+proposals (‘rwalk’), random walks with variable (“staggering”)
+proposals (‘rstagger’), multivariate slice sampling along preferred
+orientations (‘slice’), “random” slice sampling along all
+orientations (‘rslice’), “Hamiltonian” slices along random
+trajectories (‘hslice’), and any callable function which follows
 the pattern of the sample methods defined in dynesty.sampling.
 ‘auto’ selects the sampling method based on the dimensionality of
-the problem (from <code class="docutils literal notranslate"><span class="pre">ndim</span></code>). When ndim &lt; 10, this defaults to <code class="docutils literal notranslate"><span class="pre">'unif'</span></code>.
-When 10 &lt;= <code class="docutils literal notranslate"><span class="pre">ndim</span></code> &lt;= 20, this defaults to <code class="docutils literal notranslate"><span class="pre">'rwalk'</span></code>. When ndim &gt; 20,
-this defaults to <code class="docutils literal notranslate"><span class="pre">'hslice'</span></code> if a gradient is provided and <code class="docutils literal notranslate"><span class="pre">'slice'</span></code>
-otherwise. <code class="docutils literal notranslate"><span class="pre">'rstagger'</span></code> and <code class="docutils literal notranslate"><span class="pre">'rslice'</span></code> are provided as alternatives for
-<code class="docutils literal notranslate"><span class="pre">'rwalk'</span></code> and <code class="docutils literal notranslate"><span class="pre">'slice'</span></code>, respectively. Default is <code class="docutils literal notranslate"><span class="pre">'rslice'</span></code>.</p></li>
-<li><p><strong>dynesty_bounding</strong> ({<code class="docutils literal notranslate"><span class="pre">'none'</span></code>, <code class="docutils literal notranslate"><span class="pre">'single'</span></code>, <code class="docutils literal notranslate"><span class="pre">'multi'</span></code>, <code class="docutils literal notranslate"><span class="pre">'balls'</span></code>, <code class="docutils literal notranslate"><span class="pre">'cubes'</span></code>}, optional) – The decomposition to use in sampling. Default is ‘multi’</p></li>
+the problem (from ndim). When ndim &lt; 10, this defaults to ‘unif’.
+When 10 &lt;= ndim &lt;= 20, this defaults to ‘rwalk’. When ndim &gt; 20,
+this defaults to ‘hslice’ if a gradient is provided and ‘slice’
+otherwise. ‘rstagger’ and ‘rslice’ are provided as alternatives for
+‘rwalk’ and ‘slice’, respectively. Default is ‘auto’.</p></li>
+<li><p><strong>dynesty_bounding</strong> ({<cite>‘none’</cite>, <cite>‘single’</cite>, <cite>‘multi’</cite>, <cite>‘balls’</cite>, ‘cubes’<a href="#id9"><span class="problematic" id="id10">`</span></a>}, optional) – The decomposition to use in sampling. Default is ‘multi’</p></li>
 <li><p><strong>results_output_folder</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – Folder to save results to. TransitFit will create subfolders within
 this if folded or batched runs are being used. Default is
-<code class="docutils literal notranslate"><span class="pre">'./output_parameters'</span></code></p></li>
+‘./output_parameters’</p></li>
 <li><p><strong>fitted_lightcurve_folder</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – The folder to save fitted light curves to. These files contain the
 normalised and detrended light curves, as well as the best fit curve.
-Default is <code class="docutils literal notranslate"><span class="pre">'./fitted_lightcurves'</span></code></p></li>
-<li><p><strong>summary_file</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – The file to save the summarised final parameter results to. These are
+Default is ‘./fitted_lightcurves’</p></li>
+<li><p><strong>sumary_file</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – The file to save the summarised final parameter results to. These are
 calculated by taking weighted averages over any batched fitting.
-Default is <code class="docutils literal notranslate"><span class="pre">'summary_output.csv'</span></code></p></li>
+Default is ‘summary_output.csv’</p></li>
 <li><p><strong>full_output_file</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – The file to save the full, non-summarised results to. This file gives
 the results for each batch, without averaging over batches to get
-summaried results. Default is <code class="docutils literal notranslate"><span class="pre">'full_output.csv'</span></code></p></li>
-<li><p><strong>plot_folder</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – Path to folder to save plots to. Default is <code class="docutils literal notranslate"><span class="pre">'./plots'</span></code></p></li>
-<li><p><strong>plot</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – If <code class="docutils literal notranslate"><span class="pre">True</span></code>, will plot all fitted light curves within the fitting routine,
+summaried results. Default is ‘full_output.csv’</p></li>
+<li><p><strong>plot_folder</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – Path to folder to save plots to. Default is ‘./plots’</p></li>
+<li><p><strong>plot</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – If True, will plot all fitted light curves within the fitting routine,
 including any from partial fitting (eg, single filter modes). Default
-is <code class="docutils literal notranslate"><span class="pre">True</span></code>.</p></li>
-<li><p><strong>marker_color</strong> (<em>matplotlib color</em><em>, </em><em>optional</em>) – The colour to plot data points on plots. Default is <code class="docutils literal notranslate"><span class="pre">'dimgray'</span></code>.</p></li>
-<li><p><strong>line_colour</strong> (<em>matplotlib color</em><em>, </em><em>optional</em>) – The colour to plot best fit light curves on plots. Default is <code class="docutils literal notranslate"><span class="pre">'black'</span></code>.</p></li>
+is True.</p></li>
+<li><p><strong>marker_color</strong> (<em>matplotlib color</em><em>, </em><em>optional</em>) – The colour to plot data points on plots. Default is ‘dimgray’.</p></li>
+<li><p><strong>line_colour</strong> (<em>matplotlib color</em><em>, </em><em>optional</em>) – The colour to plot best fit light curves on plots. Default is ‘black’.</p></li>
 <li><p><strong>ldtk_cache</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – This is the path to cache LDTK files to. If not specified, will
 default to the LDTK default.</p></li>
 <li><p><strong>n_ld_samples</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – Controls the number of samples taken by PyLDTk when calculating LDCs
-when using <code class="docutils literal notranslate"><span class="pre">'coupled'</span></code> or <code class="docutils literal notranslate"><span class="pre">'single'</span></code> modes for limb darkening
-fitting. Default is <code class="docutils literal notranslate"><span class="pre">20000</span></code></p></li>
-<li><p><strong>do_ld_mc</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – If <code class="docutils literal notranslate"><span class="pre">True</span></code>, will use MCMC sampling to more accurately estimate the
+when using ‘coupled’ or ‘single’ modes for limb darkening fitting.
+Default is 20000</p></li>
+<li><p><strong>do_ld_mc</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – If True, will use MCMC sampling to more accurately estimate the
 uncertainty on intial limb darkening parameters provided by PyLDTk.
-Default is <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p></li>
+Default is False.</p></li>
 <li><p><strong>data_skiprows</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a><em>, </em><em>optional</em>) – The number of rows to skip when reading in light curve data from a .txt
-file. Default is <code class="docutils literal notranslate"><span class="pre">0</span></code>.</p></li>
-<li><p><strong>filter_delimiter</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – The delimiter in filter profile files. Default is <code class="docutils literal notranslate"><span class="pre">None</span></code>, which will
-lead to <code class="docutils literal notranslate"><span class="pre">pandas</span></code> trying to auto detect the delimiter.</p></li>
-<li><p><strong>detrending_limits</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.9)"><em>list</em></a><em>, </em><em>optional</em>) – The bounds on detrending coefficients, given as <code class="docutils literal notranslate"><span class="pre">(lower,</span> <span class="pre">upper)</span></code> pair
-for each detrending method. If not provided, will default to <code class="docutils literal notranslate"><span class="pre">±1000</span></code></p></li>
+file. Default is 0.</p></li>
+<li><p><strong>filter_delimiter</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – The delimiter in filter profile files. Default is None, which will lead
+to pandas trying to auto detect the delimiter.</p></li>
+<li><p><strong>detrending_limits</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.9)"><em>list</em></a><em>, </em><em>optional</em>) – The bounds on detrending coefficients, given as (lower, upper) pair for
+each detrending method. IF not provided, will default to ±1000</p></li>
+<li><p><strong>bin_data</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a><em>, </em><em>optional</em>) – If True, any folded light curves will be plotted with data binned to an
+observing cadence given by <cite>cadence</cite>. Default is False.</p></li>
+<li><p><strong>cadence</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a><em>, </em><em>optional</em>) – The observing cadence, in minutes, to bin data to if <cite>bin_data</cite> is
+True. Default is 2 (mirroring TESS observations)</p></li>
+<li><p><strong>binned_color</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a><em>, </em><em>optional</em>) – The color to use for binned data. Default is <cite>‘red’</cite>.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
-<dd class="field-even"><p><strong>results</strong> – The results returned by <code class="docutils literal notranslate"><span class="pre">Retriever.run_dynesty()</span></code></p>
+<dd class="field-even"><p><strong>results</strong> – The results returned by Retriever.run_dynesty()</p>
 </dd>
 <dt class="field-odd">Return type</dt>
 <dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)">dict</a></p>
