@@ -287,12 +287,15 @@ def run_retrieval(data_files, priors, filter_info=None,
     detrending_limits : list, optional
         The bounds on detrending coefficients, given as (lower, upper) pair for
         each detrending method. IF not provided, will default to ±10
+
     bin_data : bool, optional
         If True, any folded light curves will be plotted with data binned to an
         observing cadence given by `cadence`. Default is False.
+
     cadence : float, optional
         The observing cadence, in minutes, to bin data to if `bin_data` is
         True. Default is 2 (mirroring TESS observations)
+
     binned_color : str, optional
         The color to use for binned data. Default is `'red'`.
 
