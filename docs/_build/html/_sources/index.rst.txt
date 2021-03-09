@@ -45,4 +45,7 @@ If you find ``TransitFit`` useful in your work, please cite the `LINK TO PAPER <
     configfiles
     limb_darkening
     detrending
+    manyparams
+    ttvs
+    faqs
     api

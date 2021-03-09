@@ -30,7 +30,7 @@ def run_retrieval(data_files, priors, filter_info=None,
                   plot_folder='./plots', plot=True,
                   marker_color='dimgrey', line_color='black', ldtk_cache=None,
                   n_ld_samples=20000, do_ld_mc=False, data_skiprows=0,
-                  fit_ttv=False, filter_delimiter=None,
+                  allow_ttv=False, filter_delimiter=None,
                   detrending_limits=None):
     """
     Runs a full retrieval of posteriors using nested sampling on a transit
@@ -62,7 +62,7 @@ def run_retrieval(data_files, priors, filter_info=None,
         Accepted methods are
             ``['nth order', order]``
 
-            ``['custom', ``function``, [global fit indices, filter fit indices, epoch fit indices]]``
+            ``['custom', function, [global fit indices, filter fit indices, epoch fit indices]]``
 
             ``['off', ]``
         ``function`` here is a custom detrending function. TransitFit assumes
@@ -275,6 +275,10 @@ def run_retrieval(data_files, priors, filter_info=None,
         The number of rows to skip when reading in light curve data from a .txt
         file. Default is ``0``.
 
+    allow_ttv : bool, optional
+        If ``True``, will fit t0 for each epoch individually. Default is
+        ``False``.
+
     filter_delimiter : str, optional
         The delimiter in filter profile files. Default is ``None``, which will
         lead to ``pandas`` trying to auto detect the delimiter.
@@ -299,7 +303,7 @@ def run_retrieval(data_files, priors, filter_info=None,
     retriever = Retriever(data_files, priors, n_telescopes, n_filters, n_epochs,
                           filter_info, detrending_list, limb_darkening_model,
                           host_T, host_logg, host_z, host_r, ldtk_cache,
-                          data_skiprows, n_ld_samples, do_ld_mc, fit_ttv,
+                          data_skiprows, n_ld_samples, do_ld_mc, allow_ttv,
                           filter_delimiter, detrending_limits)
 
     # Run the retrieval!

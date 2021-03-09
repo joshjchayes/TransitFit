@@ -1,0 +1,249 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>Fitting large number of parameters &mdash; TransitFit 2.1 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Allowing for TTVs" href="ttvs.html" />
+    <link rel="prev" title="Detrending" href="detrending.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html" class="icon icon-home"> TransitFit
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configfiles.html">Config Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="limb_darkening.html">Limb-darkening</a></li>
+<li class="toctree-l1"><a class="reference internal" href="detrending.html">Detrending</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Fitting large number of parameters</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#batched-fitting">‘Batched’ fitting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#folded-fitting">‘Folded’ fitting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#automatic-mode-selection">Automatic mode selection</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ttvs.html">Allowing for TTVs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="faqs.html">FAQs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">TransitFit</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>Fitting large number of parameters</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="_sources/manyparams.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="fitting-large-number-of-parameters">
+<h1>Fitting large number of parameters<a class="headerlink" href="#fitting-large-number-of-parameters" title="Permalink to this headline">¶</a></h1>
+<p>In an ideal world, a transmission spectrum would be made up of very many light curve observations, at many filters and epochs. Fitting all of these observations simultaneously would result in a very high-dimensioned parameter space, which leads to instabilities in the nested sampling.</p>
+<p>In order to avoid this, <code class="docutils literal notranslate"><span class="pre">TransitFit</span></code> has modes for dealing with large numbers of parameter sets: <code class="docutils literal notranslate"><span class="pre">'batched'</span></code>, and <code class="docutils literal notranslate"><span class="pre">'folded'</span></code>, which can be set with the <code class="docutils literal notranslate"><span class="pre">fitting_mode</span></code> argument of <code class="xref py py-meth docutils literal notranslate"><span class="pre">run_retrieval()</span></code>. There is also <code class="docutils literal notranslate"><span class="pre">'all'</span></code> mode, which can be set to manually force all parameters to be fitted simultaneously.</p>
+<div class="section" id="batched-fitting">
+<h2>‘Batched’ fitting<a class="headerlink" href="#batched-fitting" title="Permalink to this headline">¶</a></h2>
+<p>This mode groups the light curves by filter, and then splits the retrieval into multi-filter ‘batches,’ fitting each of these batches one at a time. The batches are chosen to allow a maximum number of parameters to be fitted simultaneously, which can be controlled with the <code class="docutils literal notranslate"><span class="pre">max_batch_parameters</span></code> argument of <code class="xref py py-meth docutils literal notranslate"><span class="pre">run_retrieval()</span></code>. Final best-fit values are then calculated from weighted means of the best-fit values from each batch.</p>
+<p>The batches are generally constructed to have at least one filter in common with at least one other batch. This ensures that there is still some coupling of information between the batches. The exception to this is when there is one filter in particular which has a very high number of observations. In this case, we recommend using the <code class="docutils literal notranslate"><span class="pre">'folded'</span></code> mode.</p>
+</div>
+<div class="section" id="folded-fitting">
+<h2>‘Folded’ fitting<a class="headerlink" href="#folded-fitting" title="Permalink to this headline">¶</a></h2>
+<p>With the launch of large surveys such as <em>TESS</em>, many exoplanets have multiple-epoch observations in a single filter. <code class="docutils literal notranslate"><span class="pre">TransitFit</span></code> can make use of these through a two-step retrieval process.</p>
+<blockquote>
+<div><ol class="arabic simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">TransitFit</span></code> runs a retrieval on each filter independently, and uses the results to produce a phase-folded light curve for each filter.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">TransitFit</span></code> runs a standard multi-wavelength retrieval using the batched algorithm above.</p></li>
+</ol>
+</div></blockquote>
+<p>This mode of retrieval allows for the production of high-quality folded light curves from non-detrended data, as well as providing a method where observations from long-term, single-waveband surveys such as <em>TESS</em> can be easily combined with single-epoch observations at multiple wavelengths, such as from ground-based spectrographic follow-up.</p>
+</div>
+<div class="section" id="automatic-mode-selection">
+<h2>Automatic mode selection<a class="headerlink" href="#automatic-mode-selection" title="Permalink to this headline">¶</a></h2>
+<p>By default, <code class="docutils literal notranslate"><span class="pre">TransitFit</span></code> will try and detect which fitting mode is most appropriate for your data. It first works out how many parameters are required to fit everything simultaneously, which we will call <code class="docutils literal notranslate"><span class="pre">max_n_params</span></code>. Then if:</p>
+<blockquote>
+<div><ol class="arabic simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">max_n_params</span> <span class="pre">&lt;=</span> <span class="pre">max_batch_parameters</span></code> - all parameters are fitted simultaneously (<code class="docutils literal notranslate"><span class="pre">'all'</span></code> mode).</p></li>
+<li><p>If any filter has 3 or more epochs observed, then <code class="docutils literal notranslate"><span class="pre">'folded'</span></code> mode is used.</p></li>
+<li><p>Otherwise, <code class="docutils literal notranslate"><span class="pre">'batched'</span></code> mode is used.</p></li>
+</ol>
+</div></blockquote>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="ttvs.html" class="btn btn-neutral float-right" title="Allowing for TTVs" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="detrending.html" class="btn btn-neutral float-left" title="Detrending" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Joshua Hayes and collaborators.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

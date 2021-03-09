@@ -90,14 +90,17 @@
 <li class="toctree-l2"><a class="reference internal" href="#an-illustration">An illustration</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#some-toy-observations">Some toy observations</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#running-transitfit-on-these-data">Running <code class="docutils literal notranslate"><span class="pre">TransitFit</span></code> on these data</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#transitfit-outputs"><code class="docutils literal notranslate"><span class="pre">TransitFit</span></code> outputs</a></li>
 </ul>
 </li>
+<li class="toctree-l2"><a class="reference internal" href="#transitfit-outputs"><code class="docutils literal notranslate"><span class="pre">TransitFit</span></code> outputs</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="configfiles.html">Config Files</a></li>
 <li class="toctree-l1"><a class="reference internal" href="limb_darkening.html">Limb-darkening</a></li>
 <li class="toctree-l1"><a class="reference internal" href="detrending.html">Detrending</a></li>
+<li class="toctree-l1"><a class="reference internal" href="manyparams.html">Fitting large number of parameters</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ttvs.html">Allowing for TTVs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="faqs.html">FAQs</a></li>
 <li class="toctree-l1"><a class="reference internal" href="api.html">API</a></li>
 </ul>
 
@@ -221,14 +224,14 @@
 <div class="section" id="running-transitfit-on-these-data">
 <h3>Running <code class="docutils literal notranslate"><span class="pre">TransitFit</span></code> on these data<a class="headerlink" href="#running-transitfit-on-these-data" title="Permalink to this headline">¶</a></h3>
 <p>Once we have the config files set up, it is incredibly easy to retrieve a best-fit model using <code class="docutils literal notranslate"><span class="pre">TransitFit</span></code>.</p>
-<p>To fit these observations with basic linear detrending and a bog-standard quadratic limb darkening model without using the LDC coupling offered by <code class="docutils literal notranslate"><span class="pre">TransitFit</span></code>, run:</p>
+<p>To fit these observations with basic linear detrending and a bog-standard quadratic limb darkening model without using the <a class="reference internal" href="limb_darkening.html#limb-darkening"><span class="std std-ref">LDC coupling offered by</span></a> <code class="docutils literal notranslate"><span class="pre">TransitFit</span></code>, run:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">transitfit</span> <span class="kn">import</span> <span class="n">run_retrieval</span>
 
 <span class="n">results</span> <span class="o">=</span> <span class="n">run_retrieval</span><span class="p">(</span><span class="s1">&#39;input_data.csv, priors.csv&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>This is a simple approach which is useful for getting some preliminary results, as it is generally the fastest-running method. However, <code class="docutils literal notranslate"><span class="pre">TransitFit</span></code> can do better.</p>
-<p>Let’s now imagine we have decided to use a quadratic detrending model, and also want to take advantage of the coupled LDC fitting. To do this, we still use <code class="xref py py-meth docutils literal notranslate"><span class="pre">run_retrieval()</span></code>, but have to specify a few more arguments, including providing filter profiles and host information.:</p>
+<p>Let’s now imagine we have decided to use a quadratic detrending model, and also want to take advantage of the <code class="xref py py-meth docutils literal notranslate"><span class="pre">coupled</span> <span class="pre">LDC</span> <span class="pre">fitting</span></code>. To do this, we still use <code class="xref py py-meth docutils literal notranslate"><span class="pre">run_retrieval()</span></code>, but have to specify a few more arguments, including providing filter profiles and host information.:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">transitfit</span> <span class="kn">import</span> <span class="n">run_retrieval</span>
 
 <span class="c1"># Set up the host info, using arbitrary values.</span>
@@ -250,10 +253,40 @@
 </pre></div>
 </div>
 </div>
-<div class="section" id="transitfit-outputs">
-<h3><code class="docutils literal notranslate"><span class="pre">TransitFit</span></code> outputs<a class="headerlink" href="#transitfit-outputs" title="Permalink to this headline">¶</a></h3>
-<p>Talk about the things!!</p>
 </div>
+<div class="section" id="transitfit-outputs">
+<h2><code class="docutils literal notranslate"><span class="pre">TransitFit</span></code> outputs<a class="headerlink" href="#transitfit-outputs" title="Permalink to this headline">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">TransitFit</span></code> provides a variety of outputs. These are:</p>
+<dl>
+<dt>Output files</dt><dd><p>These are .csv files which record the best fit value and uncertainty for each parameter fitted. The base folder in which they are saved is controlled by the <code class="docutils literal notranslate"><span class="pre">results_output_folder</span></code> argument of <code class="xref py py-meth docutils literal notranslate"><span class="pre">run_retrieval()</span></code>.</p>
+<p>There are a few different versions of these:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">'complete_output.csv'</span></code> - this contains the complete final results of the entire retrieval, collating results from all <a class="reference internal" href="manyparams.html#fitting-large-number-of-parameters"><span class="std std-ref">stages of retrieval</span></a> if required.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">summary_output_file</span></code> - this contains the best fit results from a specific stage of retrieval (e.g. if in <a class="reference internal" href="manyparams.html#folded-fitting"><span class="std std-ref">‘folded mode’</span></a>, this would be the results for a specific filter (stage 1) or the results for fitting the folded curves (stage 2)). The name of this file can be specified with the <code class="docutils literal notranslate"><span class="pre">summary_file</span></code> argument of <code class="xref py py-meth docutils literal notranslate"><span class="pre">run_retrieval()</span></code> and defaults to <code class="docutils literal notranslate"><span class="pre">'summary_output.csv'</span></code>.</p></li>
+</ul>
+<p># <code class="docutils literal notranslate"><span class="pre">full_output_file</span></code> - This contains every output from a given batched run, including indication of which batch the results come from. The name of this file can be specified with the <code class="docutils literal notranslate"><span class="pre">full_output_file</span></code> argument of <code class="xref py py-meth docutils literal notranslate"><span class="pre">run_retrieval()</span></code> and defaults to <code class="docutils literal notranslate"><span class="pre">'full_output.csv'</span></code>.</p>
+</dd>
+<dt>Fitted light curves</dt><dd><p>These are .csv files for each input light curve, containing the normalised and detrended light curves, along with phase values and best-fit models. The columns for these are</p>
+<ol class="arabic simple">
+<li><p><strong>Time</strong> - The time of observation</p></li>
+<li><p><strong>Phase</strong> - The phase of observation, setting mid-transit to a phase of 0.5.</p></li>
+<li><p><strong>Normalised flux</strong> - The detrended and normalised flux values</p></li>
+<li><p><strong>Flux uncertainty</strong> - The uncertainty on the normalised flux</p></li>
+<li><p><strong>Best fit curve</strong> - The normalised best-fit light curve.</p></li>
+</ol>
+<p>By default these are saved in the <code class="docutils literal notranslate"><span class="pre">'./fitted_lightcurves'</span></code> folder, but this can be changed using the <code class="docutils literal notranslate"><span class="pre">final_lightcurve_folder</span></code> argument of <code class="xref py py-meth docutils literal notranslate"><span class="pre">run_retrieval()</span></code>.</p>
+</dd>
+<dt>Plots</dt><dd><p><code class="docutils literal notranslate"><span class="pre">TransitFit</span></code> has a few different plots that it provides. The default base folder for these is <code class="docutils literal notranslate"><span class="pre">'./plots'</span></code> and this can be set using <code class="docutils literal notranslate"><span class="pre">plot_folder='./plots'</span></code>. The different plot types are:</p>
+<dl class="simple">
+<dt><em>Fitted light curves</em></dt><dd><p>These are given for each individual light curve. Additionally, if running in <a class="reference internal" href="manyparams.html#folded-fitting"><span class="std std-ref">‘folded mode’</span></a>, a folded curve for each filter is produced. These plots come in versions with and without error bars.</p>
+</dd>
+<dt><em>Posterior samples</em></dt><dd><p>These are made using <code class="docutils literal notranslate"><span class="pre">corner</span></code> and show the samples for each run of <code class="docutils literal notranslate"><span class="pre">dynesty</span></code> within a <code class="docutils literal notranslate"><span class="pre">TransitFit</span></code> retrieval.</p>
+</dd>
+<dt><em>Quick-look folded curves</em></dt><dd><p>Since running in <a class="reference internal" href="manyparams.html#folded-fitting"><span class="std std-ref">‘folded mode’</span></a> can take some time, <code class="docutils literal notranslate"><span class="pre">TransitFit</span></code> provides a ‘quick-look’ plot for each filter after folding. This is there mostly so that you can be satisfied that the folding makes sense, rather than then having to wait until the end to find out something has gone wrong.</p>
+</dd>
+</dl>
+</dd>
+</dl>
 </div>
 </div>
 
@@ -271,7 +304,7 @@
 
   <div role="contentinfo">
     <p>
-        &#169; Copyright 2021, Joshua Hayes.
+        &#169; Copyright 2021, Joshua Hayes and collaborators.
 
     </p>
   </div>

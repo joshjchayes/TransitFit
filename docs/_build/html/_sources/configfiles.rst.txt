@@ -54,12 +54,12 @@ This file determines which physical parameters are to be fitted by ``TransitFit`
 
     * ``P``: Period of the orbit, in BJD
     * ``t0``: time of inferior conjunction in BJD
-    * ``a`` : semi-major axis. This can be given in units of either host-radii or AU. If given in AU, then ``host_r`` must be specified in :meth:`~tf.run_retrieval to allow for a conversion to host-radii.
+    * ``a`` : semi-major axis. This can be given in units of either host-radii or AU. If given in AU, then ``host_r`` must be specified in :meth:`~tf.run_retrieval` to allow for a conversion to host-radii.
     * ``inc``: inclination of the orbit in degrees (Defaults to 90 degrees if not provided)
     * ``ecc``: eccentricity of the orbit (defaults to 0 if not provided)
     * ``w``: longitude of periastron (in degrees) (Defaults to 90 degrees if not provided)
     * ``rp``: Planet radius in stellar radii (i.e. Rp/R\*). **Note**: if you have multiple filters that you want to fit ``rp`` for, you will have to provide a prior for *each* filter.
-    * {``q0``, ``q1``, ``q2``, ``q3``} : Kipping q parameters for limb darkening. Most of the time you will not need to set these, but if you want to run a retrieval without fitting for limb darkening (if, for example, you fitted for these another way), then you can set them here by specifying a ``'fixed'`` distribution. Note that you will also have to set ``ld_fit_method='off'`` in the arguments of ``run_retrieval()``.
+    * {``q0``, ``q1``, ``q2``, ``q3``} : Kipping q parameters for limb darkening. Most of the time you will not need to set these, but if you want to run a retrieval without fitting for limb darkening (if, for example, you fitted for these another way), then you can set them here by specifying a ``'fixed'`` distribution. Note that you will also have to set ``ld_fit_method='off'`` in the arguments of :meth:`~transitfit.run_retrieval`.
 
 2. **Distribution**: The distribution that samples will be drawn from. This can be any of:
 
@@ -79,7 +79,7 @@ This file determines which physical parameters are to be fitted by ``TransitFit`
     * If ``gaussian``: provide the **standard deviation** of the Gaussian distribution.
     * If ``fixed``: this input is not used and anything here will be ignored.
 
-5. **Filter index**: If a parameter varies with wavelength (i.e. ``rp`` and limb-darkening coefficients), the filter index must be supplied for each instance of planet radius in the priors file, making sure to follow the indexing set out in the data paths and filter info files.
+5. **Filter index**: If a parameter varies with wavelength (i.e. ``rp`` and limb-darkening coefficients), the filter index must be supplied for each instance in the priors file, making sure to follow the indexing set out in the data paths and filter info files.
 
 So, for our example observations, if we assume a circular orbit (i.e. don't fit for ``ecc`` and ``w``), our ``'priors.csv'`` file might look something like::
 
@@ -96,12 +96,12 @@ When setting up your priors, we recommend that you use a uniform distribution fo
 
 Filter profiles
 ----------------
-This file is used to specify the filter profiles that observations were made at, and is only required if you are using ``TransitFit``'s ability to couple LDCs across wavelengths.
+This file is used to specify the filter profiles that observations were made at, and is only required if you are using ``TransitFit``'s :ref:`ability to couple LDCs across wavelengths <Limb-darkening>`.
 
 TransitFit can deal with either uniform box filters (useful for narrow-band spectroscopy), or full filter response functions. It comes pre-packaged with a set of standard filters:
 
 * Johnson-Cousins *UVRIB*
-* SLOAN-SDSS *ugriz* and the primed counterparts, *u'g'r'i'z'*
+* SLOAN-SDSS *u'g'r'i'z'*
 * The *TESS* filter
 * The *Kepler* filter
 
@@ -114,7 +114,7 @@ The filter info file requires 3 columns:
 2. **Input A**:
 
     * For a uniform box filter, provide the **lowest wavelength** not blocked by the filter in nanometres.
-    * The name of one of the provided filter profiles: any of: U, V, R, I, B, u, u', g, g', r, r', i, i', z, z', TESS, Kepler.
+    * The name of one of the provided filter profiles: any of: U, V, R, I, B, u', g', r', i', z', TESS, Kepler.
     * The path to a user-provided filter profile
 
 3. **Input B**:

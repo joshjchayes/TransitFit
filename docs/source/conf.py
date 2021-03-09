@@ -21,7 +21,7 @@ from transitfit import __version__
 # -- Project information -----------------------------------------------------
 
 project = 'TransitFit'
-copyright = '2021, Joshua Hayes'
+copyright = '2021, Joshua Hayes and collaborators'
 author = 'Joshua Hayes'
 
 # The full version, including alpha/beta/rc tags
