@@ -261,37 +261,37 @@ def quick_plot(lightcurve, fname, folder_path, t0=None, period=None):
     '''
     base_fname = fname
 
-    # Plot the raw times with t0 added
-    fig, ax = plt.subplots()
-    x_vals = lightcurve.times
-    x_label= 'Time (BJD)'
-    ax.errorbar(x_vals, lightcurve.flux, lightcurve.errors, zorder=1,
-        linestyle='', marker='x', color='dimgrey', elinewidth=0.8, alpha=0.6)
-
-    if t0 is not None:
-        ax.axvline(t0, linestyle='dashed', color='gray',
-                        linewidth=1, zorder=1)
-
-    ax.set_xlabel(x_label)
-    ax.set_ylabel('Normalised flux')
-
-    ax.tick_params('both', which='both', direction='in',
-                        labelbottom=True, top='on', right='on')
-
-    os.makedirs(folder_path, exist_ok=True)
-
-    if not base_fname[-4:] == '.png':
-        fname = base_fname + '_raw_times.png'
-    else:
-        fname = base_fname[:-4] + '_raw_times.png'
-
-    fig.savefig(os.path.join(folder_path, fname),
-                bbox_inches='tight')
-
     if t0 is None or period is None:
+        # Plot the raw times with t0 added
+        fig, ax = plt.subplots()
+        x_vals = lightcurve.times
+        x_label= 'Time (BJD)'
+        ax.errorbar(x_vals, lightcurve.flux, lightcurve.errors, zorder=1,
+            linestyle='', marker='x', color='dimgrey', elinewidth=0.8, alpha=0.6)
+
+        if t0 is not None:
+            ax.axvline(t0, linestyle='dashed', color='gray',
+                            linewidth=1, zorder=1)
+
+        ax.set_xlabel(x_label)
+        ax.set_ylabel('Normalised flux')
+
+        ax.tick_params('both', which='both', direction='in',
+                            labelbottom=True, top='on', right='on')
+
+        os.makedirs(folder_path, exist_ok=True)
+
+        if not base_fname[-4:] == '.png':
+            fname = base_fname + '_raw_times.png'
+        else:
+            fname = base_fname[:-4] + '_raw_times.png'
+
+        fig.savefig(os.path.join(folder_path, fname),
+                    bbox_inches='tight')
+
         return
 
-    # Now plot with phases
+    # Plot with phases
     # Plot the raw times with t0 added
     fig, ax = plt.subplots()
 
