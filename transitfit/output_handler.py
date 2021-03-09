@@ -236,9 +236,9 @@ class OutputHandler:
             P = self.best_model['P'][None, None, None][0]
             t0 = self.best_model['t0'][None, None, 0][0]
 
-            cadence_days = cadence / (P * 24 * 60)
+            cadence_days = cadence / (24 * 60)
 
-            cadence_phase = (cadence_days - t0)/P - (cadence_days - (t0 * 0.5*P))//P + 0.5
+            cadence_phase = cadence_days/P
 
             plot_errors = [flux_err, None]
             sub_folder = ['with_errorbars', 'without_errorbars']
@@ -961,6 +961,12 @@ class OutputHandler:
                        bin_data=False, cadence=2, binned_colour='red'):
             '''
             Plots the lightcurve and model consistently
+
+            Parameters
+            ----------
+
+            cadence : float
+                The cadence to bin to in phase, *not* minutes
             '''
             # Sort into phase orders
             data_order = np.argsort(phase)
@@ -989,7 +995,6 @@ class OutputHandler:
 
                 if flux_err is None:
                     binned_err = None
-
 
             # Set up the figure and the relevant axes
             gs = gridspec.GridSpec(6, 7)

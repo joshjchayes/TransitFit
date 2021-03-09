@@ -184,63 +184,6 @@ class LightCurve:
 
         return median_factor, low_factor, high_factor
 
-    def estimate_detrending_coefficients(self, t0, P, t14, order, window=0.5):
-        '''
-        Estimates the detrending coefficients if using polynomial detrending
-
-        Parameters
-        ----------
-        t0 : float
-            The t0 value to use in estimation
-        P : float
-            The period to use in estimation
-        t14 : float
-            The estimated transit duration in minutes
-        order : int
-            The order of the detrending function to be used
-        window : float, optional
-            The size of the window to use when masking out transit data.
-            Data inside of the range [t_mid ± t14 * window] will be
-            masked out. Default is 0.5.
-
-        Returns
-        -------
-        params : np.array, shape (order)
-        '''
-        # Define the fitting polynomial
-        if order == 1:
-            def baseline_function(t, a, b):
-                return a + b*t
-        elif order == 2:
-            def baseline_function(t, a, b, c):
-                return a + b*t + c*t**2
-        elif order == 3:
-            def baseline_function(t, a, b, c, d):
-                return a + b*t + c*t**2 + d*t**3
-        elif order == 4:
-            def baseline_function(t, a, b, c, d, e):
-                return a + b*t + c*t**2 + d*t**3 + e*t**4
-        else:
-            raise ValueError('Unable to estimate detrending coefficients for order >4. Are you really sure you want to be using that high an order anyway?')
-
-        t14 /= 60 * 24
-
-        # Pull out the baseline flux based on the ephemerides
-        mask = abs((self.times - ((self.times - (t0 - P/2))//P) * P) - t0) >= (window * t14)
-
-        print(mask)
-
-        # Get the phases
-        phase = self.get_phases(t0, P)
-
-        p, f, e = phase[mask], self.flux[mask], self.errors[mask]
-
-        print(p, f, e)
-
-        p_opt, p_cov = curve_fit(baseline_function, p, f, sigma=e)
-
-        return p_opt, np.sqrt(np.diag(p_cov))
-
     def detrend_flux(self, d, norm=1, use_full_times=False,
                      use_phase_space=False, t0=None, P=None, force_normalise=False):
         '''
@@ -288,7 +231,6 @@ class LightCurve:
                 phase = self.get_phases(t0, P)
 
                 detrend_values = self.detrending_function(phase, *d)
-                #print('Detrending_values limits:', detrend_values.min(), detrend_values.max())
 
             else:
                 if use_full_times:
@@ -303,14 +245,10 @@ class LightCurve:
                 detrend_values = self.detrending_function(self.times - subtract_val, *d)
 
             detrended_flux -= detrend_values
-            #print('Detrended_flux limit (no normalisation):', detrended_flux.min(), detrended_flux.max())
 
         if self.normalise or force_normalise:
-            #print('Normalisation factor:', norm)
             detrended_flux *= norm
             detrended_errors *= norm
-
-        #print('Final flux limits:', detrended_flux.min(), detrended_flux.max())
 
         return detrended_flux, detrended_errors
 
@@ -455,8 +393,6 @@ class LightCurve:
         # Convert t14 to days:
         t14 /= 60 * 24
 
-        print(f't14 is {t14} days')
-
         # Work out the times, flux, and errors for each epoch
         t_new = [[] for i in range(n_periods)]
         f_new = [[] for i in range(n_periods)]
@@ -563,7 +499,6 @@ class LightCurve:
 
         n_bins = int((obs_length)/cadence)
         bin_size = obs_length / n_bins
-        print(cadence, obs_length, n_bins, bin_size)
 
         times = np.full(n_bins, None)
         flux = np.full(n_bins, None)
@@ -594,10 +529,6 @@ class LightCurve:
                 err[i] = 1/np.sqrt(np.sum(1/(bin_err**2)))
 
             points_in_bin[i] = np.sum(mask)
-
-        print('Average points in each bin:', np.average(points_in_bin))
-
-        print('Expected RMS improvement from binning:', np.sqrt(np.average(points_in_bin)))
 
         return_mask = (points_in_bin > 0)
 
