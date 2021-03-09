@@ -300,7 +300,7 @@ def run_retrieval(data_files, priors, filter_info=None,
     -------
     results : dict
         The results returned by ``Retriever.run_dynesty()``
-    """
+    '''
     # Load in the data and work out number of telescopes, filters, and epochs
     lightcurves, detrending_index_array = read_input_file(data_files)
 
