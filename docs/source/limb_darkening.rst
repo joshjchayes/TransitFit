@@ -65,7 +65,7 @@ LDC Fitting modes
 * ``'coupled'``
     Using the Kipping parameterisations, each LDC is fitted as a free parameter, with LDTk being used to estimate the likelihood of sets of LDCs, using information on the host star and the observation filters.
 
-``'single'``
+* ``'single'``
     When fitting with multiple wavebands, the number of parameters required to be fitted can increase dramatically. The ``'single'`` LDC fitting mode freely fitting LDC for only one filter, and uses LDTk to extrapolate LDC values for the remaining filters. The :math:`i`-th coefficient of a filter :math:`f`, is calculated as
 
     .. math::
