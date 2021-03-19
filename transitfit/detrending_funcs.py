@@ -1,6 +1,4 @@
 '''
-detrending_funcs.py
-
 Some detrending functions for use with LightCurve
 '''
 
@@ -8,10 +6,16 @@ import numpy as np
 
 
 class NthOrderDetrendingFunction:
+    '''
+    Arbitrary order detrending function which conserves flux
+
+    Parameters
+    ----------
+    order : int
+        The detrending function order. Must be greater than 0.
+    '''
     def __init__(self, order):
-        '''
-        Arbitrary order detrending function which conserves flux
-        '''
+
         order = int(order)
         if not order > 0:
             raise ValueError('Order must be greater than 0')

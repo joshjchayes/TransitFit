@@ -18,7 +18,7 @@ In order to use this feature, the user must provide the following:
     * Host :math:`\log(g)`
     * A filter profile for each filter used in the observations.
 
-    The first three are provided as arguments to :meth:`~transitfit.run_retrieval`, and the filter profiles are specified using the :ref:`filter profiles input file <Filter profiles>`.
+    The first three are provided as arguments to :meth:`~transitfit._pipeline.run_retrieval`, and the filter profiles are specified using the :ref:`filter profiles input file <Filter profiles>`.
 
 
 Available  limb-darkening models
@@ -26,7 +26,7 @@ Available  limb-darkening models
 
 Typically, stellar intensity profiles are described by analytical functions :math:`I_\lambda\left(\mu\right)`, where :math:`\mu` is the cosine of the angle between the line of sight and the emergent intensity. :math:`\mu` can also be expressed as :math:`\mu = \sqrt{1-r^2}` where :math:`r` is the unit-normalised radial coordinate on the stellar disk, and as such, all limb-darkening models must be valid for :math:`0 \le \mu < 1`.
 
-There are 5 limb darkening models provided by ``TransitFit``, which can be selected using the ``limb_darkening_model`` argument in :meth:`~transitfit.run_retrieval`. These are:
+There are 5 limb darkening models provided by ``TransitFit``, which can be selected using the ``limb_darkening_model`` argument in :meth:`~transitfit._pipeline.run_retrieval`. These are:
 
     * ``'linear'`` - the linear law given by
         .. math::
@@ -57,7 +57,7 @@ where each of :math:`u_0`, :math:`u_1`, :math:`u_2`, and :math:`u_3` are the lim
 LDC Fitting modes
 -----------------
 
-``TransitFit`` offers three modes for LDC fitting, which can be selected using the ``ld_fit_method`` argument in :meth:`~transitfit.run_retrieval`.:
+``TransitFit`` offers three modes for LDC fitting, which can be selected using the ``ld_fit_method`` argument in :meth:`~transitfit._pipeline.run_retrieval`.:
 
 * ``'independent'``
     This is the traditional approach of fitting LDCs for each filter separately. ``TransitFit`` still uses the `Kipping parameterisations <https://arxiv.org/abs/1308.0009>`_, but LDTk is not used to couple LDCs across filters.
@@ -65,7 +65,7 @@ LDC Fitting modes
 * ``'coupled'``
     Using the Kipping parameterisations, each LDC is fitted as a free parameter, with LDTk being used to estimate the likelihood of sets of LDCs, using information on the host star and the observation filters.
 
-``'single'``
+* ``'single'``
     When fitting with multiple wavebands, the number of parameters required to be fitted can increase dramatically. The ``'single'`` LDC fitting mode freely fitting LDC for only one filter, and uses LDTk to extrapolate LDC values for the remaining filters. The :math:`i`-th coefficient of a filter :math:`f`, is calculated as
 
     .. math::

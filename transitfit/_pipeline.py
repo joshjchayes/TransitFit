@@ -1,6 +1,4 @@
 '''
-pipeline
-
 A function which will run everything when given a path to light curve and
 priors!
 '''
@@ -70,7 +68,7 @@ def run_retrieval(data_files, priors, filter_info=None,
         that the first argument to this function is times and that all
         other arguments are single-valued - TransitFit cannot fit
         list/array variables. If 'off' is used, no detrending will be
-        applied to the ``LightCurve``s using this model.
+        applied to a light curve using this model.
 
         If a custom function is used, and some inputs to the function
         should not be fitted individually for each light curve, but should

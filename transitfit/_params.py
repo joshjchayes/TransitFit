@@ -1,6 +1,4 @@
 '''
-_params
-
 A class for parameters in TransitFit which can be retrieved. These are used
 by the PriorInfo to determine dimensionality etc.
 

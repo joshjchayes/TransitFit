@@ -1,6 +1,4 @@
 '''
-OutputWriter.py
-
 Object to deal with writing fitting results to files
 '''
 import numpy as np
@@ -13,15 +11,6 @@ import traceback
 import corner
 import pickle
 
-# TODO: remove these? Should probably be left to the user
-#import matplotlib
-#matplotlib.use('Agg')
-#font = {'family' : 'serif',
-#        'weight' : 'normal',
-#        'size'   : 20}
-
-#matplotlib.rc('font', **font)
-#matplotlib.rc('text', **{'usetex':True})
 
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
@@ -36,16 +25,19 @@ from .lightcurve import LightCurve
 
 
 class OutputHandler:
+    '''
+    Designed to handle writing outputs from retrieval to files
+
+    Parameters
+    ----------
+    lightcurves : array_like, shape (n_telescopes, n_filters, n_epochs)
+        The full lightcurves array to be retrieved.
+    full_prior : PriorInfo
+        The prior for the complete light curve dataset. 
+
+    '''
     def __init__(self, lightcurves, full_prior, host_r=None):
-        '''
-        Designed to handle writing outputs from retrieval to files
 
-        Parameters
-        ----------
-        lightcurves : array_like, shape (n_telescopes, n_filters, n_epochs)
-            The full lightcurves array to be retrieved.
-
-        '''
         self.all_lightcurves = lightcurves
 
         self.full_prior = full_prior

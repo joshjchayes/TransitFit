@@ -1,7 +1,7 @@
 ===============
 Getting Started
 ===============
-``TransitFit`` operation is based around three :ref:`config files <config files>` (the *data path file*, the *priors file* and the *filter info file*) and a single Python wrapper function (:meth:`~transitfit.run_retrieval`). There's a lot more going on under the hood but, for everyday use, you don't need to worry about that.
+``TransitFit`` operation is based around three :ref:`config files <config files>` (the *data path file*, the *priors file* and the *filter info file*) and a single Python wrapper function (:meth:`~transitfit._pipeline.run_retrieval`). There's a lot more going on under the hood but, for everyday use, you don't need to worry about that.
 
 A note on time standards
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -64,7 +64,7 @@ To fit these observations with basic linear detrending and a bog-standard quadra
 
 This is a simple approach which is useful for getting some preliminary results, as it is generally the fastest-running method. However, ``TransitFit`` can do better.
 
-Let's now imagine we have decided to use a quadratic detrending model, and also want to take advantage of the :meth:`coupled LDC fitting <Limb-darkening>`. To do this, we still use :meth:`~transitfit.run_retrieval`, but have to specify a few more arguments, including providing filter profiles and host information.::
+Let's now imagine we have decided to use a quadratic detrending model, and also want to take advantage of the :ref:`coupled LDC fitting <Limb-darkening>`. To do this, we still use :meth:`~transitfit._pipeline.run_retrieval`, but have to specify a few more arguments, including providing filter profiles and host information.::
 
     from transitfit import run_retrieval
 
@@ -92,15 +92,15 @@ Let's now imagine we have decided to use a quadratic detrending model, and also 
 ``TransitFit`` provides a variety of outputs. These are:
 
 Output files
-    These are .csv files which record the best fit value and uncertainty for each parameter fitted. The base folder in which they are saved is controlled by the ``results_output_folder`` argument of :meth:`~transitfit.run_retrieval`.
+    These are .csv files which record the best fit value and uncertainty for each parameter fitted. The base folder in which they are saved is controlled by the ``results_output_folder`` argument of :meth:`~transitfit._pipeline.run_retrieval`.
 
     There are a few different versions of these:
 
     * ``'complete_output.csv'`` - this contains the complete final results of the entire retrieval, collating results from all :ref:`stages of retrieval <Fitting large number of parameters>` if required.
 
-    * ``summary_output_file`` - this contains the best fit results from a specific stage of retrieval (e.g. if in :ref:`'folded mode' <'Folded' fitting>`, this would be the results for a specific filter (stage 1) or the results for fitting the folded curves (stage 2)). The name of this file can be specified with the ``summary_file`` argument of :meth:`~transitfit.run_retrieval` and defaults to ``'summary_output.csv'``.
+    * ``summary_output_file`` - this contains the best fit results from a specific stage of retrieval (e.g. if in :ref:`'folded mode' <'Folded' fitting>`, this would be the results for a specific filter (stage 1) or the results for fitting the folded curves (stage 2)). The name of this file can be specified with the ``summary_file`` argument of :meth:`~transitfit._pipeline.run_retrieval` and defaults to ``'summary_output.csv'``.
 
-    # ``full_output_file`` - This contains every output from a given batched run, including indication of which batch the results come from. The name of this file can be specified with the ``full_output_file`` argument of :meth:`~transitfit.run_retrieval` and defaults to ``'full_output.csv'``.
+    # ``full_output_file`` - This contains every output from a given batched run, including indication of which batch the results come from. The name of this file can be specified with the ``full_output_file`` argument of :meth:`~transitfit._pipeline.run_retrieval` and defaults to ``'full_output.csv'``.
 
 Fitted light curves
     These are .csv files for each input light curve, containing the normalised and detrended light curves, along with phase values and best-fit models. The columns for these are
@@ -111,7 +111,7 @@ Fitted light curves
     4. **Flux uncertainty** - The uncertainty on the normalised flux
     5. **Best fit curve** - The normalised best-fit light curve.
 
-    By default these are saved in the ``'./fitted_lightcurves'`` folder, but this can be changed using the ``final_lightcurve_folder`` argument of :meth:`~transitfit.run_retrieval`.
+    By default these are saved in the ``'./fitted_lightcurves'`` folder, but this can be changed using the ``final_lightcurve_folder`` argument of :meth:`~transitfit._pipeline.run_retrieval`.
 
 Plots
     ``TransitFit`` has a few different plots that it provides. The default base folder for these is ``'./plots'`` and this can be set using ``plot_folder='./plots'``. The different plot types are:
@@ -123,4 +123,4 @@ Plots
         These are made using ``corner`` and show the samples for each run of ``dynesty`` within a ``TransitFit`` retrieval.
 
     *Quick-look folded curves*
-        Since running in :ref:`'folded mode' <'Folded' fitting>` can take some time, ``TransitFit`` provides a 'quick-look' plot for each filter after folding. This is there mostly so that you can be satisfied that the folding makes sense, rather than then having to wait until the end to find out something has gone wrong. 
+        Since running in :ref:`'folded mode' <'Folded' fitting>` can take some time, ``TransitFit`` provides a 'quick-look' plot for each filter after folding. This is there mostly so that you can be satisfied that the folding makes sense, rather than then having to wait until the end to find out something has gone wrong.

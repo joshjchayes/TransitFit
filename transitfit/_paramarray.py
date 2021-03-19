@@ -1,23 +1,38 @@
-'''
-_param_array.py
 
-'''
 import numpy as np
 from ._params import _Param, _UniformParam, _GaussianParam
 
 
 class ParamArray:
+    '''
+    The _ParamArray is designed to handle parameters which are being fitted
+    by TransitFit. It can deal with parameters which are being fitted over
+    different combinations of telescope, filter, and epoch
+
+    If a parameter is lightcurve specific, providing lightcurves will
+    ensure that only parameters where a lightcurve exists will be
+    initialised
+
+    Parameters
+    ----------
+    name : str
+        The parameter name
+    shape : tuple
+        The shape of the array to use
+    telescope_dependent : bool
+        Set to True if the parameter varies across telescopes
+    filter_dependent : bool
+        Set to True if the parameter varies across filters
+    epoch_dependent : bool
+        Set to True if the parameter varies across epoch
+    default_value : float
+        The default value for the parameter
+    lightcurves : array-like, shape(shape), optional
+        The array of relevant light curves.
+    '''
     def __init__(self, name, shape, telescope_dependent, filter_dependent,
                  epoch_dependent, default_value=None, lightcurves=None):
-        '''
-        The _ParamArray is designed to handle parameters which are being fitted
-        by TransitFit. It can deal with parameters which are being fitted over
-        different combinations of telescope, filter, and epoch
 
-        If a parameter is lightcurve specific, providing lightcurves will
-        ensure that only parameters where a lightcurve exists will be
-        initialised
-        '''
         # Store some useful data
         self.name = name
         self.shape = shape

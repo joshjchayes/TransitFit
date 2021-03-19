@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>Config Files &mdash; TransitFit 2.1.6dev documentation</title>
+  <title>Config Files &mdash; TransitFit 2.2.0 documentation</title>
   
 
   
@@ -213,12 +213,12 @@
 <div><ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">P</span></code>: Period of the orbit, in BJD</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">t0</span></code>: time of inferior conjunction in BJD</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">a</span></code> : semi-major axis. This can be given in units of either host-radii or AU. If given in AU, then <code class="docutils literal notranslate"><span class="pre">host_r</span></code> must be specified in <code class="xref py py-meth docutils literal notranslate"><span class="pre">run_retrieval()</span></code> to allow for a conversion to host-radii.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">a</span></code> : semi-major axis. This can be given in units of either host-radii or AU. If given in AU, then <code class="docutils literal notranslate"><span class="pre">host_r</span></code> must be specified in <a class="reference internal" href="api.html#transitfit._pipeline.run_retrieval" title="transitfit._pipeline.run_retrieval"><code class="xref py py-meth docutils literal notranslate"><span class="pre">run_retrieval()</span></code></a> to allow for a conversion to host-radii.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">inc</span></code>: inclination of the orbit in degrees (Defaults to 90 degrees if not provided)</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">ecc</span></code>: eccentricity of the orbit (defaults to 0 if not provided)</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">w</span></code>: longitude of periastron (in degrees) (Defaults to 90 degrees if not provided)</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">rp</span></code>: Planet radius in stellar radii (i.e. Rp/R*). <strong>Note</strong>: if you have multiple filters that you want to fit <code class="docutils literal notranslate"><span class="pre">rp</span></code> for, you will have to provide a prior for <em>each</em> filter.</p></li>
-<li><p>{<code class="docutils literal notranslate"><span class="pre">q0</span></code>, <code class="docutils literal notranslate"><span class="pre">q1</span></code>, <code class="docutils literal notranslate"><span class="pre">q2</span></code>, <code class="docutils literal notranslate"><span class="pre">q3</span></code>} : Kipping q parameters for limb darkening. Most of the time you will not need to set these, but if you want to run a retrieval without fitting for limb darkening (if, for example, you fitted for these another way), then you can set them here by specifying a <code class="docutils literal notranslate"><span class="pre">'fixed'</span></code> distribution. Note that you will also have to set <code class="docutils literal notranslate"><span class="pre">ld_fit_method='off'</span></code> in the arguments of <code class="xref py py-meth docutils literal notranslate"><span class="pre">run_retrieval()</span></code>.</p></li>
+<li><p>{<code class="docutils literal notranslate"><span class="pre">q0</span></code>, <code class="docutils literal notranslate"><span class="pre">q1</span></code>, <code class="docutils literal notranslate"><span class="pre">q2</span></code>, <code class="docutils literal notranslate"><span class="pre">q3</span></code>} : Kipping q parameters for limb darkening. Most of the time you will not need to set these, but if you want to run a retrieval without fitting for limb darkening (if, for example, you fitted for these another way), then you can set them here by specifying a <code class="docutils literal notranslate"><span class="pre">'fixed'</span></code> distribution. Note that you will also have to set <code class="docutils literal notranslate"><span class="pre">ld_fit_method='off'</span></code> in the arguments of <a class="reference internal" href="api.html#transitfit._pipeline.run_retrieval" title="transitfit._pipeline.run_retrieval"><code class="xref py py-meth docutils literal notranslate"><span class="pre">run_retrieval()</span></code></a>.</p></li>
 </ul>
 </div></blockquote>
 </li>

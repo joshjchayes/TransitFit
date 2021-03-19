@@ -1,9 +1,5 @@
 '''
 Module to calculate the likelihood of a set of parameters
-
-
-This is a WIP to couple the rp and t0 for same wavelength and epoch
-respectively
 '''
 
 import numpy as np
@@ -13,19 +9,19 @@ from ._paramarray import ParamArray
 
 
 class LikelihoodCalculator:
-    def __init__(self, lightcurves, priors):
-        '''
-        Object to quickly calculate the likelihood of a set of parameters to
-        fit a given set of light curves.
+    '''
+    Object to quickly calculate the likelihood of a set of parameters to
+    fit a given set of light curves.
 
-        Parameters
-        ----------
-        lightcurves : array_like, shape (n_telescopes, n_filters, n_epochs)
-            An array of LightCurves. If no data exists for a point in the array
-            then the entry should be `None`.
-        priors : PriorInfo
-            The PriorInfo object for retrieval
-        '''
+    Parameters
+    ----------
+    lightcurves : array_like, shape (n_telescopes, n_filters, n_epochs)
+        An array of LightCurves. If no data exists for a point in the array
+        then the entry should be `None`.
+    priors : PriorInfo
+        The PriorInfo object for retrieval
+    '''
+    def __init__(self, lightcurves, priors):
         lightcurves = deepcopy(lightcurves)
         self.lightcurves = np.array(lightcurves, dtype=object)
 
@@ -125,7 +121,7 @@ class LikelihoodCalculator:
                     norm = 1
 
                 detrended_flux, err = self.lightcurves[i].detrend_flux(d, norm, use_full_times, True, params['t0'][i], params['P'][i])
-                
+
                 # Check that there is actually a transit in the model
                 # otherwise we impose a large penalty to the chi2 value
                 # This avoids a situation where the models try

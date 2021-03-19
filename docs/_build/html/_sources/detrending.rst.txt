@@ -16,7 +16,7 @@ We will look here at how to get ``TransitFit`` to use the different types of det
 Basic detrending syntax
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-Setting up ``TransitFit`` to use different detrending models is simple and uses the ``detrending_list`` kwarg in :meth:`~transitfit.run_retrieval`. This is a list of the different detrending methods to be used, along with any required details. The :ref:`detrending indices  <Indexing>` given in the :ref:`data input file <Data input file>` refer to the index of the methods in this list.
+Setting up ``TransitFit`` to use different detrending models is simple and uses the ``detrending_list`` kwarg in :meth:`~transitfit._pipeline.run_retrieval`. This is a list of the different detrending methods to be used, along with any required details. The :ref:`detrending indices  <Indexing>` given in the :ref:`data input file <Data input file>` refer to the index of the methods in this list.
 
 Detrending methods
 ------------------
@@ -66,7 +66,7 @@ The available types of detrending are:
 Setting limits on detrending coefficients
 -----------------------------------------
 
-By default, all detrending coefficients are fitted using a uniform prior of :math:`\pm10`. Obviously this is not always ideal, so you can specify the range over which these priors should be fitted using the ``detrending_limits`` argument in :meth:`~transitfit.run_retrieval`. **Note**: all the detrending coefficients in a given model will be bound to the same range.
+By default, all detrending coefficients are fitted using a uniform prior of :math:`\pm10`. Obviously this is not always ideal, so you can specify the range over which these priors should be fitted using the ``detrending_limits`` argument in :meth:`~transitfit._pipeline.run_retrieval`. **Note**: all the detrending coefficients in a given model will be bound to the same range.
 
 To use custom ranges in your detrending models, you use a list where each entry is ``[lower, upper]`` for the detrending methods.
 

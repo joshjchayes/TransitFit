@@ -6,36 +6,36 @@ import numpy as np
 from ._ldtk_handler import LDTKHandler
 
 class LimbDarkeningHandler:
+    '''
+    The LimbDarkeningHandler is designed to convert fitting parameters in
+    the range [0,1] and convert them into physically allowed values for
+    limb darkening coefficients for different models. This conversion is
+    based on Kipping 2013 https://arxiv.org/abs/1308.0009.
+
+    Parameters
+    ----------
+    default_model : str
+        The default limb darkening model to use. Accepted values are
+            - 'linear'
+            - 'quadratic'
+            - 'squareroot'
+            - 'power2'
+            - 'nonlinear'
+        This model will be the default for conversions unless otheriwse
+        specified.
+    low_lim : float, optional
+        The lower limit to use in conversion in the case where there are
+        open bounds on a coefficient (power2 and nonlinear models). Note
+        that in order to conserve sampling density in all regions for the
+        power2 model, you should set lower_lim=-high_lim. Default is -5
+    high_lim : float, optional
+        The upper limit to use in conversion in the case where there are
+        open bounds on a coefficient (power2 and nonlinear models). Note
+        that in order to conserve sampling density in all regions for the
+        power2 model, you should set lower_lim=-high_lim. Default is 5
+    '''
+    
     def __init__(self, default_model, low_lim=-5, high_lim=5):
-        '''
-        The LimbDarkeningHandler is designed to convert fitting parameters in
-        the range [0,1] and convert them into physically allowed values for
-        limb darkening coefficients for different models. This conversion is
-        based on Kipping 2013 https://arxiv.org/abs/1308.0009.
-
-        Parameters
-        ----------
-        default_model : str
-            The default limb darkening model to use. Accepted values are
-                - 'linear'
-                - 'quadratic'
-                - 'squareroot'
-                - 'power2'
-                - 'nonlinear'
-            This model will be the default for conversions unless otheriwse
-            specified.
-        low_lim : float, optional
-            The lower limit to use in conversion in the case where there are
-            open bounds on a coefficient (power2 and nonlinear models). Note
-            that in order to conserve sampling density in all regions for the
-            power2 model, you should set lower_lim=-high_lim. Default is -5
-        high_lim : float, optional
-            The upper limit to use in conversion in the case where there are
-            open bounds on a coefficient (power2 and nonlinear models). Note
-            that in order to conserve sampling density in all regions for the
-            power2 model, you should set lower_lim=-high_lim. Default is 5
-        '''
-
         if default_model not in ['linear','quadratic','squareroot','power2','nonlinear']:
             raise ValueError('Unrecognised limb darkening model {}'.format(default_model))
 

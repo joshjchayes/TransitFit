@@ -12,14 +12,44 @@ import csv
 from scipy.optimize import curve_fit
 
 class LightCurve:
+    '''
+    The transit data which we are trying to fit.
+
+    The LightCurve is designed
+    to simplify dealing with detrending etc across multiple data sets. It
+    allows us to clearly keep values pointed at specific data sets.
+
+    Parameters
+    ----------
+    times : array_like, shape (X, )
+        The times of observation
+    flux : array_like, shape (X, )
+        The fluxes
+    errors : array_like, shape (X, )
+        The absolute uncertainty on the fluxes
+    telescope_idx : int, optional
+        The telescope index associated with this light curve
+    filter_idx : int, optional
+        The filter index associated with this light curve
+    epoch_idx : int, optional
+        The epoch index associated with this light curve
+    curve_labels : array_like, shape (X, ), optional
+        Used to identify if different data points come from different
+        observations. Useful when combining curves if you want to undo that!
+    telescope_array : array_like, shape (X, ), optional
+        Array of the telescope indices for each data point. Useful when dealing
+        with combined curves.
+    filter_array : array_like, shape (X, ), optional
+        Array of the filter indices for each data point. Useful when dealing
+        with combined curves.
+    epoch_array : array_like, shape (X, ), optional
+        Array of the epoch indices for each data point. Useful when dealing
+        with combined curves.
+    '''
     def __init__(self, times, flux, errors, telescope_idx=None,
                  filter_idx=None, epoch_idx=None, curve_labels=None,
                  telescope_array=None, filter_array=None, epoch_array=None):
-        '''
-        The transit data which we are trying to fit. The LightCurve is designed
-        to simplify dealing with detrending etc across multiple data sets. It
-        allows us to clearly keep values pointed at specific data sets
-        '''
+
 
         times = np.array(times)
         flux = np.array(flux)
