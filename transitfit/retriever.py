@@ -1,7 +1,5 @@
 '''
-Retriever new
-- updated to use ParamArray approach
-
+Object which actually handles the retrieval process
 '''
 
 import numpy as np
@@ -35,15 +33,74 @@ from .output_handler import OutputHandler
 
 
 class Retriever:
+    '''
+    Handles the nested sampling retrieval and acts as a high-level interface
+
+    Parameters
+    ----------
+    data_files : str
+        Path to the data input config file
+    priors : str
+        Path to the priors config file
+    n_telescopes : int
+        The number of different telescopes used in the data set
+    n_filters : int
+        The number of different filters used in the data set
+    n_epochs : int
+        The number of different epochs used in the data set
+    filter_info : str, optional
+        The path to the filter profiles config file
+    detrending_list: list, optional
+        The different detrending models to use
+    limb_darkening_model : str
+        The limb darkening model to use
+    host_T : tuple or None, optional
+        The effective temperature of the host star, in Kelvin. Should be given
+        as a (value, uncertainty) pair. Required if ld_fit_method is
+        ``'single'`` or ``'coupled'``. Default is None.
+    host_logg : tuple or None, optional
+        The log_10 of the surface gravity of the host star, with gravity
+        measured in cm/s2. Should be given as a (value, uncertainty) pair.
+        Required if ld_fit_method is ``'single'`` or ``'coupled'``. Default is
+        None
+    host_z : tuple or None, optional
+        The metalicity of the host, given as a (value, uncertainty) pair.
+        Required if ld_fit_method is ``'single'`` or ``'coupled'``. Default is
+        None
+    host_r : tuple or None, optional
+        The host radius in Solar radii, given as a (value, uncertainty) pair.
+        Required for conversion of host-planet separation from AU to host radii
+    ldtk_cache : str, optional
+        This is the path to cache LDTK files to. If not specified, will
+        default to the LDTK default.
+    n_ld_samples : int, optional
+        Controls the number of samples taken by PyLDTk when calculating LDCs
+        when using ``'coupled'`` or ``'single'`` modes for limb darkening
+        fitting. Default is ``20000``
+    do_ld_mc : bool, optional
+        If ``True``, will use MCMC sampling to more accurately estimate the
+        uncertainty on intial limb darkening parameters provided by PyLDTk.
+        Default is ``False``.
+    data_skiprows : int, optional
+        The number of rows to skip when reading in light curve data from a .txt
+        file. Default is ``0``.
+    allow_ttv : bool, optional
+        If ``True``, will fit t0 for each epoch individually. Default is
+        ``False``.
+    filter_delimiter : str, optional
+        The delimiter in filter profile files. Default is ``None``, which will
+        lead to ``pandas`` trying to auto detect the delimiter.
+    detrending_limits : list, optional
+        The bounds on detrending coefficients, given as (lower, upper) pair for
+        each detrending method. IF not provided, will default to ±10
+    '''
     def __init__(self, data_files, priors, n_telescopes, n_filters, n_epochs,
                  filter_info=None, detrending_list=[['nth order', 1]],
                  limb_darkening_model='quadratic', host_T=None, host_logg=None,
-                 host_z=None, host_r=None, ldtk_cache=None, data_skiprows=0,
-                 n_ld_samples=20000, do_ld_mc=False, fit_ttv=False,
+                 host_z=None, host_r=None, ldtk_cache=None, n_ld_samples=20000,
+                 do_ld_mc=False, data_skiprows=0, allow_ttv=False,
                  filter_delimiter=None, detrending_limits=None):
-        '''
 
-        '''
         ###################
         # Save input data #
         ###################
@@ -55,7 +112,7 @@ class Retriever:
         self.n_filters = n_filters
         self.n_epochs = n_epochs
 
-        self.fit_ttv = fit_ttv
+        self.allow_ttv = allow_ttv
 
         self.detrending_info = detrending_list
         if detrending_limits is None:
@@ -124,9 +181,9 @@ class Retriever:
         self.ld_coeffs = self._full_prior.limb_dark_coeffs
 
         # Get the number of globally fitted parameters
-        # Work out the possible global parameters based on fit_ttv
+        # Work out the possible global parameters based on allow_ttv
         global_params = ['P', 'ecc', 'a', 'inc', 'w']
-        if not self.fit_ttv:
+        if not self.allow_ttv:
             global_params.append('t0')
         self.n_global_params = 0
         for param in global_params:
@@ -690,7 +747,7 @@ class Retriever:
                                       self.limb_darkening_model,
                                       filter_indices,
                                       folded, folded_P, folded_t0, host_r,
-                                      self.fit_ttv, lightcurve_subset,
+                                      self.allow_ttv, lightcurve_subset,
                                       suppress_warnings)
         else:
             # Reading in from a list
@@ -701,7 +758,7 @@ class Retriever:
                                        self.limb_darkening_model,
                                        filter_indices,
                                        folded, folded_P, folded_t0,
-                                       host_r, self.fit_ttv, lightcurve_subset,
+                                       host_r, self.allow_ttv, lightcurve_subset,
                                        suppress_warnings)
 
         # Set up limb darkening
@@ -765,7 +822,7 @@ class Retriever:
         # to produce a single LightCurve comprised by folding all the
         # detrended and normalised curves within a filter
         n_filters = self.n_filters
-        fit_ttv = self.fit_ttv
+        allow_ttv = self.allow_ttv
 
         ###############################################################
         ###                  GET P AND t0 VALUES                    ###
@@ -782,7 +839,7 @@ class Retriever:
         combined_results = result_handler.combine_results_dicts(results_dicts)
 
         # Get best P value
-        if self.fit_ttv:
+        if self.allow_ttv:
             # P is fixed
             best_P, best_P_err = combined_results['P'][None,None,None][0,0], 0
         else:
@@ -796,7 +853,7 @@ class Retriever:
 
         print('Folding light curves with these parameters:')
         print('P = {} ± {}'.format(round(best_P, 8),  round(best_P_err, 8)))
-        if self.fit_ttv:
+        if self.allow_ttv:
             for i, t0i in enumerate(best_t0):
                 print('t0 = {} ± {} (epoch {})'.format(round(t0i, 6),  round(best_t0_err[i], 6), i))
         else:
@@ -1149,305 +1206,6 @@ class Retriever:
         return all_batches
 
     ##########################################################
-    #            OUTPUT FUNCTIONS                            #
-    ##########################################################
-    def _save_results(self, results, priors, lightcurves,
-                      output_folder='./output_parameters',
-                      summary_file='summary_output_old_method.csv',
-                      full_output_file='full_output_old_method.csv',
-                      lightcurve_folder='./fitted_lightcurves',
-                      plot=True, plot_folder='./plots/old_method',
-                      marker_color='dimgrey', line_color='black',
-                      folded_P=None, folded_P_err=None, folded_t0=None,
-                      folded_t0_err=None):
-        '''
-        Saves the parameters, as well as the detrended lightcurves and the
-        best fit.
-
-        Parameters
-        ----------
-        results : array_like, shape (n_batches, )
-            The results for each of the runs
-        priors : array_like, shape (n_batches, )
-            The priors for each of the runs
-        lightcurves : array_like, shape (n_batches, )
-            Each entry should be the (n_telescopes, n_filters, n_epochs)
-            lightcurve array for the batch
-        output_folder : str, optional
-            The folder to save output files to (not plots). Default is
-            ./output_parameters
-        summary_file : str, optional
-            The file name for the final output. This file only gives the
-            averaged values, rather than individual values fitted within
-            batches if there are any. Default is summary_output.csv
-        full_output_file : str, optional
-            The file name for the full output file. This file gives partial
-            results from batches, rather than the averaged results. Default is
-            full_output.csv
-        lightcurve_folder : str, optional
-            The folder to save the fitted lightcurves to. Default is
-            ./fitted_lightcurves
-        plot : bool, optional
-            If True, will plot the results and save them to plot_folder
-        plot_folder : str, optional
-            The folder to save fitted plots to. Default is ./plots
-        marker_color : str, optional
-            A matplotlib color string to determine the color of the data points
-            in plots. Default is 'dimgrey'
-        line_color : str, optional
-            A matplotlib color string to set the color of the best fit transit
-            profile in plots. Default is 'black'
-        folded_P : float, optional
-            If this is done on folded lightcurves, then this is the period they
-            are folded to.
-        folded_P_err : float, optional
-            The error on folded_P
-        folded_t0 : float, optional
-            If this is done on folded lightcurves, then this is the t0 they
-            are folded to.
-        folded_t0_err : float, optional
-            The error on folded_t0
-
-        '''
-        n_batches = len(results)
-
-        folded = folded_P is not None
-
-        fit_ld = priors[0].fit_ld  # Are we fitting limb darkening?
-
-        def initialise_dict_entry(d, param):
-            '''
-            Initialises param in results dictionaries
-            '''
-            if param not in d:
-                d[param] = self._full_prior.priors[param].generate_blank_ParamArray()
-            return d
-
-        # We pull out the results for all the variables into two dictionaries
-        values = {}
-        errors = {}
-
-        for i, ri in enumerate(results):
-            # Loop through and populate the dictionaries
-            # We have to deal with global, filter-specific, and lightcurve-
-            # specific parameters slightly differently
-
-            # FIRST: save the detrended curves and the fit:
-            #io.save_final_light_curves(lightcurves[i], priors[i], results[i], lightcurve_folder, folded)
-
-            # Now plot the curves!
-            if plot:
-                try:
-                    plot_individual_lightcurves(lightcurves[i], priors[i],
-                                                    results[i], folder_path=plot_folder,
-                                                    marker_color=marker_color,
-                                                    line_color=line_color,
-                                                    plot_phase=folded, t0=folded_t0,
-                                                    period=folded_P)
-                except Exception as e:
-                    print('Exception raised while plotting:')
-                    print(e)
-                    print('Traceback:')
-                    traceback.print_tb(e.__traceback__)
-
-            # We will pull things out of the prior info
-            for j, param_info in enumerate(priors[i].fitting_params):
-                param_name, batch_tidx, batch_fidx, batch_eidx = param_info
-
-                # The fidx, tidx, eidx in param_info are for the batch. We want
-                # the global values, so pull out of the lightcurves
-
-                # for global params, these are all None
-                if param_name in global_params or (param_name == 't0' and not priors[i].fit_ttv):
-                    tidx, fidx, eidx = None, None, None
-
-                # For filter dependent parameters, batch_tidx and
-                # batch_eidx are None, so we need to go through the
-                # lightcurves to find the filter index
-                elif param_name in filter_dependent_params:
-                    # Find the filter index
-                    for k in np.ndindex(lightcurves[i].shape):
-                        if k[1] == batch_fidx and lightcurves[i][k] is not None:
-                            tidx = None
-                            fidx = lightcurves[i][k].filter_idx
-                            eidx = None
-                            break
-                else:
-                    # Lightcurve specific, we can just pull it straight out.
-                    tidx = lightcurves[i][batch_tidx, batch_fidx, batch_eidx].telescope_idx
-                    fidx = lightcurves[i][batch_tidx, batch_fidx, batch_eidx].filter_idx
-                    eidx = lightcurves[i][batch_tidx, batch_fidx, batch_eidx].epoch_idx
-
-                # Check that the parameter has been initialised
-                values = initialise_dict_entry(values, param_name)
-                errors = initialise_dict_entry(errors, param_name)
-
-                if values[param_name][tidx, fidx, eidx] is None:
-                    values[param_name][tidx, fidx, eidx] = []
-                if errors[param_name][tidx, fidx, eidx] is None:
-                    errors[param_name][tidx, fidx, eidx] = []
-
-                # Now pull out the best values
-                values[param_name][tidx, fidx, eidx].append(ri.best[j])
-                errors[param_name][tidx, fidx, eidx].append(ri.uncertainties[j])
-
-        # Now we have collated all of the results from each run, we can take
-        # weighted averages to get the final values for each parameter
-        best_vals = {}
-        best_vals_errors = {}
-
-        for param in values:
-            # Loop through all the parameters
-            best_vals = initialise_dict_entry(best_vals, param)
-            best_vals_errors = initialise_dict_entry(best_vals_errors, param)
-
-            for i in np.ndindex(values[param].shape):
-                if values[param][i] is not None:
-                    # Get the weighted average and error
-                    val, err = weighted_avg_and_std(values[param][i], errors[param][i], single_val=True)
-                    best_vals[param][i] = val
-                    best_vals_errors[param][i] = err
-
-        if fit_ld:
-            # We have to deal here with the limb darkening
-            # Since we fit for the Kipping q parameters, we should give
-            # these and the physical values (denoted as u)
-            # We put these in both the values and best_vals arrays
-
-            # Intialise entries
-            u_coeffs = []
-            for param in self.ld_coeffs:
-                # Initialise each of the u params
-                ldc_q = 'q{}'.format(param[-1])
-                ldc_u = 'u{}'.format(param[-1])
-                u_coeffs.append(ldc_u)
-
-                if ldc_u not in best_vals:
-                    best_vals[ldc_u] = values[ldc_q].generate_blank_ParamArray()
-                    values[ldc_u] = values[ldc_q].generate_blank_ParamArray()
-                if ldc_u not in best_vals_errors:
-                    best_vals_errors[ldc_u] = errors[ldc_q].generate_blank_ParamArray()
-                    errors[ldc_u] = errors[ldc_q].generate_blank_ParamArray()
-
-
-            for i in np.ndindex(values['q0'].shape):
-                if values['q0'][i] is not None:
-                    # Initialise empty lists
-                    for u in u_coeffs:
-                        values[u][i] = []
-                        errors[u][i] = []
-
-                    # Put all the q values for a given filter into one place so we
-                    # can access q0, q1 simultaneously for converting to u
-                    # All values
-                    filter_q = np.vstack((values[q][i] for q in self.ld_coeffs)).T
-                    filter_q_errors = np.vstack((errors[q][i] for q in self.ld_coeffs)).T
-
-                    # Best (averaged) values
-                    best_filter_q = np.vstack((best_vals[q][i] for q in self.ld_coeffs)).T[0]
-                    best_filter_q_errors = np.vstack((best_vals_errors[q][i] for q in self.ld_coeffs)).T[0]
-
-                    # First do all values
-                    for j, qj in enumerate(filter_q):
-                        u, u_err = self._full_prior.ld_handler.convert_qtou_with_errors(qj, filter_q_errors[j], self.limb_darkening_model)
-
-                        for k, uk in enumerate(u_coeffs):
-                            values[uk][i].append(u[k])
-                            errors[uk][i].append(u_err[k])
-
-                    # Now do best values
-                    u, u_err = self._full_prior.ld_handler.convert_qtou_with_errors(best_filter_q, best_filter_q_errors, self.limb_darkening_model)
-                    for k, uk in enumerate(u_coeffs):
-                        best_vals[uk][i] = u[k]
-                        best_vals_errors[uk][i] = u_err[k]
-
-        # TODO - Detrending:
-        # Sometimes detrending is done with batches, and this is outputting
-        # fits for detrended lightcurves. We want to pull out the detrending
-        # parameter fit results from the runs where detrending took place and
-        # put them in to the summary (best values)
-
-        # We will have two output files:
-        # - summary, which gives the averaged values
-        # - full, which gives all values
-        # These have been separated for simplicity
-        summary_dict = []
-        full_dict = []
-
-        for param in values:
-            # Loop through each parameter
-            if param == 'rp':
-                print_param = 'rp/r*'
-            else:
-                print_param = param
-            # Get the values and errors
-            for i in np.ndindex(values[param].shape):
-                if values[param][i] is not None:
-                    # Get the summary/full values and errors
-                    summary_val = best_vals[param][i]
-                    summary_err = best_vals_errors[param][i]
-
-                    full_val = values[param][i]
-                    full_err = errors[param][i]
-
-                    # Now we need to sort out the display name of the parameter
-                    # so we include the telescope, filter, and epoch indices
-                    if param in global_params:
-                        telescope_idx = '-'
-                        filter_idx = '-'
-                        epoch_idx = '-'
-                    elif param in filter_dependent_params:
-                        telescope_idx = '-'
-                        filter_idx = i[1]
-                        epoch_idx = '-'
-                    else:
-                        telescope_idx = i[0]
-                        filter_idx = i[1]
-                        epoch_idx = i[2]
-
-                    # Add the results to the output dicts
-                    summary_dict.append({'Parameter' : print_param,
-                                         'Telescope' : telescope_idx,
-                                         'Filter' : filter_idx,
-                                         'Epoch' : epoch_idx,
-                                         'Best value' : summary_val,
-                                         'Uncertainty' : summary_err})
-
-                    for j in range(len(full_val)):
-                        # We have to loop over the batches for the full results
-                        full_dict.append({'Parameter' : print_param,
-                                          'Telescope' : telescope_idx,
-                                          'Filter' : filter_idx,
-                                          'Epoch' : epoch_idx,
-                                          'Batch' : j,
-                                          'Best value' : full_val[j],
-                                          'Uncertainty' : full_err[j]})
-
-
-
-        # Save the outputs!
-        # First the full one:
-        os.makedirs(output_folder, exist_ok=True)
-        with open(os.path.join(output_folder, full_output_file), 'w') as f:
-            columns = ['Parameter', 'Telescope', 'Filter', 'Epoch', 'Batch',
-                       'Best value', 'Uncertainty']
-
-            writer = csv.DictWriter(f, columns)
-            writer.writeheader()
-            writer.writerows(full_dict)
-
-        # Now the summary file
-        with open(os.path.join(output_folder, summary_file), 'w') as f:
-            columns = ['Parameter', 'Telescope', 'Filter', 'Epoch',
-                       'Best value', 'Uncertainty']
-
-            writer = csv.DictWriter(f, columns)
-            writer.writeheader()
-            writer.writerows(summary_dict)
-
-        return summary_dict, full_dict
-
-    ##########################################################
     #             UTILITY FUNCTIONS                          #
     ##########################################################
     def _calculate_n_params(self, lightcurves, indices, ld_fit_method, normalise, detrend):
@@ -1480,7 +1238,7 @@ class Retriever:
         n_params = self.n_global_params
 
         # Account for ttv
-        if self.fit_ttv:
+        if self.allow_ttv:
             # t0 for each epoch
             n_params += n_epochs
 

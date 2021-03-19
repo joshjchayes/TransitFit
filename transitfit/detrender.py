@@ -10,13 +10,20 @@ from inspect import signature
 import inspect
 
 class DetrendingFunction:
-    def __init__(self, function):
-        '''
-        The DetrendingFunction is designed to handle detrending with an arbitrary
-        function.
+    '''
+    The DetrendingFunction is designed to handle detrending with an arbitrary
+    function.
 
-        Basically gets around dealing with varying number of args in a neat way
-        '''
+    Basically gets around dealing with varying number of args in a neat way
+
+    Parameters
+    ----------
+    function : function
+        The detrending function. Must have signature of f(times, a, b, c...)
+        where a, b, c etc are the detrending coefficients.
+    '''
+    def __init__(self, function):
+
         # Store the function
         self.function = function
 

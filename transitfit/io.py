@@ -1,7 +1,5 @@
 '''
-file_reader
-
-Module to help make using csv files super easy as inputs
+Module to deal with all the reading in of inputs, as well as printing final results to terminal
 '''
 
 import numpy as np

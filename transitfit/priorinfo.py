@@ -1,6 +1,4 @@
 '''
-PriorInfo objects
-
 Object to handle and deal with prior info for retrieval
 '''
 
@@ -33,9 +31,11 @@ _prior_info_defaults = {'P':1, 'a':10, 'inc':90, 'rp':0.05, 't0':0, 'ecc':0,
                         'n_epochs':1, 'norm':1}
 
 def setup_priors(P, t0, a, rp, inc, ecc, w, limb_dark, n_telescopes, n_filters,
-                 n_epochs, q0=None, q1=None, q2=None, q3=None, fit_ttv=False,
+                 n_epochs, q0=None, q1=None, q2=None, q3=None, allow_ttv=False,
                  lightcurves=None):
     '''
+    Factory function to initialise a PriorInfo object
+
     qX should either be a single value or a list of values length n_filters
     '''
     # Deal with the qX values
@@ -52,23 +52,41 @@ def setup_priors(P, t0, a, rp, inc, ecc, w, limb_dark, n_telescopes, n_filters,
                     'w':w, 'q0':q0, 'q1':q1, 'q2':q2, 'q3':q3, 'norm':1}
 
     return PriorInfo(default_dict, limb_dark, n_telescopes, n_filters,
-                      n_epochs, fit_ttv, lightcurves)
+                      n_epochs, allow_ttv, lightcurves)
 
 
 
 class PriorInfo:
+    '''
+    Object to deal with anything involving priors
+
+    Parameters
+    ----------
+    default_dict : dictionary
+        Dictionary containing default parameter values.
+    limb_dark : str
+        The limb darkening model to use.
+    n_telescopes : int
+        The number of different telescopes used in the data set
+    n_filters : int
+        The number of different filters used in the data set
+    n_epochs : int
+        The number of different epochs used in the data set
+    allow_ttv : bool, optional
+        If True, will fit t0 to each transit. Default is False.
+    lightcurves : array_like, shape(n_telescopes, n_filters, n_epochs)
+        Array of the light curves. If there is no observation for a particular
+        telescope, filter, epoch combination, then the value should be set to
+        None.
+    '''
     def __init__(self, default_dict, limb_dark, n_telescopes, n_filters,
-                 n_epochs, fit_ttv=False, lightcurves=None):
-        '''
-
-        '''
-
+                 n_epochs, allow_ttv=False, lightcurves=None):
         # Store the basics
         self.limb_dark = limb_dark
         self.n_telescopes = n_telescopes
         self.n_filters = n_filters
         self.n_epochs = n_epochs
-        self.fit_ttv = fit_ttv
+        self.allow_ttv = allow_ttv
 
         # Initialise limb darkening (set to off)
         self.ld_handler = LimbDarkeningHandler(self.limb_dark)
@@ -96,7 +114,7 @@ class PriorInfo:
 
             if key in _global_params:
                 # These are global parameters
-                if key == 't0' and fit_ttv:
+                if key == 't0' and allow_ttv:
                     # We are fitting a separate t0 for each epoch
                     self.priors[key] = ParamArray(key, (1,1, self.n_epochs), False, False, True, default_dict[key])
                 else:
@@ -164,7 +182,7 @@ class PriorInfo:
         Adds a new parameter which will be fitted with a Gaussian prior
         '''
         # If this is t0 and ttvs are on, we want to make the prior much wider to allow for proper TTVs
-        #if name == 't0' and self.fit_ttv:
+        #if name == 't0' and self.allow_ttv:
             # Set the Gaussian width to 0.1 days for ttv fitting mode
             #stdev = 0.1
         if name in ['a', 'P', 'rp', 'inc', 'ecc', 'w']:
@@ -190,6 +208,7 @@ class PriorInfo:
     def fit_detrending(self, lightcurves, method_list, method_index_array,
                        limits=None):
         '''
+        Intialises detrending
         '''
         if self.detrend:
             raise ValueError('Detrending is already initialised. You need to make a new PriorInfo to use another detrending method!')

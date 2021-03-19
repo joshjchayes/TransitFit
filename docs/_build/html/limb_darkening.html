@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>Limb-darkening &mdash; TransitFit 2.1.6dev documentation</title>
+  <title>Limb-darkening &mdash; TransitFit 2.2.0 documentation</title>
   
 
   
@@ -183,12 +183,12 @@
 <li><p>Host <span class="math notranslate nohighlight">\(\log(g)\)</span></p></li>
 <li><p>A filter profile for each filter used in the observations.</p></li>
 </ul>
-<p>The first three are provided as arguments to <code class="xref py py-meth docutils literal notranslate"><span class="pre">run_retrieval()</span></code>, and the filter profiles are specified using the <a class="reference internal" href="configfiles.html#filter-profiles"><span class="std std-ref">filter profiles input file</span></a>.</p>
+<p>The first three are provided as arguments to <a class="reference internal" href="api.html#transitfit._pipeline.run_retrieval" title="transitfit._pipeline.run_retrieval"><code class="xref py py-meth docutils literal notranslate"><span class="pre">run_retrieval()</span></code></a>, and the filter profiles are specified using the <a class="reference internal" href="configfiles.html#filter-profiles"><span class="std std-ref">filter profiles input file</span></a>.</p>
 </div></blockquote>
 <div class="section" id="available-limb-darkening-models">
 <h3>Available  limb-darkening models<a class="headerlink" href="#available-limb-darkening-models" title="Permalink to this headline">¶</a></h3>
 <p>Typically, stellar intensity profiles are described by analytical functions <span class="math notranslate nohighlight">\(I_\lambda\left(\mu\right)\)</span>, where <span class="math notranslate nohighlight">\(\mu\)</span> is the cosine of the angle between the line of sight and the emergent intensity. <span class="math notranslate nohighlight">\(\mu\)</span> can also be expressed as <span class="math notranslate nohighlight">\(\mu = \sqrt{1-r^2}\)</span> where <span class="math notranslate nohighlight">\(r\)</span> is the unit-normalised radial coordinate on the stellar disk, and as such, all limb-darkening models must be valid for <span class="math notranslate nohighlight">\(0 \le \mu &lt; 1\)</span>.</p>
-<p>There are 5 limb darkening models provided by <code class="docutils literal notranslate"><span class="pre">TransitFit</span></code>, which can be selected using the <code class="docutils literal notranslate"><span class="pre">limb_darkening_model</span></code> argument in <code class="xref py py-meth docutils literal notranslate"><span class="pre">run_retrieval()</span></code>. These are:</p>
+<p>There are 5 limb darkening models provided by <code class="docutils literal notranslate"><span class="pre">TransitFit</span></code>, which can be selected using the <code class="docutils literal notranslate"><span class="pre">limb_darkening_model</span></code> argument in <a class="reference internal" href="api.html#transitfit._pipeline.run_retrieval" title="transitfit._pipeline.run_retrieval"><code class="xref py py-meth docutils literal notranslate"><span class="pre">run_retrieval()</span></code></a>. These are:</p>
 <blockquote>
 <div><ul>
 <li><dl>
@@ -230,8 +230,8 @@
 </div>
 <div class="section" id="ldc-fitting-modes">
 <h3>LDC Fitting modes<a class="headerlink" href="#ldc-fitting-modes" title="Permalink to this headline">¶</a></h3>
-<p><code class="docutils literal notranslate"><span class="pre">TransitFit</span></code> offers three modes for LDC fitting, which can be selected using the <code class="docutils literal notranslate"><span class="pre">ld_fit_method</span></code> argument in <code class="xref py py-meth docutils literal notranslate"><span class="pre">run_retrieval()</span></code>.:</p>
-<ul class="simple">
+<p><code class="docutils literal notranslate"><span class="pre">TransitFit</span></code> offers three modes for LDC fitting, which can be selected using the <code class="docutils literal notranslate"><span class="pre">ld_fit_method</span></code> argument in <a class="reference internal" href="api.html#transitfit._pipeline.run_retrieval" title="transitfit._pipeline.run_retrieval"><code class="xref py py-meth docutils literal notranslate"><span class="pre">run_retrieval()</span></code></a>.:</p>
+<ul>
 <li><dl class="simple">
 <dt><code class="docutils literal notranslate"><span class="pre">'independent'</span></code></dt><dd><p>This is the traditional approach of fitting LDCs for each filter separately. <code class="docutils literal notranslate"><span class="pre">TransitFit</span></code> still uses the <a class="reference external" href="https://arxiv.org/abs/1308.0009">Kipping parameterisations</a>, but LDTk is not used to couple LDCs across filters.</p>
 </dd>
@@ -242,14 +242,15 @@
 </dd>
 </dl>
 </li>
-</ul>
-<dl>
+<li><dl>
 <dt><code class="docutils literal notranslate"><span class="pre">'single'</span></code></dt><dd><p>When fitting with multiple wavebands, the number of parameters required to be fitted can increase dramatically. The <code class="docutils literal notranslate"><span class="pre">'single'</span></code> LDC fitting mode freely fitting LDC for only one filter, and uses LDTk to extrapolate LDC values for the remaining filters. The <span class="math notranslate nohighlight">\(i\)</span>-th coefficient of a filter <span class="math notranslate nohighlight">\(f\)</span>, is calculated as</p>
 <div class="math notranslate nohighlight">
 \[c_{i, f} = u_i \times \frac{\langle c_{i, f}\rangle}{\langle u_{i}\rangle}\]</div>
 <p>where <span class="math notranslate nohighlight">\(u_i\)</span> is the sampled value of the <span class="math notranslate nohighlight">\(i\)</span>-th LDC in the actively fitted filter, and <span class="math notranslate nohighlight">\(\langle c_{i, f}\rangle\)</span> and <span class="math notranslate nohighlight">\(\langle u_{i}\rangle\)</span> are the maximum likelihood values initially suggested by LDTk.</p>
 </dd>
 </dl>
+</li>
+</ul>
 </div>
 </div>
 </div>

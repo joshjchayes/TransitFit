@@ -11,42 +11,42 @@ from collections.abc import Iterable
 _implemented_ld_models = ['linear', 'quadratic', 'nonlinear', 'power2', 'squareroot']
 
 class LDTKHandler:
+    '''
+    The LDTKHandler provides an easy way to interface ldtk with TransitFit.
+
+    Parameters
+    ----------
+    host_T : tuple
+        The effective temperature of the host star, in Kelvin, given as a
+        (value, uncertainty) pair.
+    host_logg : tuple
+        The log_10 of the surface gravity of the host star, with gravity
+        measured in cm/s2. Should be given as a (value, uncertainty) pair.
+    host_z : tuple
+        The metalicity of the host, given as a (value, uncertainty) pair.
+    filters : array_like
+        The set of filters, given in [low, high] limits for the wavelengths
+        with the wavelengths given in nanometers if a uniform filter is to
+        be used, or [[wavelength...], [transmission]] if a fully-defined
+        profile is being used. The ordering of the filters should
+        correspond to the filter_idx parameter used elsewhere.
+    ld_method : str, optional
+        The model of limb darkening to use. Allowed values are 'linear',
+        'quadratic', 'squareroot', 'power2', and 'nonlinear'. Default is
+        'quadratic'.
+    n_samples : int, optional
+        The number of limb darkening profiles to create. Passed to
+        ldtk.LDPSetCreator.create_profiles(). Default is 20000.
+    do_mc : bool, optional
+        If True, will use MCMC to estimate coefficient uncertainties more
+        accurately. Default is False.
+    cache_path : str, optional
+        This is the path to cache LDTK files to. If not specified, will
+        default to the LDTK default
+    '''
     def __init__(self, host_T, host_logg, host_z, filters,
                  ld_model='quadratic', n_samples=20000, do_mc=False,
                  cache_path=None):
-        '''
-        The LDTKHandler provides an easy way to interface ldtk with TransitFit.
-
-        Parameters
-        ----------
-        host_T : tuple
-            The effective temperature of the host star, in Kelvin, given as a
-            (value, uncertainty) pair.
-        host_logg : tuple
-            The log_10 of the surface gravity of the host star, with gravity
-            measured in cm/s2. Should be given as a (value, uncertainty) pair.
-        host_z : tuple
-            The metalicity of the host, given as a (value, uncertainty) pair.
-        filters : array_like
-            The set of filters, given in [low, high] limits for the wavelengths
-            with the wavelengths given in nanometers if a uniform filter is to
-            be used, or [[wavelength...], [transmission]] if a fully-defined
-            profile is being used. The ordering of the filters should
-            correspond to the filter_idx parameter used elsewhere.
-        ld_method : str, optional
-            The model of limb darkening to use. Allowed values are 'linear',
-            'quadratic', 'squareroot', 'power2', and 'nonlinear'. Default is
-            'quadratic'.
-        n_samples : int, optional
-            The number of limb darkening profiles to create. Passed to
-            ldtk.LDPSetCreator.create_profiles(). Default is 20000.
-        do_mc : bool, optional
-            If True, will use MCMC to estimate coefficient uncertainties more
-            accurately. Default is False.
-        cache_path : str, optional
-            This is the path to cache LDTK files to. If not specified, will
-            default to the LDTK default
-        '''
 
         # Sanity checks
         if not ld_model in _implemented_ld_models:

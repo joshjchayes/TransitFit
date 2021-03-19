@@ -1,6 +1,4 @@
 '''
-_utils.py
-
 This is a series of utility functions for TransitFit, including input validation
 '''
 import matplotlib

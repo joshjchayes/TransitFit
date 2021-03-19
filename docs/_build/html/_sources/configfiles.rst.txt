@@ -54,12 +54,12 @@ This file determines which physical parameters are to be fitted by ``TransitFit`
 
     * ``P``: Period of the orbit, in BJD
     * ``t0``: time of inferior conjunction in BJD
-    * ``a`` : semi-major axis. This can be given in units of either host-radii or AU. If given in AU, then ``host_r`` must be specified in :meth:`~tf.run_retrieval` to allow for a conversion to host-radii.
+    * ``a`` : semi-major axis. This can be given in units of either host-radii or AU. If given in AU, then ``host_r`` must be specified in :meth:`~transitfit._pipeline.run_retrieval` to allow for a conversion to host-radii.
     * ``inc``: inclination of the orbit in degrees (Defaults to 90 degrees if not provided)
     * ``ecc``: eccentricity of the orbit (defaults to 0 if not provided)
     * ``w``: longitude of periastron (in degrees) (Defaults to 90 degrees if not provided)
     * ``rp``: Planet radius in stellar radii (i.e. Rp/R\*). **Note**: if you have multiple filters that you want to fit ``rp`` for, you will have to provide a prior for *each* filter.
-    * {``q0``, ``q1``, ``q2``, ``q3``} : Kipping q parameters for limb darkening. Most of the time you will not need to set these, but if you want to run a retrieval without fitting for limb darkening (if, for example, you fitted for these another way), then you can set them here by specifying a ``'fixed'`` distribution. Note that you will also have to set ``ld_fit_method='off'`` in the arguments of :meth:`~transitfit.run_retrieval`.
+    * {``q0``, ``q1``, ``q2``, ``q3``} : Kipping q parameters for limb darkening. Most of the time you will not need to set these, but if you want to run a retrieval without fitting for limb darkening (if, for example, you fitted for these another way), then you can set them here by specifying a ``'fixed'`` distribution. Note that you will also have to set ``ld_fit_method='off'`` in the arguments of :meth:`~transitfit._pipeline.run_retrieval`.
 
 2. **Distribution**: The distribution that samples will be drawn from. This can be any of:
 
