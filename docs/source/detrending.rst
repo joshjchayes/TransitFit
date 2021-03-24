@@ -30,7 +30,7 @@ The available types of detrending are:
         d\left(t_i\right) = \sum^n_{j=1} \left[a_j \left(t_i^j - \overline{\textbf{t}^j}\right)\right]
 
 
-    The full derivation of this can be found in the `TransitFit paper LINK TO COME <DEAD LINK>`_
+    The full derivation of this can be found in the `paper <https://ui.adsabs.harvard.edu/abs/2021arXiv210312139H>`_
 
 *Custom function*
     Using a custom function requires a little more information. There are situations where some parameters in a detrending function should not be fitted uniquely for each light curve. We define three cases of this:
