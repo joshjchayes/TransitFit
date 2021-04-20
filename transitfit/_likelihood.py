@@ -51,7 +51,7 @@ class LikelihoodCalculator:
                 # Set up the TransitModels
                 # Make some realistic parameters to setup the models with
                 default_params = batman.TransitParams()
-                if self.priors.fit_ttv:
+                if self.priors.allow_ttv:
                     default_params.t0 = priors.priors['t0'].default_value
                 else:
                     default_params.t0 = priors.priors['t0'].default_value
