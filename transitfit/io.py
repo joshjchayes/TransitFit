@@ -662,7 +662,7 @@ def print_results(results, priorinfo, n_dof):
                 param = param +'_{}:\t'.format(int(fidx))
             #elif param in ['t0']:
             #    param = param +'_{}'.format(int(priorinfo._epoch_idx[i]))
-            elif (param in priorinfo.detrending_coeffs + ['norm']) or (param in['t0'] and priorinfo.fit_ttv):
+            elif (param in priorinfo.detrending_coeffs + ['norm']) or (param in['t0'] and priorinfo.allow_ttv):
                 param = param + '_t{}_f{}_e{}:'.format(int(tidx),int(fidx), int(eidx))
             elif param in priorinfo.limb_dark_coeffs and priorinfo.ld_fit_method in ['independent', 'coupled']:
                 # All the LD coeffs are fitted separately and will write out

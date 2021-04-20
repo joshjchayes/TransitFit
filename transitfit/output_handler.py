@@ -33,7 +33,7 @@ class OutputHandler:
     lightcurves : array_like, shape (n_telescopes, n_filters, n_epochs)
         The full lightcurves array to be retrieved.
     full_prior : PriorInfo
-        The prior for the complete light curve dataset. 
+        The prior for the complete light curve dataset.
 
     '''
     def __init__(self, lightcurves, full_prior, host_r=None):
@@ -364,7 +364,7 @@ class OutputHandler:
             # GET INDICES
             # The indices here are for a particular batch. We want global
             # values so pull them out of the LightCurves
-            full_idx = self._batch_to_full_idx(batch_idx, param_name, lightcurves, priors.fit_ttv)
+            full_idx = self._batch_to_full_idx(batch_idx, param_name, lightcurves, priors.allow_ttv)
 
             result_entry = [results.best[i], results.median[i], results.lower_err[i], results.upper_err[i], results.uncertainties[i]]
 
