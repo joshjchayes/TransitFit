@@ -77,7 +77,8 @@ class LDTKHandler:
         #print('Making LD parameter set creator.')
         #print('This may take some time as we may need to download files...')
         self.set_creator = LDPSetCreator(teff=host_T, logg=host_logg, z=host_z,
-                                    filters=ldtk_filters, cache=cache_path)
+                                    filters=ldtk_filters, cache=cache_path,
+                                    dataset='visir-lowres')
 
         # Get the LD profiles from the set creator
         #print('Obtaining LD profiles')
@@ -123,7 +124,7 @@ class LDTKHandler:
 
         return ld0_values * self.ratios[ld_model]
 
-    def _extract_best_coeffs(self, ld_model):
+    def _extract_best_coeffs(self, ld_model, do_mc=False):
         '''
         Extracts the best values for a limb darkening model for the filters
 
@@ -140,17 +141,17 @@ class LDTKHandler:
             The uncertainty on each of the coefficients
         '''
         if ld_model == 'linear':
-            coeff, err = self.profile_set.coeffs_ln()
+            coeff, err = self.profile_set.coeffs_ln(do_mc=do_mc)
         elif ld_model == 'quadratic':
-            coeff, err = self.profile_set.coeffs_qd()
+            coeff, err = self.profile_set.coeffs_qd(do_mc=do_mc)
         elif ld_model == 'nonlinear':
-            coeff, err = self.profile_set.coeffs_nl()
+            coeff, err = self.profile_set.coeffs_nl(do_mc=do_mc)
         elif ld_model == 'power2':
             if not self._power2_available:
                 raise ValueError('power2 model is not available. If you want to use this, please use the development version of ldtk available on https://github.com/hpparvi/ldtk, rather than the pypi version.')
-            coeff, err = self.profile_set.coeffs_p2()
+            coeff, err = self.profile_set.coeffs_p2(do_mc=do_mc)
         elif ld_model == 'squareroot':
-            coeff, err = self.profile_set.coeffs_sq()
+            coeff, err = self.profile_set.coeffs_sq(do_mc=do_mc)
 
         else:
             raise ValueError('Unrecognised ld_model {}'.format(ld_model))

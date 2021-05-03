@@ -92,7 +92,7 @@ class Retriever:
         lead to ``pandas`` trying to auto detect the delimiter.
     detrending_limits : list, optional
         The bounds on detrending coefficients, given as (lower, upper) pair for
-        each detrending method. IF not provided, will default to ±10
+        each detrending method. If not provided, will default to ±10
     '''
     def __init__(self, data_files, priors, n_telescopes, n_filters, n_epochs,
                  filter_info=None, detrending_list=[['nth order', 1]],
@@ -117,13 +117,15 @@ class Retriever:
         self.detrending_info = detrending_list
         if detrending_limits is None:
             self.detrending_limits = np.array([_default_detrending_limits for i in range(len(self.detrending_info))])
+
         else:
+            '''
             detrending_limits = np.array(detrending_limits)
             if not detrending_limits.ndim == 2:
                 raise ValueError(f'Detrending limits should be provided as a list of length {len(self.detrending_info)} where each entry is the  [lower, upper] limits on each method.')
             if not detrending_limits.shape[1] == 2:
                 raise ValueError(f'Detrending limits should be provided as a list of length {len(self.detrending_info)} where each entry is the  [lower, upper] limits on each method.')
-
+            '''
             self.detrending_limits = detrending_limits
 
         # Host info
@@ -211,7 +213,8 @@ class Retriever:
     ##########################################################
     def _run_dynesty(self, lightcurves, priors, maxiter=None, maxcall=None,
                      sample='auto', nlive=300, dlogz=None, bound='multi',
-                     plot_folder='./plots', walks=100, slices=10):
+                     plot_folder='./plots', walks=100, slices=10,
+                     use_full_times=False, use_phase_space=False):
         '''
         Runs dynesty on the given lightcurves with the given priors. Returns
         the result.
@@ -244,7 +247,7 @@ class Retriever:
         def lnlike(cube):
             params = priors._interpret_param_array(cube)
 
-            ln_likelihood = likelihood_calc.find_likelihood(params)
+            ln_likelihood = likelihood_calc.find_likelihood(params, use_full_times, use_phase_space)
 
             if priors.fit_ld and not priors.ld_fit_method == 'independent':
                 # Pull out the q values and convert them
@@ -407,7 +410,7 @@ class Retriever:
             output_handler._quicksave_result(results, batch_prior, batch_lightcurves, output_folder, filter_idx, bi)
 
         # Make outputs etc
-        if 'filter' in plot_folder:
+        if 'filter' in os.path.basename(plot_folder):
             #plot_folder = os.path.dirname(plot_folder)
             plot_folder = os.path.join(os.path.dirname(plot_folder), 'posteriors', os.path.basename(plot_folder))
         else:

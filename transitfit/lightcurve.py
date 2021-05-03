@@ -118,7 +118,8 @@ class LightCurve:
         self.detrend = False
         self.normalise = False
 
-    def set_detrending(self, method, order=None, function=None, method_idx=None):
+    def set_detrending(self, method, order=None, function=None,
+                       method_idx=None):
         '''
         Sets detrending method
 
@@ -215,7 +216,8 @@ class LightCurve:
         return median_factor, low_factor, high_factor
 
     def detrend_flux(self, d, norm=1, use_full_times=False,
-                     use_phase_space=False, t0=None, P=None, force_normalise=False):
+                     use_phase_space=False, t0=None, P=None,
+                     force_normalise=False):
         '''
         When given a normalisation constant and some detrending parameters,
         will return the detrended flux and errors
@@ -249,8 +251,24 @@ class LightCurve:
         detrended_errors : array_like, shape(num_times)
             The errors on the detrended flux
         '''
-        detrended_flux = deepcopy(self.flux)
+
+        if self.detrend and d is not None:
+            detrended_flux = self.detrending_function(self, *d)
+        else:
+            detrended_flux = deepcopy(self.flux)
         detrended_errors = deepcopy(self.errors)
+
+        #print('Before normalisation')
+        #print(detrended_flux, detrended_errors)
+
+        if self.normalise or force_normalise:
+            detrended_flux *= norm
+            detrended_errors *= norm
+
+        #print('After normalisation')
+        #print(norm, detrended_flux, detrended_errors)
+
+        return detrended_flux, detrended_errors
 
         if self.detrend and d is not None:
             if use_phase_space:
@@ -274,7 +292,10 @@ class LightCurve:
 
                 detrend_values = self.detrending_function(self.times - subtract_val, *d)
 
-            detrended_flux -= detrend_values
+            if self.multiplicative_detrending:
+                detrended_flux *= detrend_values
+            else:
+                detrended_flux -= detrend_values
 
         if self.normalise or force_normalise:
             detrended_flux *= norm
@@ -566,7 +587,6 @@ class LightCurve:
             return times[return_mask], flux[return_mask], err[return_mask]
         else:
             return times[return_mask], flux[return_mask], err[return_mask], binned_residuals[return_mask]
-
 
     def __eq__(self, other):
         '''

@@ -34,7 +34,7 @@ class LimbDarkeningHandler:
         that in order to conserve sampling density in all regions for the
         power2 model, you should set lower_lim=-high_lim. Default is 5
     '''
-    
+
     def __init__(self, default_model, low_lim=-5, high_lim=5):
         if default_model not in ['linear','quadratic','squareroot','power2','nonlinear']:
             raise ValueError('Unrecognised limb darkening model {}'.format(default_model))

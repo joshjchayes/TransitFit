@@ -42,7 +42,7 @@ class DetrendingFunction:
 
         self.n_required_args = args
         self.n_kwargs = kwargs
-        # -1 assumes that the first entry is times, so won't be fitted
+        # -1 assumes that the first entry is lightcurve, so won't be fitted
         try:
             self.n_params = function.order
         except:

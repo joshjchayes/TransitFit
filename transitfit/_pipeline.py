@@ -27,7 +27,7 @@ def run_retrieval(data_files, priors, filter_info=None,
                   full_output_file='full_output.csv',
                   plot_folder='./plots', plot=True,
                   marker_color='dimgrey', line_color='black', ldtk_cache=None,
-                  n_ld_samples=20000, do_ld_mc=False, data_skiprows=0,
+                  ldtk_samples=20000, do_ld_mc=False, data_skiprows=0,
                   allow_ttv=False, filter_delimiter=None,
                   detrending_limits=None, bin_data=False, cadence=2,
                   binned_color='red', walks=100, slices=10):
@@ -260,7 +260,7 @@ def run_retrieval(data_files, priors, filter_info=None,
         This is the path to cache LDTK files to. If not specified, will
         default to the LDTK default.
 
-    n_ld_samples : int, optional
+    ldtk_samples : int, optional
         Controls the number of samples taken by PyLDTk when calculating LDCs
         when using ``'coupled'`` or ``'single'`` modes for limb darkening
         fitting. Default is ``20000``
@@ -313,7 +313,7 @@ def run_retrieval(data_files, priors, filter_info=None,
     retriever = Retriever(data_files, priors, n_telescopes, n_filters, n_epochs,
                           filter_info, detrending_list, limb_darkening_model,
                           host_T, host_logg, host_z, host_r, ldtk_cache,
-                          data_skiprows, n_ld_samples, do_ld_mc, allow_ttv,
+                           ldtk_samples, do_ld_mc, data_skiprows, allow_ttv,
                           filter_delimiter, detrending_limits)
 
     # Run the retrieval!

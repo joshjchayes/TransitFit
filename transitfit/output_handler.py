@@ -33,7 +33,7 @@ class OutputHandler:
     lightcurves : array_like, shape (n_telescopes, n_filters, n_epochs)
         The full lightcurves array to be retrieved.
     full_prior : PriorInfo
-        The prior for the complete light curve dataset. 
+        The prior for the complete light curve dataset.
 
     '''
     def __init__(self, lightcurves, full_prior, host_r=None):
@@ -50,6 +50,11 @@ class OutputHandler:
 
         self.best_model = None
         self.batman_initialised = False
+
+        self.global_params = []
+        for i, param in enumerate(self.full_prior.fitting_params):
+            if np.all(param[1:] == None):
+                self.global_params.append(param[0])
 
     def save_final_light_curves(self, all_lightcurves, global_prior,
                                 folder='./final_light_curves', folded=False):
@@ -364,7 +369,7 @@ class OutputHandler:
             # GET INDICES
             # The indices here are for a particular batch. We want global
             # values so pull them out of the LightCurves
-            full_idx = self._batch_to_full_idx(batch_idx, param_name, lightcurves, priors.fit_ttv)
+            full_idx = self._batch_to_full_idx(batch_idx, param_name, lightcurves, priors.allow_ttv)
 
             result_entry = [results.best[i], results.median[i], results.lower_err[i], results.upper_err[i], results.uncertainties[i]]
 
@@ -804,7 +809,7 @@ class OutputHandler:
             d[param] = prior.priors[param].generate_blank_ParamArray()
         return d
 
-    def _batch_to_full_idx(self, i, param_name, lightcurves, fit_ttv):
+    def _batch_to_full_idx(self, i, param_name, lightcurves, allow_ttv):
         '''
         Converts a batch index into a full index
 
@@ -819,26 +824,26 @@ class OutputHandler:
         '''
         batch_tidx, batch_fidx, batch_eidx = i
 
-        if param_name in global_params or (param_name == 't0' and not fit_ttv):
-            tidx, fidx, eidx = None, None, None
-        elif param_name == 't0' and fit_ttv:
+        if batch_tidx is None:
+            tidx = None
+        else:
             for k in np.ndindex(lightcurves.shape):
-                if k[2] == batch_eidx and lightcurves[k] is not None:
-                    tidx = None
-                    fidx = None
-                    eidx = lightcurves[k].epoch_idx
-                    break
-        elif param_name in filter_dependent_params:
+                if k[0] == batch_tidx and lightcurves[k] is not None:
+                    tidx = lightcurves[k].telescope_idx
+
+        if batch_fidx is None:
+            fidx = None
+        else:
             for k in np.ndindex(lightcurves.shape):
                 if k[1] == batch_fidx and lightcurves[k] is not None:
-                    tidx = None
                     fidx = lightcurves[k].filter_idx
-                    eidx = None
-                    break
+
+        if batch_eidx is None:
+            eidx = None
         else:
-            tidx = lightcurves[batch_tidx, batch_fidx, batch_eidx].telescope_idx
-            fidx = lightcurves[batch_tidx, batch_fidx, batch_eidx].filter_idx
-            eidx = lightcurves[batch_tidx, batch_fidx, batch_eidx].epoch_idx
+            for k in np.ndindex(lightcurves.shape):
+                if k[2] == batch_eidx and lightcurves[k] is not None:
+                    eidx = lightcurves[k].epoch_idx
 
         return tidx, fidx, eidx
 
@@ -865,7 +870,7 @@ class OutputHandler:
             for i in np.ndindex(results_dict[param].shape):
                 if results_dict[param][i] is not None:
                     # Sort out the indices:
-                    if param in global_params:
+                    if param in self.global_params:
                         tidx, fidx, eidx = None, None, None
                     elif param in filter_dependent_params:
                         tidx, fidx, eidx = None, i[1], None

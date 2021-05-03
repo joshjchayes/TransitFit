@@ -19,7 +19,7 @@ import os
 def read_priors_file(path, n_telescopes, n_filters, n_epochs,
                      limb_dark='quadratic', filter_indices=None, folded=False,
                      folded_P=None, folded_t0=None, host_radius=None,
-                     fit_ttv=None, lightcurves=None, suppress_warnings=False):
+                     allow_ttv=None, lightcurves=None, suppress_warnings=False):
     '''
     If given a csv file containing priors, will produce a PriorInfo object
     based off the given values
@@ -86,12 +86,12 @@ def read_priors_file(path, n_telescopes, n_filters, n_epochs,
     '''
     priors_list = pd.read_csv(path).values
 
-    return parse_priors_list(priors_list, n_telescopes, n_filters, n_epochs, limb_dark, filter_indices, folded, folded_P, folded_t0, host_radius, fit_ttv, lightcurves, suppress_warnings)
+    return parse_priors_list(priors_list, n_telescopes, n_filters, n_epochs, limb_dark, filter_indices, folded, folded_P, folded_t0, host_radius, allow_ttv, lightcurves, suppress_warnings)
 
 def parse_priors_list(priors_list, n_telescopes, n_filters,
                       n_epochs, ld_model, filter_indices=None, folded=False,
                       folded_P=None, folded_t0=None, host_radius=None,
-                      fit_ttv=False, lightcurves=None, suppress_warnings=False):
+                      allow_ttv=False, lightcurves=None, suppress_warnings=False):
     '''
     Parses a list of priors to produce a PriorInfo with all fitting parameters
     initialised.
@@ -143,8 +143,8 @@ def parse_priors_list(priors_list, n_telescopes, n_filters,
         if folded_t0 is None:
             raise ValueError('folded_t0 must be provided for folded prior mode')
 
-    if fit_ttv and lightcurves is None:
-        raise ValueError('lightcurves must be provided if fit_ttv is True')
+    if allow_ttv and lightcurves is None:
+        raise ValueError('lightcurves must be provided if allow_ttv is True')
 
     # Make a dictionary of the defaults
     priors_dict = {}
@@ -210,7 +210,7 @@ def parse_priors_list(priors_list, n_telescopes, n_filters,
                           priors_dict['q1'][0],
                           priors_dict['q2'][0],
                           priors_dict['q3'][0],
-                          fit_ttv, lightcurves)
+                          allow_ttv, lightcurves)
 
     ##########################
     # Initialise the fitting #
@@ -243,7 +243,7 @@ def parse_priors_list(priors_list, n_telescopes, n_filters,
                 # Skip P and t0 for folded mode - we aren't fitting them
                 pass
 
-            elif key in ['P'] and fit_ttv:
+            elif key in ['P'] and allow_ttv:
                 # We can't fit period if we are using ttv mode - skip it
                 if not suppress_warnings:
                     print("WARNING: Ignoring P fitting due to ttv mode. It is recommended to specify P as 'Fixed' in the input file, else TransitFit will default to the value given with Input A.")
@@ -255,7 +255,7 @@ def parse_priors_list(priors_list, n_telescopes, n_filters,
 
             elif mode.lower() in ['uniform', 'unif', 'u']:
                 # Uniform fitting
-                if key in ['t0'] and fit_ttv:
+                if key in ['t0'] and allow_ttv:
                     for li in np.ndindex(lightcurves.shape):
                         # Loop through each lightcurve and initialise t0
                         if lightcurves[li] is not None:
@@ -265,7 +265,7 @@ def parse_priors_list(priors_list, n_telescopes, n_filters,
 
             elif mode.lower() in ['gaussian', 'gauss', 'normal', 'norm', 'g']:
                 # Gaussian fitting
-                if key in ['t0'] and fit_ttv:
+                if key in ['t0'] and allow_ttv:
                     for li in np.ndindex(lightcurves.shape):
                         # Loop through each lightcurve and initialise t0
                         if lightcurves[li] is not None:
@@ -662,7 +662,7 @@ def print_results(results, priorinfo, n_dof):
                 param = param +'_{}:\t'.format(int(fidx))
             #elif param in ['t0']:
             #    param = param +'_{}'.format(int(priorinfo._epoch_idx[i]))
-            elif (param in priorinfo.detrending_coeffs + ['norm']) or (param in['t0'] and priorinfo.fit_ttv):
+            elif (param in priorinfo.detrending_coeffs + ['norm']) or (param in['t0'] and priorinfo.allow_ttv):
                 param = param + '_t{}_f{}_e{}:'.format(int(tidx),int(fidx), int(eidx))
             elif param in priorinfo.limb_dark_coeffs and priorinfo.ld_fit_method in ['independent', 'coupled']:
                 # All the LD coeffs are fitted separately and will write out

@@ -51,7 +51,7 @@ class LikelihoodCalculator:
                 # Set up the TransitModels
                 # Make some realistic parameters to setup the models with
                 default_params = batman.TransitParams()
-                if self.priors.fit_ttv:
+                if self.priors.allow_ttv:
                     default_params.t0 = priors.priors['t0'].default_value
                 else:
                     default_params.t0 = priors.priors['t0'].default_value
@@ -71,7 +71,7 @@ class LikelihoodCalculator:
                 self.batman_models.set_value(model, tidx, fidx, eidx)
 
 
-    def find_likelihood(self, params, use_full_times=False):
+    def find_likelihood(self, params, use_full_times=False, use_phase_space=False):
         '''
         Finds the likelihood of a set of parameters
         '''
@@ -120,7 +120,10 @@ class LikelihoodCalculator:
                 else:
                     norm = 1
 
-                detrended_flux, err = self.lightcurves[i].detrend_flux(d, norm, use_full_times, True, params['t0'][i], params['P'][i])
+                detrended_flux, err = self.lightcurves[i].detrend_flux(d, norm, use_full_times, use_phase_space, params['t0'][i], params['P'][i])
+
+                #print('Likelihood function detrended flux:')
+                #print(detrended_flux)
 
                 # Check that there is actually a transit in the model
                 # otherwise we impose a large penalty to the chi2 value
@@ -135,6 +138,8 @@ class LikelihoodCalculator:
 
                 #all_chi2.append(chi2)
 
+        #print(params)
+        #print(- total_chi2)
         #return - sum(all_chi2)
         return - total_chi2
 
