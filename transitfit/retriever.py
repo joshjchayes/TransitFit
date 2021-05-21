@@ -371,7 +371,7 @@ class Retriever:
                                plot=True, plot_folder='./plots',
                                marker_color='dimgrey', line_color='black',
                                bound='multi', filter_idx=None, walks=100,
-                               slices=10):
+                               slices=10, n_procs=1):
         '''
         Runs a retrieval using the given batches
 
@@ -381,10 +381,6 @@ class Retriever:
             If True will return all_results, all_priors, all_lightcurves.
             If False, will just return all_results. Default is False
         '''
-        all_results = []
-        all_priors = []
-        all_lightcurves = []
-
         # Get the full prior to make the output handler
         full_prior, full_lcs = self._get_priors_and_curves(lightcurves, ld_fit_method, None,
                                                           detrend, normalise, folded,
@@ -392,21 +388,31 @@ class Retriever:
                                                           suppress_warnings=True)
         output_handler = OutputHandler(full_lcs, full_prior, self.host_r)
 
-        for bi, batch in enumerate(batches):
-            print('Batch {} of {}'.format(bi+1, len(batches)))
-            # Now we want to get the lightcurves and priors for each batch
-            batch_prior, batch_lightcurves = self._get_priors_and_curves(lightcurves, ld_fit_method, batch, detrend, normalise, folded, folded_P, folded_t0, suppress_warnings=True)
+        n_batches = len(batches)
 
-            # Run the retrieval!
-            results, ndof = self._run_dynesty(batch_lightcurves, batch_prior, maxiter,
-                                              maxcall, sample, nlive,
-                                              dlogz, bound, plot_folder, walks, slices)
 
-            all_results.append(results)
-            all_priors.append(batch_prior)
-            all_lightcurves.append(batch_lightcurves)
 
-            output_handler._quicksave_result(results, batch_prior, batch_lightcurves, output_folder, filter_idx, bi)
+        mp_input = [[self, batch, bi, n_batches, lightcurves, output_handler, ld_fit_method,
+                     detrend, normalise, folded, folded_P, folded_t0,
+                     maxiter, maxcall, sample, nlive, dlogz, bound,  plot_folder,
+                     walks, slices, output_folder, filter_idx] for bi, batch in enumerate(batches)]
+
+        #with mp.Pool(processes=n_procs) as pool:
+        print(f'Opening multiprocessing pool with {n_procs} processes')
+        if n_procs > 1:
+            print('Since you are using more than 1 process, the output to terminal might be a bit of a mess!')
+        pool = mp.Pool(n_procs)
+        # Run the pool!
+        #batch_run_results = [pool.map_async(_run_batch, i) for i in mp_input]
+        batch_run_results = pool.map(_run_batch, mp_input)
+        pool.close()
+        pool.join()
+
+        print('All batches complete, closing pool!')
+
+        all_results = np.array([r[0] for r in batch_run_results])
+        all_priors = np.array([r[1] for r in batch_run_results])
+        all_lightcurves = np.array([r[2] for r in batch_run_results])
 
         # Make outputs etc
         if 'filter' in os.path.basename(plot_folder):
@@ -435,7 +441,7 @@ class Retriever:
                               plot=True, plot_folder='./plots',
                               marker_color='dimgrey', line_color='black',
                               max_parameters=25, overlap=2, bound='multi',
-                              walks=100, slices=10):
+                              walks=100, slices=10, n_procs=1):
         '''
         For each filter, runs retrieval, then produces a phase-folded
         lightcurve. Then runs retrieval across wavelengths on the folded
@@ -474,7 +480,7 @@ class Retriever:
                                             lightcurve_folder=filter_lightcurve_folder,
                                             plot=plot, plot_folder=filter_plots_folder,
                                             marker_color=marker_color, line_color=line_color,
-                                            bound=bound, filter_idx=fi, walks=walks, slices=slices)
+                                            bound=bound, filter_idx=fi, walks=walks, slices=slices, n_procs=n_procs)
 
             results_list.append(results)
             priors_list.append(priors)
@@ -504,7 +510,7 @@ class Retriever:
                         False, True, folded_P, folded_t0, output_folder=output_folder,
                         summary_file=summary_file, full_output_file=full_output_file,
                         lightcurve_folder=lightcurve_folder, plot=plot, plot_folder=plot_folder,
-                        marker_color=marker_color, line_color=line_color, bound=bound, walks=walks, slices=slices)
+                        marker_color=marker_color, line_color=line_color, bound=bound, walks=walks, slices=slices, n_procs=n_procs)
 
     def run_retrieval(self, ld_fit_method='independent', fitting_mode='auto',
                       max_parameters=25, maxiter=None, maxcall=None,
@@ -517,7 +523,7 @@ class Retriever:
                       line_color='black', bound='multi',
                       normalise=True, detrend=True, overlap=2,
                       bin_data=True, cadence=2, binned_color='red', walks=100,
-                      slices=10):
+                      slices=10, n_procs=1):
         '''
         Runs dynesty on the data. Different modes exist and can be specified
         using the kwargs.
@@ -633,7 +639,7 @@ class Retriever:
                     normalise, maxiter, maxcall, sample, nlive, dlogz, False,
                     False, None, None, output_folder, summary_file,
                     full_output_file, lightcurve_folder, plot, plot_folder,
-                    marker_color, line_color, bound, walks, slices)
+                    marker_color, line_color, bound, None, walks, slices, n_procs)
 
 
         elif fitting_mode.lower() == 'folded':
@@ -643,7 +649,7 @@ class Retriever:
             results = self._run_folded_retrieval(ld_fit_method, detrend, normalise,
                     maxiter, maxcall, sample, nlive, dlogz, output_folder,
                     summary_file, full_output_file, lightcurve_folder, plot,
-                    plot_folder, marker_color, line_color, max_parameters, overlap, bound, walks, slices)
+                    plot_folder, marker_color, line_color, max_parameters, overlap, bound, walks, slices, n_procs)
 
         full_prior, _ = self._get_priors_and_curves(self.all_lightcurves, ld_fit_method, None, detrend, normalise, suppress_warnings=True)
 
@@ -1322,3 +1328,25 @@ class Retriever:
         unique_indices = self._get_unique_indices(subset_indices)
 
         return unique_indices[subset_index]
+
+
+# External definition of running retrieval on a batch. Exists for
+# parallelisation purposes.
+def _run_batch(x):
+    '''
+    Subprocess to run a batch
+    '''
+    retriever, batch, bi, n_batches, lightcurves, output_handler, ld_fit_method, detrend, normalise, folded, folded_P, folded_t0, maxiter, maxcall, sample, nlive, dlogz, bound, plot_folder, walks, slices, output_folder, filter_idx = x
+
+    print('Running batch {} of {}'.format(bi+1, n_batches))
+    # Now we want to get the lightcurves and priors for each batch
+    batch_prior, batch_lightcurves = retriever._get_priors_and_curves(lightcurves, ld_fit_method, batch, detrend, normalise, folded, folded_P, folded_t0, suppress_warnings=True)
+
+    # Run the retrieval!
+    results, ndof = retriever._run_dynesty(batch_lightcurves, batch_prior, maxiter,
+                                      maxcall, sample, nlive,
+                                      dlogz, bound, plot_folder, walks, slices)
+
+    output_handler._quicksave_result(results, batch_prior, batch_lightcurves, output_folder, filter_idx, bi)
+
+    return results, batch_prior, batch_lightcurves

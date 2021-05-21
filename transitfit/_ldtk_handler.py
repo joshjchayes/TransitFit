@@ -76,13 +76,13 @@ class LDTKHandler:
             os.makedirs(cache_path, exist_ok=True)
         #print('Making LD parameter set creator.')
         #print('This may take some time as we may need to download files...')
-        self.set_creator = LDPSetCreator(teff=host_T, logg=host_logg, z=host_z,
+        set_creator = LDPSetCreator(teff=host_T, logg=host_logg, z=host_z,
                                     filters=ldtk_filters, cache=cache_path,
                                     dataset='visir-lowres')
 
         # Get the LD profiles from the set creator
         #print('Obtaining LD profiles')
-        self.profile_set = self.set_creator.create_profiles(nsamples=n_samples)
+        self.profile_set = set_creator.create_profiles(nsamples=n_samples)
 
         # Find the 'best values' for each filter and then find the ratios
         # compared to the first.
