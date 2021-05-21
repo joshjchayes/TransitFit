@@ -71,7 +71,7 @@ class LikelihoodCalculator:
                 self.batman_models.set_value(model, tidx, fidx, eidx)
 
 
-    def find_likelihood(self, params, use_full_times=False, use_phase_space=False):
+    def find_likelihood(self, params):
         '''
         Finds the likelihood of a set of parameters
         '''
@@ -120,7 +120,7 @@ class LikelihoodCalculator:
                 else:
                     norm = 1
 
-                detrended_flux, err = self.lightcurves[i].detrend_flux(d, norm, use_full_times, use_phase_space, params['t0'][i], params['P'][i])
+                detrended_flux, err = self.lightcurves[i].detrend_flux(d, norm)
 
                 #print('Likelihood function detrended flux:')
                 #print(detrended_flux)

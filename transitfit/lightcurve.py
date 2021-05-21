@@ -215,9 +215,7 @@ class LightCurve:
 
         return median_factor, low_factor, high_factor
 
-    def detrend_flux(self, d, norm=1, use_full_times=False,
-                     use_phase_space=False, t0=None, P=None,
-                     force_normalise=False):
+    def detrend_flux(self, d, norm=1, force_normalise=False):
         '''
         When given a normalisation constant and some detrending parameters,
         will return the detrended flux and errors
@@ -228,18 +226,6 @@ class LightCurve:
             Array of the detrending parameters to use
         norm : float, optional
             The normalisation constant to use. Default is 1
-        use_full_times : bool, optional
-            If True, will use the full BJD value of the times. If False, will
-            subtract the integer part of self.times[0] from all the time values
-            before passing to the detrending function. Default is False
-        use_phase_space : bool, optional
-            If True, will phase fold the light curve before detrending. This
-            is an alternative approach to removing the full BJD part of times.
-            Requires t0 and P to be provided
-        t0 : float, optional
-            The t0 value ot use when phase folding.
-        P : float, optional
-            The period to phase fold to
         force_normalise : bool, optional
             Override to allow normalisation to be forced if the LightCurve does
             not have normalisation initialised. Default is False.
@@ -270,47 +256,11 @@ class LightCurve:
 
         return detrended_flux, detrended_errors
 
-        if self.detrend and d is not None:
-            if use_phase_space:
-                # This is generally a better idea than subtracting BJD values
-                # as it is far more consistent and reproducable.
-                if P is None or t0 is None:
-                    raise ValueError('P and t0 must be provided to use phase space detrending')
-                phase = self.get_phases(t0, P)
-
-                detrend_values = self.detrending_function(phase, *d)
-
-            else:
-                if use_full_times:
-                    subtract_val = 0
-                else:
-                    # Since times are in BJD, the detrending function results are
-                    # MASSIVE. We detrend using only the fractional part of the
-                    # times as this significantly reduces the range of each of the
-                    # detrending coefficients
-                    subtract_val = np.floor(self.times[0])
-
-                detrend_values = self.detrending_function(self.times - subtract_val, *d)
-
-            if self.multiplicative_detrending:
-                detrended_flux *= detrend_values
-            else:
-                detrended_flux -= detrend_values
-
-        if self.normalise or force_normalise:
-            detrended_flux *= norm
-            detrended_errors *= norm
-
-        return detrended_flux, detrended_errors
-
-    def create_detrended_LightCurve(self, d, norm, t0=None, P=None):
+    def create_detrended_LightCurve(self, d, norm):
         '''
         Creates a detrended LightCurve using detrend_flux() and returns it
         '''
-        if t0 is not None and P is not None:
-            detrended_flux, detrended_errors = self.detrend_flux(d, norm, False, True, t0, P)
-        else:
-            detrended_flux, detrended_errors = self.detrend_flux(d, norm)
+        detrended_flux, detrended_errors = self.detrend_flux(d, norm)
 
         return LightCurve(self.times, detrended_flux, detrended_errors,
                           self.telescope_idx, self.filter_idx,
@@ -325,7 +275,7 @@ class LightCurve:
 
         If base_t0 is provided, this will ensure that the folded lightcurve is
         centred on base_t0. This is to allow for ttv mode where the differences
-        between the retrieved t0 for each empoch must be accounted for.
+        between the retrieved t0 for each epoch must be accounted for.
 
         returns a new LightCurve
         '''

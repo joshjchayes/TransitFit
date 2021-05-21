@@ -94,7 +94,7 @@ class OutputHandler:
                 # First, detrend and normalise the curve
 
 
-                flux, flux_err = lc.detrend_flux(d[i], self.best_model['norm'][i][0], False, True, self.best_model['t0'][i][0], self.best_model['P'][i][0], force_normalise=True)
+                flux, flux_err = lc.detrend_flux(d[i], self.best_model['norm'][i][0], force_normalise=True)
 
                 # Get phase
                 phase = lc.get_phases(self.best_model['t0'][i][0], self.best_model['P'][i][0])
@@ -148,7 +148,7 @@ class OutputHandler:
             if lc is not None:
                 # First, detrend and normalise the curve
 
-                flux, flux_err = lc.detrend_flux(d[i], self.best_model['norm'][i][0], False, True, self.best_model['t0'][i][0], self.best_model['P'][i][0], force_normalise=True)
+                flux, flux_err = lc.detrend_flux(d[i], self.best_model['norm'][i][0], force_normalise=True)
 
                 # Get phase
                 phase = lc.get_phases(self.best_model['t0'][i][0], self.best_model['P'][i][0])
@@ -198,7 +198,7 @@ class OutputHandler:
                 i = (ti, fi, ei)
                 lc = all_lightcurves[i]
                 if lc is not None:
-                    lc_flux, lc_flux_err = lc.detrend_flux(d[i], self.best_model['norm'][i][0], False, True, self.best_model['t0'][i][0], self.best_model['P'][i][0], force_normalise=True)
+                    lc_flux, lc_flux_err = lc.detrend_flux(d[i], self.best_model['norm'][i][0], force_normalise=True)
                     lc_phase = lc.get_phases(self.best_model['t0'][i][0], self.best_model['P'][i][0])
 
                     # Get the best fit model depths - use linspaced times for plot

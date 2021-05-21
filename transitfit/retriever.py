@@ -213,8 +213,7 @@ class Retriever:
     ##########################################################
     def _run_dynesty(self, lightcurves, priors, maxiter=None, maxcall=None,
                      sample='auto', nlive=300, dlogz=None, bound='multi',
-                     plot_folder='./plots', walks=100, slices=10,
-                     use_full_times=False, use_phase_space=False):
+                     plot_folder='./plots', walks=100, slices=10):
         '''
         Runs dynesty on the given lightcurves with the given priors. Returns
         the result.
@@ -247,7 +246,7 @@ class Retriever:
         def lnlike(cube):
             params = priors._interpret_param_array(cube)
 
-            ln_likelihood = likelihood_calc.find_likelihood(params, use_full_times, use_phase_space)
+            ln_likelihood = likelihood_calc.find_likelihood(params)
 
             if priors.fit_ld and not priors.ld_fit_method == 'independent':
                 # Pull out the q values and convert them
@@ -646,13 +645,15 @@ class Retriever:
                     summary_file, full_output_file, lightcurve_folder, plot,
                     plot_folder, marker_color, line_color, max_parameters, overlap, bound, walks, slices)
 
-        output_handler = OutputHandler(self.all_lightcurves, self._full_prior, self.host_r)
+        full_prior, _ = self._get_priors_and_curves(self.all_lightcurves, ld_fit_method, None, detrend, normalise, suppress_warnings=True)
 
-        output_handler.save_complete_results(fitting_mode, self._full_prior, output_folder, summary_file)
+        output_handler = OutputHandler(self.all_lightcurves, full_prior, self.host_r)
 
-        output_handler.save_final_light_curves(self.all_lightcurves, self._full_prior, lightcurve_folder)
+        output_handler.save_complete_results(fitting_mode, full_prior, output_folder, summary_file)
 
-        output_handler.plot_final_light_curves(self.all_lightcurves, self._full_prior, plot_folder, marker_color=marker_color, line_color=line_color, bin_data=bin_data, cadence=2, binned_color=binned_color)
+        output_handler.save_final_light_curves(self.all_lightcurves, full_prior, lightcurve_folder)
+
+        output_handler.plot_final_light_curves(self.all_lightcurves, full_prior, plot_folder, marker_color=marker_color, line_color=line_color, bin_data=bin_data, cadence=2, binned_color=binned_color)
 
     ##########################################################
     #            PRIOR MANIPULATION                          #
@@ -898,7 +899,7 @@ class Retriever:
                         norm = results_dict['norm'][i]
 
                         # Make the detrended light curve and fold to the final t0
-                        detrended_curve = lc.create_detrended_LightCurve(best_d, norm, best_t0[eidx], best_P)
+                        detrended_curve = lc.create_detrended_LightCurve(best_d, norm)
 
                         # Fold the curve using the best t0 for the epoch and P
                         # We are folding each curve to be centred on best_t0[0]

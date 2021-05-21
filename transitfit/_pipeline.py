@@ -9,9 +9,6 @@ from .retriever import Retriever
 import numpy as np
 import os
 
-
-
-
 def run_retrieval(data_files, priors, filter_info=None,
                   detrending_list=[['nth order', 1]],
                   limb_darkening_model='quadratic',
