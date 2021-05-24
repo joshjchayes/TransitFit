@@ -26,8 +26,22 @@ The documentation for TransitFit can be found [here](https://transitfit.readthed
 
 <a name="citing"></a>
 ## Citing TransitFit
-If you have used TransitFit in your work, please cite the [accompanying paper (LINK TO COME)](deadlink):
+If you have used TransitFit in your work, please cite the [accompanying paper](https://ui.adsabs.harvard.edu/abs/2021arXiv210312139H/abstract). If you are using BibTeX, you can add the following to your .bib file:
 
 ```
-SOME BIBTEX HERE
+@ARTICLE{2021arXiv210312139H,
+       author = {{Hayes}, J.~J.~C. and {Kerins}, E. and {Morgan}, J.~S. and {Humpage}, A. and {Awiphan}, S. and {Charles-Mindoza}, S. and {McDonald}, I. and {Inyanya}, T. and {Padjaroen}, T. and {Munsaket}, P. and {Chuanraksasat}, P. and {Komonjinda}, S. and {Kittara}, P. and {Dhillon}, V.~S. and {Marsh}, T.~R. and {Reichart}, D.~E. and {Poshyachinda}, S.},
+        title = "{TransitFit: an exoplanet transit fitting package for multi-telescope datasets and its application to WASP-127~b, WASP-91~b, and WASP-126~b}",
+      journal = {arXiv e-prints},
+     keywords = {Astrophysics - Earth and Planetary Astrophysics, Astrophysics - Instrumentation and Methods for Astrophysics},
+         year = 2021,
+        month = mar,
+          eid = {arXiv:2103.12139},
+        pages = {arXiv:2103.12139},
+archivePrefix = {arXiv},
+       eprint = {2103.12139},
+ primaryClass = {astro-ph.EP},
+       adsurl = {https://ui.adsabs.harvard.edu/abs/2021arXiv210312139H},
+      adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+}
 ```

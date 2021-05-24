@@ -42,4 +42,4 @@ Thumbs.db
 *.egg-info/*
 build/*
 dist/*
-_build/*
+docs/_build/*

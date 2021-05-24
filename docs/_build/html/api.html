@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>API &mdash; TransitFit 2.2.0 documentation</title>
+  <title>API &mdash; TransitFit 2.2.2 documentation</title>
   
 
   
@@ -210,7 +210,7 @@ Accepted methods are</p>
 that the first argument to this function is times and that all
 other arguments are single-valued - TransitFit cannot fit
 list/array variables. If ‘off’ is used, no detrending will be
-applied to the <a href="#id1"><span class="problematic" id="id2">``</span></a>LightCurve``s using this model.</p>
+applied to a light curve using this model.</p>
 <p>If a custom function is used, and some inputs to the function
 should not be fitted individually for each light curve, but should
 instead be shared either globally, within a given filter, or within
@@ -889,7 +889,7 @@ default to the LDTK default</p></li>
 free parameter.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>lightcurves</strong> (np.array of <a href="#id3"><span class="problematic" id="id4">`</span></a>LightCurve`s, shape (n_telescopes, n_filters, n_epochs)) – <p>The array of LightCurves to be normalised. We can use the value of
+<dd class="field-odd"><p><strong>lightcurves</strong> (np.array of <a href="#id1"><span class="problematic" id="id2">`</span></a>LightCurve`s, shape (n_telescopes, n_filters, n_epochs)) – <p>The array of LightCurves to be normalised. We can use the value of
 fluxes to estimate a normalisation constant (c_n) range for each
 light curve. We use</p>
 <blockquote>
@@ -1671,7 +1671,7 @@ The default, None, results in all columns being read.</p></li>
 <dt id="transitfit.io.read_data_path_array">
 <code class="sig-prename descclassname"><span class="pre">transitfit.io.</span></code><code class="sig-name descname"><span class="pre">read_data_path_array</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data_path_array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skiprows</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#transitfit.io.read_data_path_array" title="Permalink to this definition">¶</a></dt>
 <dd><p>If passed an array of paths, will read in to produce an array of
-<a href="#id5"><span class="problematic" id="id6">`</span></a>LightCurve`s</p>
+<a href="#id3"><span class="problematic" id="id4">`</span></a>LightCurve`s</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><p><strong>data_path_array</strong> (<em>array_like</em><em>, </em><em>shape</em><em> (</em><em>n_telescopes</em><em>, </em><em>n_filters</em><em>, </em><em>n_epochs</em><em>)</em>) – Array with paths to data to load</p>
@@ -1680,7 +1680,7 @@ The default, None, results in all columns being read.</p></li>
 <dd class="field-even"><p><strong>lightcurves</strong> – The data loaded and stored as an array of LightCurves</p>
 </dd>
 <dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>np.array of <a href="#id7"><span class="problematic" id="id8">`</span></a>LightCurve`s, shape (n_telescopes, n_filters, n_epochs)</p>
+<dd class="field-odd"><p>np.array of <a href="#id5"><span class="problematic" id="id6">`</span></a>LightCurve`s, shape (n_telescopes, n_filters, n_epochs)</p>
 </dd>
 </dl>
 </dd></dl>
@@ -1735,7 +1735,7 @@ their telescope, filter, epoch, and detrending indices.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p><ul class="simple">
-<li><p><strong>lightcurves</strong> (np.array of <a href="#id9"><span class="problematic" id="id10">`</span></a>LightCurve`s, shape (n_telescopes, n_filters, n_epochs)) – The data loaded and stored as an array of LightCurves</p></li>
+<li><p><strong>lightcurves</strong> (np.array of <a href="#id7"><span class="problematic" id="id8">`</span></a>LightCurve`s, shape (n_telescopes, n_filters, n_epochs)) – The data loaded and stored as an array of LightCurves</p></li>
 <li><p><strong>detrending_index_array</strong> (<em>array_like, shape (n_telescopes, n_filters, n_epochs)</em>) – The detrending indices for each lightcurve</p></li>
 </ul>
 </p>

@@ -4,7 +4,7 @@ Limb-darkening
 
 ``TransitFit`` was built with two primary motivations. First, to facilitate transmission spectroscopy surveys using observations from heterogeneous telescopes, and second, to allow the user to fit light curves while accounting for the effects that filter profiles and host parameters have on the LDCs, which we refer to as 'coupling' the LDCs. We will discuss the latter here.
 
-The full justification for and impacts of this approach can be found in `the paper LINK TO COME <DEAD>`_ but, in short, not including host parameters and filter profiles in likelihood calculations of LDCs can lead to biases in your measurements of :math:`R_p/R_\star` of tens of percent. By including this, ``TransitFit`` has made it easy to conduct robust transmission spectroscopy studies using observations from heterogeneous sources.
+The full justification for and impacts of this approach can be found in the `accompanying paper <https://ui.adsabs.harvard.edu/abs/2021arXiv210312139H>`_ but, in short, not including host parameters and filter profiles in likelihood calculations of LDCs can lead to biases in your measurements of :math:`R_p/R_\star` of tens of percent. By including this, ``TransitFit`` has made it easy to conduct robust transmission spectroscopy studies using observations from heterogeneous sources.
 
 Calculating LDC likelihoods
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
