@@ -10,6 +10,7 @@ import itertools
 import traceback
 import corner
 import pickle
+from collections.abc import Iterable
 
 
 import matplotlib.pyplot as plt
@@ -583,9 +584,11 @@ class OutputHandler:
 
         # First we initialise each entry in the dict
         for param in global_prior.priors.keys():
+            # Initialise from the global prior
             best_model_dict = self._initialise_dict_entry(best_model_dict, param, global_prior)
 
         for param in self.ld_coeffs:
+            # Now initialise the LDC u params
             ldc_q = 'q{}'.format(param[-1])
             ldc_u = 'u{}'.format(param[-1])
 
@@ -597,6 +600,9 @@ class OutputHandler:
 
         # First use the top-level output
         top_output = pd.read_csv(os.path.join(output_folder, summary_file))
+
+        # List of parameters which were fitted from the top level
+        top_params = []
 
         for i, row in top_output.iterrows():
             param, tidx, fidx, eidx, best, err = row
@@ -624,49 +630,78 @@ class OutputHandler:
                     err = None
                 else:
                     err = float(err)
-                if param in best_model_dict:
-                    best_model_dict[param][tidx, fidx, eidx] = [best, err]
-
-        if mode in ['all', 'batched']:
-            self.best_model = best_model_dict
-            return best_model_dict
-
-        # Now we have to go through the results for each of the filters and
-        # add in the results from those
-        for fi in range(global_prior.n_filters):
-            path = os.path.join(output_folder, 'filter_{}_parameters'.format(fi), 'filter_{}_summary.csv'.format(fi))
-
-            filter_output = pd.read_csv(path)
-            for i, row in filter_output.iterrows():
-                param, tidx, fidx, eidx, best, err = row
-
-                if param[-3:] == '/r*':
-                    param = param[:-3]
-
-                if tidx == '-':
-                    tidx == None
-                else:
-                    tidx = int(tidx)
-
-                if fidx == '-':
-                    fidx == None
-                else:
-                    fidx = int(fidx)
-
-                if eidx == '-':
-                    eidx == None
-                else:
-                    eidx = int(eidx)
-
-                best = float(best)
-                if err == '-':
-                    err = None
-                else:
-                    err = float(err)
 
                 if param in best_model_dict:
                     if best_model_dict[param][tidx, fidx, eidx] is None:
-                        best_model_dict[param][tidx, fidx, eidx] = [best, err]
+                        best_model_dict[param][tidx, fidx, eidx] = []
+
+                    best_model_dict[param][tidx, fidx, eidx].append([best, err])
+
+                    if param not in top_params:
+                        top_params.append(param)
+                #if param in best_model_dict:
+                #    best_model_dict[param][tidx, fidx, eidx] = [best, err]
+
+        #if mode in ['all', 'batched']:
+        #    self.best_model = best_model_dict
+        #    return best_model_dict
+
+        if mode == 'folded':
+            # Now we have to go through the results for each of the filters and
+            # add in the results from those
+            for fi in range(global_prior.n_filters):
+                path = os.path.join(output_folder, 'filter_{}_parameters'.format(fi), 'filter_{}_summary.csv'.format(fi))
+
+                filter_output = pd.read_csv(path)
+                for i, row in filter_output.iterrows():
+                    param, tidx, fidx, eidx, best, err = row
+
+                    if param[-3:] == '/r*':
+                        param = param[:-3]
+
+                    if tidx == '-':
+                        tidx == None
+                    else:
+                        tidx = int(tidx)
+
+                    if fidx == '-':
+                        fidx == None
+                    else:
+                        fidx = int(fidx)
+
+                    if eidx == '-':
+                        eidx == None
+                    else:
+                        eidx = int(eidx)
+
+                    best = float(best)
+                    if err == '-':
+                        err = None
+                    else:
+                        err = float(err)
+
+                    if param in best_model_dict and param not in top_params:
+                        # Store the value(s) from each if the parameter was not
+                        # fitted in the folded run
+                        if best_model_dict[param][tidx, fidx, eidx] is None:
+                            best_model_dict[param][tidx, fidx, eidx] = []
+
+                        best_model_dict[param][tidx, fidx, eidx].append([best, err])
+
+
+        # Now we go through the params, checking to see if there are multiple
+        # values. If there are, we need to take the weighted final values
+        for param in best_model_dict:
+            for i in np.ndindex(best_model_dict[param].shape):
+                if best_model_dict[param][i] is not None:
+                    param_results = np.array(best_model_dict[param][i])
+
+                    if param_results[0,1] is None:
+                        # deal with the global fixed values (err=None)
+                        best_model_dict[param][i] = [param_results[0,0], None]
+                        break
+                    else:
+                        best_model_dict[param][i] = weighted_avg_and_std(param_results[:, 0], param_results[:,1], single_val=True)
 
         self.best_model = best_model_dict
 
@@ -868,25 +903,42 @@ class OutputHandler:
                 print_param = param
 
             for i in np.ndindex(results_dict[param].shape):
+
                 if results_dict[param][i] is not None:
-                    # Sort out the indices:
-                    if param in self.global_params:
-                        tidx, fidx, eidx = None, None, None
-                    elif param in filter_dependent_params:
-                        tidx, fidx, eidx = None, i[1], None
-                    else:
-                        tidx, fidx, eidx = i
+
+                    tidx, fidx, eidx = None, None, None
+                    if results_dict[param].telescope_dependent:
+                        tidx = i[0]
+                    if results_dict[param].filter_dependent:
+                        fidx = i[1]
+                    if results_dict[param].epoch_dependent:
+                        eidx = i[2]
 
                     if not batched:
                         # Add the best values in
-                        vals_arr = np.append(vals_arr, np.array([[print_param, tidx, fidx, eidx, results_dict[param][i][0], results_dict[param][i][1]]]), axis=0)
+                        if isinstance(results_dict[param][i][0], Iterable):
+                            # DIRTY HACK due to weird behaviour with
+                            # results from 'all' mode. I'm sorry, but I'm
+                            # writing a thesis and don't have the time to
+                            # find the actual cause.
+                            vals_arr = np.append(vals_arr, np.array([[print_param, tidx, fidx, eidx, results_dict[param][i][0][0], results_dict[param][i][0][-1]]]), axis=0)
+                        else:
+                            vals_arr = np.append(vals_arr, np.array([[print_param, tidx, fidx, eidx, results_dict[param][i][0], results_dict[param][i][-1]]]), axis=0)
 
                         if param == 'a' and self.host_r is not None:
                             # Put a into AU as well
-                            a_AU, a_AU_err = host_radii_to_AU(results_dict[param][i][0],
-                                                              self.host_r[0],
-                                                              results_dict[param][i][1],
-                                                              self.host_r[1], True)
+                            if isinstance(results_dict[param][i][0], Iterable):
+                                # DIRTY HACK due to weird behaviour with
+                                # results from 'all' mode
+                                a_AU, a_AU_err = host_radii_to_AU(results_dict[param][i][0][0],
+                                                                  self.host_r[0],
+                                                                  results_dict[param][i][0][1],
+                                                                  self.host_r[1], True)
+                            else:
+                                a_AU, a_AU_err = host_radii_to_AU(results_dict[param][i][0],
+                                                                  self.host_r[0],
+                                                                  results_dict[param][i][1],
+                                                                  self.host_r[1], True)
                             vals_arr = np.append(vals_arr, np.array([['a/AU', tidx, fidx, eidx, a_AU, a_AU_err]]), axis=0)
                     else:
                         # Loop over batches

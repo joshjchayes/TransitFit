@@ -350,7 +350,7 @@ class Retriever:
         try:
             output_handler.save_results([results], [priors], [lightcurves],
                                              output_folder, summary_file,
-                                             full_output_file)
+                                             full_output_file, plot_folder)
 
         except Exception as e:
             print('Exception raised whilst saving results:')
@@ -398,7 +398,6 @@ class Retriever:
                      walks, slices, output_folder, filter_idx] for bi, batch in enumerate(batches)]
 
         #with mp.Pool(processes=n_procs) as pool:
-        print(f'Opening multiprocessing pool with {n_procs} processes')
         if n_procs > 1:
             print('Since you are using more than 1 process, the output to terminal might be a bit of a mess!')
         pool = mp.Pool(n_procs)
@@ -407,8 +406,6 @@ class Retriever:
         batch_run_results = pool.map(_run_batch, mp_input)
         pool.close()
         pool.join()
-
-        print('All batches complete, closing pool!')
 
         all_results = np.array([r[0] for r in batch_run_results])
         all_priors = np.array([r[1] for r in batch_run_results])
@@ -872,6 +869,59 @@ class Retriever:
         ###############################################################
         ###            NORMALISATION/DETRENDING/FOLDING             ###
         ###############################################################
+        # Updated version for v2.3
+        final_batched_lightcurves = [[] for i in range(self.n_filters)]
+
+        # loop over each lightcurve, using the combined results dict
+        for li, lc in np.ndenumerate(self.all_lightcurves):
+            if lc is not None:
+                if self._full_prior.detrend:
+                    # Get the detrending coeffs
+                    method_idx = lc.detrending_method_idx
+                    # Get the detrending coeffs names for this lc
+                    detrending_coeffs = self._full_prior.detrending_coeffs[method_idx]
+
+                    # Now get the weighted best values for them!
+                    best_d = []
+                    for d in detrending_coeffs:
+                        best_d.append(weighted_avg_and_std(combined_results[d][li][:,0],combined_results[d][li][:,-1], single_val=True)[0])
+                else:
+                    best_d = None
+
+                if self._full_prior.normalise:
+                    norm = weighted_avg_and_std(combined_results['norm'][li][:,0],combined_results['norm'][li][:,-1], single_val=True)[0]
+                else:
+                    norm = 1
+
+                # Make the detrended light curve and fold to the final t0
+                detrended_curve = lc.create_detrended_LightCurve(best_d, norm)
+
+                # Fold the curve using the best t0 for the epoch and P
+                # We are folding each curve to be centred on best_t0[0]
+                folded_curve = detrended_curve.fold(best_t0[li[2]], best_P, best_t0[0])
+                final_batched_lightcurves[li[1]].append(folded_curve)
+
+        print(final_batched_lightcurves)
+
+        # Now we go through detrended and folded lightcurve, and combine them
+        # into one lightcurve per filter
+        final_lightcurves = []
+        for fi, filter_curves in enumerate(final_batched_lightcurves):
+            # Go through each filter and combine the curves!
+            if len(filter_curves) == 1:
+                # No need to combine
+                final_lightcurves.append(filter_curves[0])
+            else:
+                combined_curve = filter_curves[0].combine(filter_curves[1:], filter_idx=fi)
+                # Need to loop and combine
+                final_lightcurves.append(combined_curve)
+
+        return np.array(final_lightcurves).reshape(1, self.n_filters, 1), best_P, best_t0[0]
+
+
+
+
+        '''
         # Now we do the detrending stuff and fold the lightcurves
         # Remember that each batch will only contain one filter
 
@@ -926,6 +976,7 @@ class Retriever:
                 final_lightcurves.append(combined_curve)
 
         return np.array(final_lightcurves).reshape(1, self.n_filters, 1), best_P, best_t0[0]
+        '''
 
     def _get_lightcurve_subset(self, lightcurves, indices):
         '''

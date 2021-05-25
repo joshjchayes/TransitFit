@@ -204,14 +204,14 @@ class LightCurve:
         Notes
         -----
         We use
-            ``1/f_max <= c_n <= 1/f_min``
+            ``0.5/f_max <= c_n <= 1.5/f_min``
         as the default range.
         '''
         median_factor = 1/np.median(self.flux)
 
         # updated v0.10.0 - gives a narrower prior
-        low_factor = 1/np.max(self.flux)
-        high_factor = 1/np.min(self.flux)
+        low_factor = 0.5/np.max(self.flux)
+        high_factor = 1.5/np.min(self.flux)
 
         return median_factor, low_factor, high_factor
 
