@@ -348,7 +348,7 @@ class Retriever:
         try:
             output_handler.save_results([results], [priors], [lightcurves],
                                              output_folder, summary_file,
-                                             full_output_file)
+                                             full_output_file, plot_folder)
 
         except Exception as e:
             print('Exception raised whilst saving results:')

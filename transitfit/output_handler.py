@@ -10,7 +10,7 @@ import itertools
 import traceback
 import corner
 import pickle
-
+from collections.abc import Iterable
 
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
@@ -865,36 +865,40 @@ class OutputHandler:
             for i in np.ndindex(results_dict[param].shape):
                 if results_dict[param][i] is not None:
                     # Sort out the indices:
-                    if param in global_params:
-                        tidx, fidx, eidx = None, None, None
-                    elif param in filter_dependent_params:
-                        tidx, fidx, eidx = None, i[1], None
-                    else:
-                        tidx, fidx, eidx = i
+                    tidx, fidx, eidx = None, None, None
+                    if results_dict[param].telescope_dependent:
+                        tidx = i[0]
+                    if results_dict[param].filter_dependent:
+                        fidx = i[1]
+                    if results_dict[param].epoch_dependent:
+                        eidx = i[2]
 
                     if not batched:
                         # Add the best values in
-                        vals_arr = np.append(vals_arr, np.array([[print_param, tidx, fidx, eidx, results_dict[param][i][0], results_dict[param][i][1]]]), axis=0)
+                        if isinstance(results_dict[param][i][0], Iterable):
+                            # DIRTY HACK due to weird behaviour with
+                            # results from 'all' mode. I'm sorry, but I'm
+                            # writing a thesis and don't have the time to
+                            # find the actual cause.
+                            vals_arr = np.append(vals_arr, np.array([[print_param, tidx, fidx, eidx, results_dict[param][i][0][0], results_dict[param][i][0][-1]]]), axis=0)
+                        else:
+                            vals_arr = np.append(vals_arr, np.array([[print_param, tidx, fidx, eidx, results_dict[param][i][0], results_dict[param][i][-1]]]), axis=0)
 
                         if param == 'a' and self.host_r is not None:
                             # Put a into AU as well
-                            a_AU, a_AU_err = host_radii_to_AU(results_dict[param][i][0],
-                                                              self.host_r[0],
-                                                              results_dict[param][i][1],
-                                                              self.host_r[1], True)
-                            vals_arr = np.append(vals_arr, np.array([['a/AU', tidx, fidx, eidx, a_AU, a_AU_err]]), axis=0)
-                    else:
-                        # Loop over batches
-                        for bi in range(len(results_dict[param][i])):
-                            vals_arr = np.append(vals_arr, np.array([[print_param, tidx, fidx, eidx, bi, results_dict[param][i][bi][0], results_dict[param][i][bi][-1]]]), axis=0)
-
-                            if param == 'a' and self.host_r is not None:
-                                # Put a into AU as well
-                                a_AU, a_AU_err = host_radii_to_AU(results_dict[param][i][bi][0],
+                            if isinstance(results_dict[param][i][0], Iterable):
+                                # DIRTY HACK due to weird behaviour with
+                                # results from 'all' mode
+                                a_AU, a_AU_err = host_radii_to_AU(results_dict[param][i][0][0],
                                                                   self.host_r[0],
-                                                                  results_dict[param][i][bi][-1],
+                                                                  results_dict[param][i][0][1],
                                                                   self.host_r[1], True)
-                                vals_arr = np.append(vals_arr, np.array([['a/AU', tidx, fidx, eidx, bi, a_AU, a_AU_err]]), axis=0)
+                            else:
+                                a_AU, a_AU_err = host_radii_to_AU(results_dict[param][i][0],
+                                                                  self.host_r[0],
+                                                                  results_dict[param][i][1],
+                                                                  self.host_r[1], True)
+                            vals_arr = np.append(vals_arr, np.array([['a/AU', tidx, fidx, eidx, a_AU, a_AU_err]]), axis=0)
 
         # Make the DataFrame - cut off the first (all zeros) entries
         return pd.DataFrame(vals_arr[1:], columns=columns)
