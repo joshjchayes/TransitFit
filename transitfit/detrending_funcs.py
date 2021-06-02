@@ -7,7 +7,7 @@ import numpy as np
 
 class NthOrderDetrendingFunction:
     '''
-    Arbitrary order detrending function which conserves flux. 
+    Arbitrary order detrending function which conserves flux.
 
     Parameters
     ----------
@@ -31,10 +31,10 @@ class NthOrderDetrendingFunction:
             raise ValueError('Number of arguments {} supplied does not match the order {} of the detrending function.'.format(len(args), self.order))
 
         # We rescale the times because in BJD the numbers can get huge!
-        times = lightcurve.times - np.min(lightcurve.times)
+        times = lightcurve.times - np.floor((np.min(lightcurve.times)))
 
         vals = np.zeros(len(times))
         for i in range(0, self.order):
             vals += args[i] * (times ** (i+1) - np.mean(times ** (i+1)))
 
-        return vals
+        return lightcurve.flux - vals

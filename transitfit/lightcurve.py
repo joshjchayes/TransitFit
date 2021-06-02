@@ -10,6 +10,7 @@ from .detrender import DetrendingFunction
 from copy import deepcopy
 import csv
 from scipy.optimize import curve_fit
+import os
 
 class LightCurve:
     '''
@@ -244,15 +245,9 @@ class LightCurve:
             detrended_flux = deepcopy(self.flux)
         detrended_errors = deepcopy(self.errors)
 
-        #print('Before normalisation')
-        #print(detrended_flux, detrended_errors)
-
         if self.normalise or force_normalise:
             detrended_flux *= norm
             detrended_errors *= norm
-
-        #print('After normalisation')
-        #print(norm, detrended_flux, detrended_errors)
 
         return detrended_flux, detrended_errors
 
@@ -450,6 +445,8 @@ class LightCurve:
         '''
         if not filepath[-4:] == '.csv':
             filepath += '.csv'
+
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
 
         write_dict = []
         for j, tj in enumerate(self.times):

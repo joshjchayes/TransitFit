@@ -614,10 +614,10 @@ def get_filter_path(input_str, unit):
         return os.path.join(filter_folder, 'filters/SLOAN_zprime.csv'), 'angstroms'
 
     # Kepler and TESS
-    if input_str == 'kepler':
-        return os.path.join(filter_folder, '../filters/Kepler.csv'), 'angstroms'
-    if input_str == 'tess':
-        return os.path.join(filter_folder, '../filters/TESS.csv'), 'angstroms'
+    if input_str.lower() == 'kepler':
+        return os.path.join(filter_folder, 'filters/Kepler.csv'), 'angstroms'
+    if input_str.lower() == 'tess':
+        return os.path.join(filter_folder, 'filters/TESS.csv'), 'angstroms'
 
 
     raise ValueError(f'Unable to convert "{input_str}" into a path to a filter file')

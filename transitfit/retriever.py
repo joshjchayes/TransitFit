@@ -27,7 +27,7 @@ filter_dependent_params = ['rp', 'q0', 'q1', 'q2', 'q3', 'u0', 'u1', 'u2', 'u3']
 
 lightcurve_dependent_params = ['norm','d0','d1','d2','d3','d4','d5','d6','d7','d8']
 
-_default_detrending_limits = (-1000,1000)
+_default_detrending_limits = (-10,10)
 
 from .output_handler import OutputHandler
 
@@ -99,7 +99,8 @@ class Retriever:
                  limb_darkening_model='quadratic', host_T=None, host_logg=None,
                  host_z=None, host_r=None, ldtk_cache=None, n_ld_samples=20000,
                  do_ld_mc=False, data_skiprows=0, allow_ttv=False,
-                 filter_delimiter=None, detrending_limits=None):
+                 filter_delimiter=None, detrending_limits=None,
+                 normalise=True):
 
         ###################
         # Save input data #
@@ -115,6 +116,8 @@ class Retriever:
         self.allow_ttv = allow_ttv
 
         self.detrending_info = detrending_list
+
+        #self.detrending_limits = detrending_limits
         if detrending_limits is None:
             self.detrending_limits = np.array([_default_detrending_limits for i in range(len(self.detrending_info))])
 
@@ -168,6 +171,12 @@ class Retriever:
                     lc.set_detrending('off', method_idx=detrending_idx)
                 else:
                     raise ValueError(f'Unrecognised detrending method {detrending_method[0]}')
+
+        # Initialse normalisation in each light curve
+        if normalise:
+            for i, lc in np.ndenumerate(self.all_lightcurves):
+                if lc is not None:
+                    lc.set_normalisation()
 
         self.n_total_lightcurves = np.sum(self.all_lightcurves!=None)
 
@@ -390,8 +399,6 @@ class Retriever:
 
         n_batches = len(batches)
 
-
-
         mp_input = [[self, batch, bi, n_batches, lightcurves, output_handler, ld_fit_method,
                      detrend, normalise, folded, folded_P, folded_t0,
                      maxiter, maxcall, sample, nlive, dlogz, bound,  plot_folder,
@@ -490,10 +497,18 @@ class Retriever:
         # Plot the folded lightcurves so we can check them
         for lci, lc in np.ndenumerate(folded_curves):
             quick_fname = 'quick_plot-folded_curve_filter_{}.png'.format(lci[1])
-            quick_folder = os.path.join(plot_folder, 'folded_curves')
+            quick_folder = os.path.join(plot_folder, 'folded_curves/quicklook')
             quick_plot(lc, quick_fname, quick_folder, folded_t0, folded_P)
 
-            print('Filter {} quick look phase fold saved to {}'.format(lci[1], os.path.join(quick_folder, quick_fname)))
+            print(f'Saving filter {lci[1]} quicklooks...')
+            print('Phase plot saved to {os.path.join(quick_folder, quick_fname)}')
+
+            # output the folded curves to file
+            quicksave_path = os.path.join(lightcurve_folder, 'quicklook', f'quick_plot-folded_curve_filter_{lci[1]}.csv')
+            lc.save(quicksave_path)
+            print(f'Data file saved to {quicksave_path}')
+
+
 
         # Get the batches, and remember that now we are not detrending or
         # normalising since that was done in the first stage
@@ -900,8 +915,6 @@ class Retriever:
                 # We are folding each curve to be centred on best_t0[0]
                 folded_curve = detrended_curve.fold(best_t0[li[2]], best_P, best_t0[0])
                 final_batched_lightcurves[li[1]].append(folded_curve)
-
-        print(final_batched_lightcurves)
 
         # Now we go through detrended and folded lightcurve, and combine them
         # into one lightcurve per filter

@@ -311,7 +311,7 @@ def run_retrieval(data_files, priors, filter_info=None,
                           filter_info, detrending_list, limb_darkening_model,
                           host_T, host_logg, host_z, host_r, ldtk_cache,
                            ldtk_samples, do_ld_mc, data_skiprows, allow_ttv,
-                          filter_delimiter, detrending_limits)
+                          filter_delimiter, detrending_limits, normalise)
 
     # Run the retrieval!
     results = retriever.run_retrieval(ld_fit_method, fitting_mode,

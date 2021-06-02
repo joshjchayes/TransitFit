@@ -228,8 +228,6 @@ class PriorInfo:
                 method_idx = method_index_array[i]
                 method = method_list[method_idx]
 
-
-
                 if method[0] == 'off':
                     # No detrending - skip this curve
                     pass
@@ -271,20 +269,27 @@ class PriorInfo:
                             tel_dep = coeff_i + 1 in method[2]
                             filt_dep = coeff_i + 1 in method[3]
                             epoch_dep = coeff_i + 1 in method[4]
+                        else:
+                            # We assume that the detrending coefficients are
+                            # independent for all lightcurves
+                            # (i.e. all dependencies are True)
+                            tel_dep = True
+                            filt_dep = True
+                            epoch_dep = True
 
-                            # Change the indices to None if not dependent
-                            if tel_dep:
-                                coeff_telescope_idx = telescope_idx
-                            else:
-                                coeff_telescope_idx = None
-                            if  filt_dep:
-                                coeff_filter_idx = filter_idx
-                            else:
-                                coeff_filter_idx = None
-                            if epoch_dep:
-                                coeff_epoch_idx = epoch_idx
-                            else:
-                                coeff_epoch_idx = None
+                        # Change the indices to None if not dependent
+                        if tel_dep:
+                            coeff_telescope_idx = telescope_idx
+                        else:
+                            coeff_telescope_idx = None
+                        if  filt_dep:
+                            coeff_filter_idx = filter_idx
+                        else:
+                            coeff_filter_idx = None
+                        if epoch_dep:
+                            coeff_epoch_idx = epoch_idx
+                        else:
+                            coeff_epoch_idx = None
 
                         if coeff_name not in self.priors:
                             # Need to initialise the entry in the priors dict
