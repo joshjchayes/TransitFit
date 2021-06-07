@@ -9,9 +9,6 @@ from .retriever import Retriever
 import numpy as np
 import os
 
-
-
-
 def run_retrieval(data_files, priors, filter_info=None,
                   detrending_list=[['nth order', 1]],
                   limb_darkening_model='quadratic',
@@ -27,10 +24,10 @@ def run_retrieval(data_files, priors, filter_info=None,
                   full_output_file='full_output.csv',
                   plot_folder='./plots', plot=True,
                   marker_color='dimgrey', line_color='black', ldtk_cache=None,
-                  n_ld_samples=20000, do_ld_mc=False, data_skiprows=0,
+                  ldtk_samples=20000, do_ld_mc=False, data_skiprows=0,
                   allow_ttv=False, filter_delimiter=None,
                   detrending_limits=None, bin_data=False, cadence=2,
-                  binned_color='red', walks=100, slices=10):
+                  binned_color='red', walks=100, slices=10, n_procs=1):
     '''
     Runs a full retrieval of posteriors using nested sampling on a transit
     light curve or a set of transit light curves. For more guidance on the use
@@ -260,7 +257,7 @@ def run_retrieval(data_files, priors, filter_info=None,
         This is the path to cache LDTK files to. If not specified, will
         default to the LDTK default.
 
-    n_ld_samples : int, optional
+    ldtk_samples : int, optional
         Controls the number of samples taken by PyLDTk when calculating LDCs
         when using ``'coupled'`` or ``'single'`` modes for limb darkening
         fitting. Default is ``20000``
@@ -297,6 +294,10 @@ def run_retrieval(data_files, priors, filter_info=None,
     binned_color : str, optional
         The color to use for binned data. Default is `'red'`.
 
+    n_procs : int, optional
+        The maximum number of processes to use when running batches. If >1,
+        will run batches in parallel. Default is 1.
+
     Returns
     -------
     results : dict
@@ -313,8 +314,8 @@ def run_retrieval(data_files, priors, filter_info=None,
     retriever = Retriever(data_files, priors, n_telescopes, n_filters, n_epochs,
                           filter_info, detrending_list, limb_darkening_model,
                           host_T, host_logg, host_z, host_r, ldtk_cache,
-                          data_skiprows, n_ld_samples, do_ld_mc, allow_ttv,
-                          filter_delimiter, detrending_limits)
+                           ldtk_samples, do_ld_mc, data_skiprows, allow_ttv,
+                          filter_delimiter, detrending_limits, normalise)
 
     # Run the retrieval!
     results = retriever.run_retrieval(ld_fit_method, fitting_mode,
@@ -325,6 +326,6 @@ def run_retrieval(data_files, priors, filter_info=None,
                                       full_output_file, plot_folder,
                                       marker_color, line_color, dynesty_bounding, normalise,
                                       detrend, batch_overlap, bin_data, cadence, binned_color,
-                                      walks, slices)
+                                      walks, slices, n_procs)
 
     return results

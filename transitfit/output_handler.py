@@ -12,6 +12,7 @@ import corner
 import pickle
 from collections.abc import Iterable
 
+
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from matplotlib.ticker import MaxNLocator
@@ -51,6 +52,11 @@ class OutputHandler:
         self.best_model = None
         self.batman_initialised = False
 
+        self.global_params = []
+        for i, param in enumerate(self.full_prior.fitting_params):
+            if np.all(param[1:] == None):
+                self.global_params.append(param[0])
+
     def save_final_light_curves(self, all_lightcurves, global_prior,
                                 folder='./final_light_curves', folded=False):
         '''
@@ -89,7 +95,7 @@ class OutputHandler:
                 # First, detrend and normalise the curve
 
 
-                flux, flux_err = lc.detrend_flux(d[i], self.best_model['norm'][i][0], False, True, self.best_model['t0'][i][0], self.best_model['P'][i][0], force_normalise=True)
+                flux, flux_err = lc.detrend_flux(d[i], self.best_model['norm'][i][0], force_normalise=True)
 
                 # Get phase
                 phase = lc.get_phases(self.best_model['t0'][i][0], self.best_model['P'][i][0])
@@ -143,7 +149,7 @@ class OutputHandler:
             if lc is not None:
                 # First, detrend and normalise the curve
 
-                flux, flux_err = lc.detrend_flux(d[i], self.best_model['norm'][i][0], False, True, self.best_model['t0'][i][0], self.best_model['P'][i][0], force_normalise=True)
+                flux, flux_err = lc.detrend_flux(d[i], self.best_model['norm'][i][0], force_normalise=True)
 
                 # Get phase
                 phase = lc.get_phases(self.best_model['t0'][i][0], self.best_model['P'][i][0])
@@ -193,7 +199,7 @@ class OutputHandler:
                 i = (ti, fi, ei)
                 lc = all_lightcurves[i]
                 if lc is not None:
-                    lc_flux, lc_flux_err = lc.detrend_flux(d[i], self.best_model['norm'][i][0], False, True, self.best_model['t0'][i][0], self.best_model['P'][i][0], force_normalise=True)
+                    lc_flux, lc_flux_err = lc.detrend_flux(d[i], self.best_model['norm'][i][0], force_normalise=True)
                     lc_phase = lc.get_phases(self.best_model['t0'][i][0], self.best_model['P'][i][0])
 
                     # Get the best fit model depths - use linspaced times for plot
@@ -578,9 +584,11 @@ class OutputHandler:
 
         # First we initialise each entry in the dict
         for param in global_prior.priors.keys():
+            # Initialise from the global prior
             best_model_dict = self._initialise_dict_entry(best_model_dict, param, global_prior)
 
         for param in self.ld_coeffs:
+            # Now initialise the LDC u params
             ldc_q = 'q{}'.format(param[-1])
             ldc_u = 'u{}'.format(param[-1])
 
@@ -592,6 +600,9 @@ class OutputHandler:
 
         # First use the top-level output
         top_output = pd.read_csv(os.path.join(output_folder, summary_file))
+
+        # List of parameters which were fitted from the top level
+        top_params = []
 
         for i, row in top_output.iterrows():
             param, tidx, fidx, eidx, best, err = row
@@ -619,49 +630,78 @@ class OutputHandler:
                     err = None
                 else:
                     err = float(err)
-                if param in best_model_dict:
-                    best_model_dict[param][tidx, fidx, eidx] = [best, err]
-
-        if mode in ['all', 'batched']:
-            self.best_model = best_model_dict
-            return best_model_dict
-
-        # Now we have to go through the results for each of the filters and
-        # add in the results from those
-        for fi in range(global_prior.n_filters):
-            path = os.path.join(output_folder, 'filter_{}_parameters'.format(fi), 'filter_{}_summary.csv'.format(fi))
-
-            filter_output = pd.read_csv(path)
-            for i, row in filter_output.iterrows():
-                param, tidx, fidx, eidx, best, err = row
-
-                if param[-3:] == '/r*':
-                    param = param[:-3]
-
-                if tidx == '-':
-                    tidx == None
-                else:
-                    tidx = int(tidx)
-
-                if fidx == '-':
-                    fidx == None
-                else:
-                    fidx = int(fidx)
-
-                if eidx == '-':
-                    eidx == None
-                else:
-                    eidx = int(eidx)
-
-                best = float(best)
-                if err == '-':
-                    err = None
-                else:
-                    err = float(err)
 
                 if param in best_model_dict:
                     if best_model_dict[param][tidx, fidx, eidx] is None:
-                        best_model_dict[param][tidx, fidx, eidx] = [best, err]
+                        best_model_dict[param][tidx, fidx, eidx] = []
+
+                    best_model_dict[param][tidx, fidx, eidx].append([best, err])
+
+                    if param not in top_params:
+                        top_params.append(param)
+                #if param in best_model_dict:
+                #    best_model_dict[param][tidx, fidx, eidx] = [best, err]
+
+        #if mode in ['all', 'batched']:
+        #    self.best_model = best_model_dict
+        #    return best_model_dict
+
+        if mode == 'folded':
+            # Now we have to go through the results for each of the filters and
+            # add in the results from those
+            for fi in range(global_prior.n_filters):
+                path = os.path.join(output_folder, 'filter_{}_parameters'.format(fi), 'filter_{}_summary.csv'.format(fi))
+
+                filter_output = pd.read_csv(path)
+                for i, row in filter_output.iterrows():
+                    param, tidx, fidx, eidx, best, err = row
+
+                    if param[-3:] == '/r*':
+                        param = param[:-3]
+
+                    if tidx == '-':
+                        tidx == None
+                    else:
+                        tidx = int(tidx)
+
+                    if fidx == '-':
+                        fidx == None
+                    else:
+                        fidx = int(fidx)
+
+                    if eidx == '-':
+                        eidx == None
+                    else:
+                        eidx = int(eidx)
+
+                    best = float(best)
+                    if err == '-':
+                        err = None
+                    else:
+                        err = float(err)
+
+                    if param in best_model_dict and param not in top_params:
+                        # Store the value(s) from each if the parameter was not
+                        # fitted in the folded run
+                        if best_model_dict[param][tidx, fidx, eidx] is None:
+                            best_model_dict[param][tidx, fidx, eidx] = []
+
+                        best_model_dict[param][tidx, fidx, eidx].append([best, err])
+
+
+        # Now we go through the params, checking to see if there are multiple
+        # values. If there are, we need to take the weighted final values
+        for param in best_model_dict:
+            for i in np.ndindex(best_model_dict[param].shape):
+                if best_model_dict[param][i] is not None:
+                    param_results = np.array(best_model_dict[param][i])
+
+                    if param_results[0,1] is None:
+                        # deal with the global fixed values (err=None)
+                        best_model_dict[param][i] = [param_results[0,0], None]
+                        break
+                    else:
+                        best_model_dict[param][i] = weighted_avg_and_std(param_results[:, 0], param_results[:,1], single_val=True)
 
         self.best_model = best_model_dict
 
@@ -804,7 +844,7 @@ class OutputHandler:
             d[param] = prior.priors[param].generate_blank_ParamArray()
         return d
 
-    def _batch_to_full_idx(self, i, param_name, lightcurves, fit_ttv):
+    def _batch_to_full_idx(self, i, param_name, lightcurves, allow_ttv):
         '''
         Converts a batch index into a full index
 
@@ -819,26 +859,26 @@ class OutputHandler:
         '''
         batch_tidx, batch_fidx, batch_eidx = i
 
-        if param_name in global_params or (param_name == 't0' and not fit_ttv):
-            tidx, fidx, eidx = None, None, None
-        elif param_name == 't0' and fit_ttv:
+        if batch_tidx is None:
+            tidx = None
+        else:
             for k in np.ndindex(lightcurves.shape):
-                if k[2] == batch_eidx and lightcurves[k] is not None:
-                    tidx = None
-                    fidx = None
-                    eidx = lightcurves[k].epoch_idx
-                    break
-        elif param_name in filter_dependent_params:
+                if k[0] == batch_tidx and lightcurves[k] is not None:
+                    tidx = lightcurves[k].telescope_idx
+
+        if batch_fidx is None:
+            fidx = None
+        else:
             for k in np.ndindex(lightcurves.shape):
                 if k[1] == batch_fidx and lightcurves[k] is not None:
-                    tidx = None
                     fidx = lightcurves[k].filter_idx
-                    eidx = None
-                    break
+
+        if batch_eidx is None:
+            eidx = None
         else:
-            tidx = lightcurves[batch_tidx, batch_fidx, batch_eidx].telescope_idx
-            fidx = lightcurves[batch_tidx, batch_fidx, batch_eidx].filter_idx
-            eidx = lightcurves[batch_tidx, batch_fidx, batch_eidx].epoch_idx
+            for k in np.ndindex(lightcurves.shape):
+                if k[2] == batch_eidx and lightcurves[k] is not None:
+                    eidx = lightcurves[k].epoch_idx
 
         return tidx, fidx, eidx
 
@@ -863,8 +903,9 @@ class OutputHandler:
                 print_param = param
 
             for i in np.ndindex(results_dict[param].shape):
+
                 if results_dict[param][i] is not None:
-                    # Sort out the indices:
+
                     tidx, fidx, eidx = None, None, None
                     if results_dict[param].telescope_dependent:
                         tidx = i[0]
@@ -895,6 +936,18 @@ class OutputHandler:
                                                                   self.host_r[1], True)
                             else:
                                 a_AU, a_AU_err = host_radii_to_AU(results_dict[param][i][0],
+                                                                  self.host_r[0],
+                                                                  results_dict[param][i][1],
+                                                                  self.host_r[1], True)
+                            vals_arr = np.append(vals_arr, np.array([['a/AU', tidx, fidx, eidx, a_AU, a_AU_err]]), axis=0)
+                    else:
+                        # Loop over batches
+                        for bi in range(len(results_dict[param][i])):
+                            vals_arr = np.append(vals_arr, np.array([[print_param, tidx, fidx, eidx, bi, results_dict[param][i][bi][0], results_dict[param][i][bi][-1]]]), axis=0)
+
+                            if param == 'a' and self.host_r is not None:
+                                # Put a into AU as well
+                                a_AU, a_AU_err = host_radii_to_AU(results_dict[param][i][bi][0],
                                                                   self.host_r[0],
                                                                   results_dict[param][i][1],
                                                                   self.host_r[1], True)

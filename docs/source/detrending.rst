@@ -4,12 +4,12 @@ Detrending
 
 ``TransitFit`` has the capability to detrend light curves simultaneously with fitting physical parameters, and can handle using both nth-order polynomial and user-specified detrending functions. It is able to fit multiple detrending models for different observations at once, which is particularly useful when combining observations from different telescopes which have known systematic properties.
 
-We assume that the detrended flux, :math:`\mathbf{D}(\mathbf{t})`, is given by
+For nth-order detrending, we assume that the detrending is additive, and that the detrended flux, :math:`\mathbf{D}(\mathbf{t})`, is given by
 
 .. math::
     \mathbf{D}(\mathbf{t}) = \mathbf{F}(\mathbf{t}) - \mathbf{d}(\mathbf{t})
 
-where :math:`\mathbf{F}(\mathbf{t})` is the raw flux and :math:`\mathbf{d}(\mathbf{t})` is the detrending function.
+where :math:`\mathbf{F}(\mathbf{t})` is the raw flux and :math:`\mathbf{d}(\mathbf{t})` is the detrending function. However, if you have a more complicated detrending function which has multiplicative elements, or value which depend on the actual flux, ``TransitFit`` can use a custom model to do this.
 
 We will look here at how to get ``TransitFit`` to use the different types of detrending, and show a simple example of setting up a custom detrending function.
 
@@ -33,30 +33,35 @@ The available types of detrending are:
     The full derivation of this can be found in the `paper <https://ui.adsabs.harvard.edu/abs/2021arXiv210312139H>`_
 
 *Custom function*
-    Using a custom function requires a little more information. There are situations where some parameters in a detrending function should not be fitted uniquely for each light curve. We define three cases of this:
+    Using a custom function requires a little more information. By default, all parameters are assumed to be global: that is, there is a single value for each parameter which applies to *all light curves with this detrending model*. There are situations where some parameters in a detrending function should not be fitted globally. We define three cases of this:
 
-    * **"global" parameters** - ones where a single parameter value applies to *all light curves with this detrending model*.
+    * **"telescope dependent" parameters** - ones where a single parameter value applies to *all light curves observed with the same telescope*.
 
     * **"wavelength dependent"** parameters - ones where a single parameter value applies to *all light curves observed at the same wavelength*
 
     * **"epoch dependent"** parameters - ones where a single parameter value applies to *all light curves observed at the same time*.
 
-    Custom detrending functions must take an array of ``times`` as their first argument, and each argument after that must be a float. It must return an array of the same length as ``times``. Aside from this, there are no major restrictions to the type of detrending you can use.
+    Custom detrending functions must take a :meth:`~transitfit.LightCurve` as their first argument, and each argument after that must be a float. It must return the detrended flux values. Aside from this, there are no major restrictions to the type of detrending you can use.
 
     Let's assume that we want to use the following arbitrary detrending function::
 
-        def f(times, a, b, c):
-            return times - a * exp(-b * times) + c
+        def f(lightcurve, a, b, c):
 
-    and that ``c`` is some global parameter.
+            times = lightcurve.times
+
+            detrending_vals = times - a * exp(-b * times) + c
+            detrended_flux = lightcurve.flux - detrending_vals
+            return
+
+    and that ``c`` is some wavelength dependent parameter.
 
     The general syntax to use for a custom detrending function ``f()`` is::
 
-        ['custom', f, [[global parameters], [wavelength dependent parameters], [epoch dependent parameters]]]
+        ['custom', f, [[telescope dependent parameters], [wavelength dependent parameters], [epoch dependent parameters]]]
 
-    To specify that a parameter is global, wavelength-, or epoch-dependent, add the index of the relevant argument to the appropriate list. In our example, our entry would be::
+    To specify that a parameter is telescope-, wavelength-, or epoch-dependent, add the index of the relevant argument to the appropriate list. In our example, our entry for ``c`` being wavelength dependent would be::
 
-        ['custom', f, [[3], [], []]]
+        ['custom', f, [[], [3], []]]
 
 
 *No detrending*

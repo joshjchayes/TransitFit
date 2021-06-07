@@ -227,8 +227,6 @@ class PriorInfo:
                 # We have a light curve, pull out the method info
                 method_idx = method_index_array[i]
                 method = method_list[method_idx]
-                low_lim = limits[method_idx][0]
-                high_lim = limits[method_idx][1]
 
                 if method[0] == 'off':
                     # No detrending - skip this curve
@@ -244,7 +242,54 @@ class PriorInfo:
                     n_coeffs = lightcurves[i].n_detrending_params
 
                     for coeff_i in range(n_coeffs):
+                        # Loop over each coefficient!
                         coeff_name = 'd{}_{}'.format(coeff_i, method_idx)
+
+                        # Set up the limits of each fitting parameter
+                        if limits is None:
+                            # Limits are not provided.
+                            # We hard-code a default of ±10
+                            low_lim = -10
+                            high_lim = 10
+
+                        elif isinstance(limits[method_idx][0], Iterable):
+                            # The limits for each parameter have been set
+                            # individually
+                            low_lim = limits[method_idx][coeff_i][0]
+                            high_lim = limits[method_idx][coeff_i][1]
+
+                        else:
+                            # [low, high] limit provided to apply universally
+                            # to all the coefs for this method.
+                            low_lim = limits[method_idx][0]
+                            high_lim = limits[method_idx][1]
+
+                        if method[0] == 'custom':
+                            # Work out telescope, filter, epoch dependencies
+                            tel_dep = coeff_i + 1 in method[2]
+                            filt_dep = coeff_i + 1 in method[3]
+                            epoch_dep = coeff_i + 1 in method[4]
+                        else:
+                            # We assume that the detrending coefficients are
+                            # independent for all lightcurves
+                            # (i.e. all dependencies are True)
+                            tel_dep = True
+                            filt_dep = True
+                            epoch_dep = True
+
+                        # Change the indices to None if not dependent
+                        if tel_dep:
+                            coeff_telescope_idx = telescope_idx
+                        else:
+                            coeff_telescope_idx = None
+                        if  filt_dep:
+                            coeff_filter_idx = filter_idx
+                        else:
+                            coeff_filter_idx = None
+                        if epoch_dep:
+                            coeff_epoch_idx = epoch_idx
+                        else:
+                            coeff_epoch_idx = None
 
                         if coeff_name not in self.priors:
                             # Need to initialise the entry in the priors dict
@@ -258,11 +303,6 @@ class PriorInfo:
                                 self.priors[coeff_name] = ParamArray(coeff_name, shape, True, True, True)
 
                             elif method[0] == 'custom':
-                                # Work out telescope, filter, epoch dependencies
-                                tel_dep = coeff_i + 1 in method[2]
-                                filt_dep = coeff_i + 1 in method[3]
-                                epoch_dep = coeff_i + 1 in method[4]
-
                                 # Work out the shape needed for the ParamArray
                                 shape = ([1, self.n_telescopes][tel_dep],
                                          [1, self.n_filters][filt_dep],
@@ -273,7 +313,20 @@ class PriorInfo:
 
 
                         # Now set up the fitting. We assume a uniform prior
-                        self.add_uniform_fit_param(coeff_name, low_lim, high_lim, telescope_idx, filter_idx, epoch_idx)
+                        # We have to check here for parameters which are
+                        # telescope/filter/epoch dependent!
+                        if coeff_name not in self.fitting_params[:,0]:
+                            # The parameter has not been set up for fitting
+                            # -> no checks needed
+                            self.add_uniform_fit_param(coeff_name, low_lim, high_lim, coeff_telescope_idx, coeff_filter_idx, coeff_epoch_idx)
+
+
+                        else:
+                            # Run a check to see if the param is at least one
+                            # of telescope, filter, or epoch dependent. If so,
+                            # this needs to be fitted, but otherwise ignored.
+                            if tel_dep or filt_dep or epoch_dep:
+                                self.add_uniform_fit_param(coeff_name, low_lim, high_lim, coeff_telescope_idx, coeff_filter_idx, coeff_epoch_idx)
 
         self.detrend=True
 
