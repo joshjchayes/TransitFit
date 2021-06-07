@@ -294,6 +294,10 @@ def run_retrieval(data_files, priors, filter_info=None,
     binned_color : str, optional
         The color to use for binned data. Default is `'red'`.
 
+    n_procs : int, optional
+        The maximum number of processes to use when running batches. If >1,
+        will run batches in parallel. Default is 1.
+
     Returns
     -------
     results : dict
