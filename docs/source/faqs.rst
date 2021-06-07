@@ -1,6 +1,8 @@
 ====
 FAQs
 ====
+What prior distributions should I use for my `rp` values?
+    Obviously your use case will determine a lot of this, but, as some helpful rules of thumb, we recommend that you use a wide uniform prior for your `rp` values, rather than a Gaussian based on previous measurements. 
 
 Why do I have to use config files? Isn't that a bit outdated?
     Fair point. We've based this around config files because when being used on hundreds of light curves at once, typing all the inputs into a list becomes very difficult to read and keep track of. In future updates, we might work on streamlining the API to allow inputs to be set directly within the code by the user.
