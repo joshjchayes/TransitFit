@@ -181,7 +181,7 @@ class LightCurve:
         Notes
         -----
         We use
-            ``1/f_median -1 <= c_n <= 1/f_median + 1``
+            ``0.5/f_max <= c_n <= 1.5/f_min``
         as the default range, where f_median is the median flux value.
         '''
         self.normalise = True

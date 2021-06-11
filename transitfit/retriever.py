@@ -501,7 +501,7 @@ class Retriever:
             quick_plot(lc, quick_fname, quick_folder, folded_t0, folded_P)
 
             print(f'Saving filter {lci[1]} quicklooks...')
-            print('Phase plot saved to {os.path.join(quick_folder, quick_fname)}')
+            print(f'Phase plot saved to {os.path.join(quick_folder, quick_fname)}')
 
             # output the folded curves to file
             quicksave_path = os.path.join(lightcurve_folder, 'quicklook', f'quick_plot-folded_curve_filter_{lci[1]}.csv')

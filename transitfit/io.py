@@ -486,7 +486,7 @@ def parse_filter_list(filter_list, delimiter=None, unit='nanometers'):
     filter_info : np.array, shape (n_filters, 2)
         The filter information pass to PriorInfo.fit_limb_darkening.
     '''
-    filter_list = np.array(filter_list)
+    filter_list = np.array(filter_list, dtype=object)
 
     # How many filters are there?
     n_filters = int(filter_list[:,0].max() + 1)
@@ -496,8 +496,20 @@ def parse_filter_list(filter_list, delimiter=None, unit='nanometers'):
 
     # Now populate!
     for i in range(n_filters):
-        fidx = filter_list[i, 0]
-        if type(filter_list[i, 1]) == str:
+        fidx, input_A, input_B = filter_list[i]
+
+        # Check if path, name, or limits are provided:
+        try:
+            input_A = float(input_A)
+            input_B = float(input_B)
+            limits_provided=True
+        except:
+            limits_provided=False
+
+        if limits_provided:
+            # box limits provided
+            filter_info[i] = input_A, input_B
+        else:
             # Get either the path from input or replace path for provided filters
             path, unit = get_filter_path(filter_list[i, 1], unit)
             # Load in the filter profile
@@ -515,9 +527,6 @@ def parse_filter_list(filter_list, delimiter=None, unit='nanometers'):
                 raise ValueError(f'Unrecognised unit {unit} given for filter profiles. TransitFit can only recognise "m", "nm", or "angstroms".')
             filter_info[i,0] = filter_profile[0] * factor
             filter_info[i,1] = filter_profile[1]
-        else:
-            # box limits provided
-            filter_info[i] = filter_list[i, 1:]
 
     return filter_info
 

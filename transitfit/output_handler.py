@@ -949,9 +949,9 @@ class OutputHandler:
                                 # Put a into AU as well
                                 a_AU, a_AU_err = host_radii_to_AU(results_dict[param][i][bi][0],
                                                                   self.host_r[0],
-                                                                  results_dict[param][i][1],
+                                                                  results_dict[param][i][bi][1],
                                                                   self.host_r[1], True)
-                            vals_arr = np.append(vals_arr, np.array([['a/AU', tidx, fidx, eidx, a_AU, a_AU_err]]), axis=0)
+                                vals_arr = np.append(vals_arr, np.array([['a/AU', tidx, fidx, eidx, bi, a_AU, a_AU_err]]), axis=0)
 
         # Make the DataFrame - cut off the first (all zeros) entries
         return pd.DataFrame(vals_arr[1:], columns=columns)
