@@ -81,7 +81,7 @@ def run_retrieval(data_files, priors, filter_info=None,
         and a should be fitted globally, then the entry in the method_list
         would be ``['custom', foo, [1], [], []]``.
 
-    ld_model : str, optional
+    limb_darkening_model : str, optional
         The limb darkening model to use. Allowed models are
 
             - ``'linear'``
