@@ -285,7 +285,7 @@ class LightCurve:
 
         n = (self.times - (t0 - 0.5*period))//period
 
-        times = base_t0 + period * (phase - 0.5)
+        times = base_t0 + period * (phase + n - 0.5)
 
         return LightCurve(times, self.flux, self.errors, self.telescope_idx,
                           self.filter_idx, self.epoch_idx, self.curve_labels,

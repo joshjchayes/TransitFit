@@ -96,7 +96,7 @@ class LimbDarkeningHandler:
 
         if model == 'linear':
             # coefficient is limited to 0<A<1 by Kipping criteria
-            return q[0]
+            return [q[0]]
 
         if model == 'quadratic':
             return 2 * np.sqrt(q[0]) * q[1], np.sqrt(q[0]) * (1 - 2 * q[1])
@@ -149,7 +149,7 @@ class LimbDarkeningHandler:
 
         if model == 'linear':
             # coefficient is limited to 0<A<1 by Kipping criteria
-            return q[0]
+            return [q[0]]
 
         if model == 'quadratic':
             return (u[0] + u[1]) ** 2, u[0]/(2 * (u[0] + u[1]))
@@ -196,7 +196,7 @@ class LimbDarkeningHandler:
         if model == 'linear':
             u_err = q_err
 
-            return u, u_err
+            return [u], [u_err]
 
         if model  == 'quadratic':
             u_err = []
