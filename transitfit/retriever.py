@@ -407,16 +407,13 @@ class Retriever:
         #with mp.Pool(processes=n_procs) as pool:
         if n_procs > 1:
             print('Since you are using more than 1 process, the output to terminal might be a bit of a mess!')
-        pool = mp.Pool(n_procs)
         # Run the pool!
-        #batch_run_results = [pool.map_async(_run_batch, i) for i in mp_input]
-        batch_run_results = pool.map(_run_batch, mp_input)
-        pool.close()
-        pool.join()
+        with mp.Pool(processes=n_procs) as pool:
+            batch_run_results = pool.map(_run_batch, mp_input)
 
         all_results = np.array([r[0] for r in batch_run_results])
         all_priors = np.array([r[1] for r in batch_run_results])
-        all_lightcurves = np.array([r[2] for r in batch_run_results])
+        all_lightcurves = [r[2] for r in batch_run_results]
 
         # Make outputs etc
         if 'filter' in os.path.basename(plot_folder):
