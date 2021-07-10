@@ -35,11 +35,11 @@ The available types of detrending are:
 *Custom function*
     Using a custom function requires a little more information. By default, all parameters are assumed to be global: that is, there is a single value for each parameter which applies to *all light curves with this detrending model*. There are situations where some parameters in a detrending function should not be fitted globally. We define three cases of this:
 
-    * **"telescope dependent" parameters** - ones where a single parameter value applies to *all light curves observed with the same telescope*.
+    * **"telescope dependent"** parameters - If a parameter is telescope dependent, then a different value will be fitted for each telescope index;
 
-    * **"wavelength dependent"** parameters - ones where a single parameter value applies to *all light curves observed at the same wavelength*
+    * **"wavelength dependent"** parameters - If a parameter is filter dependent, then a different value will be fitted for each filter index;
 
-    * **"epoch dependent"** parameters - ones where a single parameter value applies to *all light curves observed at the same time*.
+    * **"epoch dependent"** parameters - If a parameter is epoch dependent, then a different value will be fitted for each epoch index.
 
     Custom detrending functions must take a :meth:`~transitfit.LightCurve` as their first argument, and each argument after that must be a float. It must return the detrended flux values. Aside from this, there are no major restrictions to the type of detrending you can use.
 
