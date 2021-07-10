@@ -51,7 +51,7 @@ The available types of detrending are:
 
             detrending_vals = times - a * exp(-b * times) + c
             detrended_flux = lightcurve.flux - detrending_vals
-            return
+            return detrended_flux
 
     and that ``c`` is some wavelength dependent parameter.
 
