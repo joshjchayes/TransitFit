@@ -100,7 +100,7 @@ This file is used to specify the filter profiles that observations were made at,
 
 TransitFit can deal with either uniform box filters (useful for narrow-band spectroscopy), or full filter response functions. It comes pre-packaged with a set of standard filters:
 
-* Johnson-Cousins *UVRIB*
+* Johnson-Cousins *UVBRI*
 * SLOAN-SDSS *u'g'r'i'z'*
 * The *TESS* filter
 * The *Kepler* filter
@@ -114,7 +114,7 @@ The filter info file requires 3 columns:
 2. **Input A**:
 
     * For a uniform box filter, provide the **lowest wavelength** not blocked by the filter in nanometres.
-    * The name of one of the provided filter profiles: any of: U, V, R, I, B, u', g', r', i', z', TESS, Kepler.
+    * The name of one of the provided filter profiles: any of: U, V, B, R, I, u', g', r', i', z', TESS, Kepler.
     * The path to a user-provided filter profile
 
 3. **Input B**:
