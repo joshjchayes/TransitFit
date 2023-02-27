@@ -147,7 +147,7 @@ class LightCurve:
         elif method.lower() == 'custom':
             if function is None:
                 raise ValueError('You must provide the custom detrending function')
-            self.detrending_function = DetrendingFunction(function)
+            self.detrending_function = DetrendingFunction(function,method.lower())
             self.n_detrending_params = self.detrending_function.n_required_args - 1
         elif method.lower() == 'off':
             self.detrending_method_idx = method_idx
@@ -159,7 +159,7 @@ class LightCurve:
         self.detrending_method_idx = method_idx
         self.detrend = True
 
-    def set_normalisation(self):
+    def set_normalisation(self,normalise_limits):
         '''
         Turns on normalisation. Also estimates limits and a best initial guess.
 
@@ -186,7 +186,10 @@ class LightCurve:
         '''
         self.normalise = True
 
-        return self.estimate_normalisation_limits()
+        if normalise_limits is None:
+                return self.estimate_normalisation_limits()
+        else:
+                return np.average(normalise_limits), normalise_limits[0], normalise_limits[1]
 
     def estimate_normalisation_limits(self):
         '''
@@ -216,7 +219,7 @@ class LightCurve:
 
         return median_factor, low_factor, high_factor
 
-    def detrend_flux(self, d, norm=1, force_normalise=False):
+    """def detrend_flux(self, d, norm=1, force_normalise=False):
         '''
         When given a normalisation constant and some detrending parameters,
         will return the detrended flux and errors
@@ -249,13 +252,61 @@ class LightCurve:
             detrended_flux *= norm
             detrended_errors *= norm
 
+        return detrended_flux, detrended_errors"""
+
+    def detrend_flux(self, d_new, norm=1, force_normalise=False):
+        '''
+        When given a normalisation constant and some detrending parameters,
+        will return the detrended flux and errors
+
+        Parameters
+        ----------
+        d : array_like, shape(n_detrending_params,)
+            Array of the detrending parameters to use
+        norm : float, optional
+            The normalisation constant to use. Default is 1
+        force_normalise : bool, optional
+            Override to allow normalisation to be forced if the LightCurve does
+            not have normalisation initialised. Default is False.
+
+        Returns
+        -------
+        detrend_flux : array_like, shape(num_times)
+            The detrended flux
+        detrended_errors : array_like, shape(num_times)
+            The errors on the detrended flux
+        '''
+        #self.t0 = t0
+        d=d_new[:-2]
+        if self.detrend and d is not None:
+            detrended_flux = self.detrending_function(self, *d_new)
+        else:
+            detrended_flux = deepcopy(self.flux)
+        detrended_errors = deepcopy(self.errors)
+
+        if self.normalise or force_normalise:
+            detrended_flux *= norm
+            detrended_errors *= norm
+
         return detrended_flux, detrended_errors
 
-    def create_detrended_LightCurve(self, d, norm):
+    """def create_detrended_LightCurve(self, d, norm):
         '''
         Creates a detrended LightCurve using detrend_flux() and returns it
         '''
         detrended_flux, detrended_errors = self.detrend_flux(d, norm)
+
+        return LightCurve(self.times, detrended_flux, detrended_errors,
+                          self.telescope_idx, self.filter_idx,
+                          self.epoch_idx, self.curve_labels,
+                          self._telescope_array, self._filter_array,
+                          self._epoch_array)"""
+
+    def create_detrended_LightCurve(self, d_new, norm):
+        '''
+        Creates a detrended LightCurve using detrend_flux() and returns it
+        '''
+        detrended_flux, detrended_errors = self.detrend_flux(d_new, norm)
 
         return LightCurve(self.times, detrended_flux, detrended_errors,
                           self.telescope_idx, self.filter_idx,
@@ -520,10 +571,10 @@ class LightCurve:
             if len(bin_flux > 0):
                 if residuals is not None:
                     bin_residuals = residuals[mask]
-                    binned_residuals[i] = np.average(bin_residuals, weights=bin_err)
+                    binned_residuals[i] = np.average(bin_residuals, weights=1/(bin_err**2))
 
                 times[i] = bin_time
-                flux[i] = np.average(bin_flux, weights=bin_err)
+                flux[i] = np.average(bin_flux, weights=1/(bin_err**2))
                 err[i] = 1/np.sqrt(np.sum(1/(bin_err**2)))
 
             points_in_bin[i] = np.sum(mask)

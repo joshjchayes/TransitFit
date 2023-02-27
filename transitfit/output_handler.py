@@ -20,7 +20,7 @@ from matplotlib.colors import to_rgb
 from matplotlib import colors
 
 from .retriever import global_params, filter_dependent_params, lightcurve_dependent_params
-from ._utils import weighted_avg_and_std, host_radii_to_AU
+from ._utils import weighted_avg_and_std, host_radii_to_AU, get_normalised_weights, get_covariance_matrix
 from ._paramarray import ParamArray
 from .lightcurve import LightCurve
 
@@ -82,20 +82,35 @@ class OutputHandler:
             # Each entry should be a list containing all the detrending
             # coefficients for the light curve.
             for i in np.ndindex(d.shape):
-                for coeff in np.ravel(global_prior.detrending_coeffs):
-                    if self.best_model[coeff][i] is not None:
-                        if d[i] is None:
-                            d[i] = [self.best_model[coeff][i][0]]
-                        else:
-                            d[i].append(self.best_model[coeff][i][0])
+                for coeff in np.ravel(global_prior.detrending_coeffs):                   
+                    if type(coeff) is not list:
+                        if self.best_model[coeff][i] is not None:
+                            if d[i] is None:
+                                d[i] = [self.best_model[coeff][i][0]]
+
+                            else:
+                                d[i].append(self.best_model[coeff][i][0])
+                    else:
+                        for coeff_i in coeff:
+                            if self.best_model[coeff_i][i] is not None:
+                                if d[i] is None:
+                                    d[i] = [self.best_model[coeff_i][i][0]]
+
+                                else:
+                                    d[i].append(self.best_model[coeff_i][i][0])
+                            
 
         for i, lc in np.ndenumerate(all_lightcurves):
             # Loop through each light curve, make the best model, and save it!
             if lc is not None:
                 # First, detrend and normalise the curve
 
-
-                flux, flux_err = lc.detrend_flux(d[i], self.best_model['norm'][i][0], force_normalise=True)
+                try:    
+                    d_new=[*d[i],self.best_model['t0'][i][0], self.best_model['P'][i][0]]
+                except TypeError:
+                    d_new=[d[i],self.best_model['t0'][i][0], self.best_model['P'][i][0]]
+                #flux, flux_err = lc.detrend_flux(d[i], self.best_model['norm'][i][0], force_normalise=True)
+                flux, flux_err = lc.detrend_flux(d_new, self.best_model['norm'][i][0], force_normalise=True)
 
                 # Get phase
                 phase = lc.get_phases(self.best_model['t0'][i][0], self.best_model['P'][i][0])
@@ -127,6 +142,18 @@ class OutputHandler:
 
         '''
         print('Plotting final curves')
+
+        # Getting the maximum limits of the phase in all light curves
+        phase_lims=[1,-1]
+        for i, lc in np.ndenumerate(all_lightcurves):
+            # Loop through each light curve, make the best model, and save it!
+            if lc is not None:
+                # Get phase
+                phase = lc.get_phases(self.best_model['t0'][i][0], self.best_model['P'][i][0])
+                phase_lims[0]=min(phase_lims[0],min(phase))
+                phase_lims[1]=max(phase_lims[1],max(phase))
+        phase_lims = [phase_lims[0]-0.005, phase_lims[1]+0.005] # Changing the limits by 0.005 to have a small gap
+
         # First, deal with detrending
         # Put all the detrending coeffs in usable format
         d = np.full(all_lightcurves.shape, None, object)
@@ -137,19 +164,34 @@ class OutputHandler:
             # coefficients for the light curve.
             for i in np.ndindex(d.shape):
                 for coeff in np.ravel(global_prior.detrending_coeffs):
-                    if self.best_model[coeff][i] is not None:
-                        if d[i] is None:
-                            d[i] = [self.best_model[coeff][i][0]]
-                        else:
-                            d[i].append(self.best_model[coeff][i][0])
+                    if type(coeff) is not list:
+                        if self.best_model[coeff][i] is not None:
+                            if d[i] is None:
+                                d[i] = [self.best_model[coeff][i][0]]
+
+                            else:
+                                d[i].append(self.best_model[coeff][i][0])
+                    else:
+                        for coeff_i in coeff:
+                            if self.best_model[coeff_i][i] is not None:
+                                if d[i] is None:
+                                    d[i] = [self.best_model[coeff_i][i][0]]
+
+                                else:
+                                    d[i].append(self.best_model[coeff_i][i][0])
+
 
         # Now we loop through each curve and make the plots
         for i, lc in np.ndenumerate(all_lightcurves):
             # Loop through each light curve, make the best model, and save it!
             if lc is not None:
                 # First, detrend and normalise the curve
-
-                flux, flux_err = lc.detrend_flux(d[i], self.best_model['norm'][i][0], force_normalise=True)
+                try:    
+                    d_new=[*d[i],self.best_model['t0'][i][0], self.best_model['P'][i][0]]
+                except TypeError:
+                    d_new=[d[i],self.best_model['t0'][i][0], self.best_model['P'][i][0]]
+                #flux, flux_err = lc.detrend_flux(d[i], self.best_model['norm'][i][0], force_normalise=True)
+                flux, flux_err = lc.detrend_flux(d_new, self.best_model['norm'][i][0], force_normalise=True)
 
                 # Get phase
                 phase = lc.get_phases(self.best_model['t0'][i][0], self.best_model['P'][i][0])
@@ -181,7 +223,7 @@ class OutputHandler:
                     ####### PLOT! #########
                     self._plot_data(phase, flux, plot_errors[j], model_phase,
                                     model_curve, residuals, fname, title, folder,
-                                    figsize, marker_color, line_color)
+                                    figsize, marker_color, line_color, phase_lims)
 
         if not plot_folded:
             return
@@ -199,7 +241,13 @@ class OutputHandler:
                 i = (ti, fi, ei)
                 lc = all_lightcurves[i]
                 if lc is not None:
-                    lc_flux, lc_flux_err = lc.detrend_flux(d[i], self.best_model['norm'][i][0], force_normalise=True)
+                    try:    
+                        d_new=[*d[i],self.best_model['t0'][i][0],self.best_model['P'][i][0]]
+                    except TypeError:
+                        d_new=[d[i],self.best_model['t0'][i][0],self.best_model['P'][i][0]]
+
+                    #lc_flux, lc_flux_err = lc.detrend_flux(d[i], self.best_model['norm'][i][0], force_normalise=True)
+                    lc_flux, lc_flux_err = lc.detrend_flux(d_new, self.best_model['norm'][i][0], force_normalise=True)
                     lc_phase = lc.get_phases(self.best_model['t0'][i][0], self.best_model['P'][i][0])
 
                     # Get the best fit model depths - use linspaced times for plot
@@ -252,7 +300,7 @@ class OutputHandler:
                 try:
                     self._plot_data(phase, flux, plot_errors[j], model_phase,
                                 model_flux, residuals, fname, title, folder,
-                                figsize, marker_color, line_color, bin_data,
+                                    figsize, marker_color, line_color, phase_lims, bin_data,
                                 cadence_phase, binned_color)
 
                 except Exception as e:
@@ -974,7 +1022,8 @@ class OutputHandler:
         samples = result.samples
         best = result.best
         ndim = len(best)
-        labels = prior.fitting_params[:,0]
+        #labels = prior.fitting_params[:,0]
+        labels= prior.get_latex_friendly_labels()
 
         fig = corner.corner(samples, labels=labels, quantiles=[0.16, 0.5, 0.84],
                        show_titles=True, title_kwargs={"fontsize": 12})
@@ -1006,7 +1055,7 @@ class OutputHandler:
 
     def _plot_data(self, phase, flux, flux_err, model_phase, model_curve,
                        residuals, fname, title=None, folder='./plots',
-                       figsize=(12,8), marker_color='dimgrey', line_color='black',
+                   figsize=(12,8), marker_color='dimgrey', line_color='black',phase_lims=None,
                        bin_data=False, cadence=2, binned_colour='red'):
             '''
             Plots the lightcurve and model consistently
@@ -1067,7 +1116,8 @@ class OutputHandler:
                                  zorder=2, capsize=2, markersize=4,
                                  linestyle='', marker='.', color=binned_colour,
                                  elinewidth=0.8, alpha=0.6)
-
+            if phase_lims!=None:
+                main_ax.set_xlim(phase_lims)
             # Residuals
             residual_ax.errorbar(phase, residuals, flux_err, zorder=1,
                                  linestyle='', marker='.', capsize=2,
@@ -1117,7 +1167,7 @@ class OutputHandler:
             # Prune axes
             main_ax.yaxis.set_major_locator(MaxNLocator(6, prune='lower'))
             residual_ax.yaxis.set_major_locator(MaxNLocator(4, prune='upper'))
-            residual_ax.xaxis.set_major_locator(MaxNLocator(8, prune='upper'))
+            #residual_ax.xaxis.set_major_locator(MaxNLocator(8, prune='upper'))
 
             # Add labels
             main_ax.set_ylabel('Normalised flux')
@@ -1147,3 +1197,55 @@ class OutputHandler:
             fig.savefig(os.path.join(folder, fname), bbox_inches='tight', dpi=300)
 
             plt.close()
+
+
+class Results:
+    """
+    Dynesty>v 1.1 doesn't allow setting attributes directly.
+    This new class help in creating a new instance with attributes for easier handling.
+    """
+
+    def __init__(self, sampler,):
+        """sampler.results are the results from the dynesty sampler"""
+        results = sampler.results
+
+        self.logl = results.logl
+        self.samples = results.samples
+        self.logwt = results.logwt
+
+        # Normalise weights
+        self.weights = get_normalised_weights(results)
+
+        # Calculate covariance matrix and use to get uncertainties
+        cov = get_covariance_matrix(self)
+        diagonal = np.diag(cov)
+        uncertainties = np.sqrt(diagonal)
+
+        self.cov = cov
+        self.uncertainties = uncertainties
+
+        # Get the 16th and 84th percentiles to use as upper and lower errors
+        # This is arguably better than using the covariances(???)
+        median = np.median(results.samples, axis=0)
+        per_16 = np.percentile(results.samples, 16, axis=0)
+        per_84 = np.percentile(results.samples, 84, axis=0)
+
+        self.median = median
+        self.lower_err = abs(median - per_16)
+        self.upper_err = abs(per_84 - median)
+        self.per_16 = per_16
+        self.per_84 = per_84
+
+        # Save the best fit results for easy access
+        self.best = results.samples[np.argmax(results.logl)]
+
+
+class ResultsException:
+    """
+    Handles results (same as above) during exception raised by dynesty.
+    """
+
+    def __init__(self, sampler,):
+        """sampler.results are the results from the dynesty sampler"""
+        results = sampler.results
+        self.best = results.samples[np.argmax(results.logl)]

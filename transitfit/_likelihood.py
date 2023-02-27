@@ -112,15 +112,21 @@ class LikelihoodCalculator:
                     detrending_index = self.priors._detrend_method_index_array[i]
                     # Now get the parameter values
                     d = [params[di][i] for di in self.priors.detrending_coeffs[detrending_index]]
+                    
                 else:
                     d = None
+                                    
+                try:
+                    d_new=[*d,params['t0'][i],params['P'][i]]
+                except TypeError:
+                    d_new=[d,params['t0'][i],params['P'][i]]
 
                 if self.priors.normalise:
                     norm = params['norm'][i]
                 else:
                     norm = 1
-
-                detrended_flux, err = self.lightcurves[i].detrend_flux(d, norm)
+                detrended_flux, err = self.lightcurves[i].detrend_flux(d_new, norm)
+                #detrended_flux, err = self.lightcurves[i].detrend_flux(d, norm)
 
                 #print('Likelihood function detrended flux:')
                 #print(detrended_flux)
@@ -129,8 +135,10 @@ class LikelihoodCalculator:
                 # otherwise we impose a large penalty to the chi2 value
                 # This avoids a situation where the models try
                 # to completely flatten the light curves, which is wrong!
-                if np.isclose(model_flux, 1).all():
-                    total_chi2 += 10000000
+                if np.isclose(model_flux, 1, atol=0., rtol = 1.e-7).all():
+                    total_chi2 += 1e7
+                    # Ensures that transit models with depths down to 1e-7 are not penalised. 
+                    # This allows for the fact that folded data could be quite sensitive!
                 else:
                     # Work out the chi2
                     #chi2 = sum((model_flux - detrended_flux)**2 / err**2)

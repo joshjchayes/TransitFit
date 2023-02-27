@@ -19,10 +19,12 @@ class DetrendingFunction:
     Parameters
     ----------
     function : function
-        The detrending function. Must have signature of f(times, a, b, c...)
-        where a, b, c etc are the detrending coefficients.
+        The detrending function. Must have signature of f(times, a, b, c,...,t0,P)
+        where a, b, c etc are the detrending coefficients, t0 is the time of 
+        conjunction and P is period.
     '''
-    def __init__(self, function):
+    def __init__(self, function,method=None):
+          
 
         # Store the function
         self.function = function
@@ -39,9 +41,14 @@ class DetrendingFunction:
                 args += 1
             else:
                 kwargs += 1
+        if method == 'custom':
+            args=args-2 
+            # For custom functions, 2 arguments are subtracted because 
+            # they correpond to 't0' and 'P'
 
         self.n_required_args = args
         self.n_kwargs = kwargs
+        
         # -1 assumes that the first entry is lightcurve, so won't be fitted
         try:
             self.n_params = function.order
