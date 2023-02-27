@@ -21,9 +21,6 @@ Installation
 * `dynesty <https://dynesty.readthedocs.io/en/latest/index.html>`_
 * `ldtk <https://github.com/hpparvi/ldtk>`_
 
-To install the most recent stable version, run::
-
-    pip install transitfit
 
 Alternatively, you can install it direct from the source by downloading the project from the `GitHub page <https://github.com/joshjchayes/TransitFit>`_ and running::
 
