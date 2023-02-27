@@ -1,90 +1,46 @@
-
-
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8" />
-  
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  
-  <title>Detrending &mdash; TransitFit 2.2.2 documentation</title>
-  
-
-  
-  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
-  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-
-  
-  
-
-  
-  
-
-  
-
-  
+  <title>Detrending &mdash; TransitFit 3.0.3 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-    
-      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-        <script src="_static/jquery.js"></script>
-        <script src="_static/underscore.js"></script>
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
         <script src="_static/doctools.js"></script>
-        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
-    
-    <script type="text/javascript" src="_static/js/theme.js"></script>
-
-    
+        <script src="_static/sphinx_highlight.js"></script>
+        <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="Fitting large number of parameters" href="manyparams.html" />
     <link rel="prev" title="Limb-darkening" href="limb_darkening.html" /> 
 </head>
 
-<body class="wy-body-for-nav">
-
-   
+<body class="wy-body-for-nav"> 
   <div class="wy-grid-for-nav">
-    
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-          
 
           
-            <a href="index.html" class="icon icon-home"> TransitFit
           
-
-          
+          <a href="index.html" class="icon icon-home">
+            TransitFit
           </a>
-
-          
-            
-            
-          
-
-          
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
 </div>
-
-          
-        </div>
-
-        
-        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
-          
-            
-            
-              
-            
-            
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="quickstart.html">Getting Started</a></li>
 <li class="toctree-l1"><a class="reference internal" href="configfiles.html">Config Files</a></li>
@@ -104,124 +60,89 @@
 <li class="toctree-l1"><a class="reference internal" href="api.html">API</a></li>
 </ul>
 
-            
-          
         </div>
-        
       </div>
     </nav>
 
-    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
-
-      
-      <nav class="wy-nav-top" aria-label="top navigation">
-        
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
           <a href="index.html">TransitFit</a>
-        
       </nav>
 
-
       <div class="wy-nav-content">
-        
         <div class="rst-content">
-        
-          
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<div role="navigation" aria-label="breadcrumbs navigation">
-
+          <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-    
-      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
-        
-      <li>Detrending</li>
-    
-    
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Detrending</li>
       <li class="wy-breadcrumbs-aside">
-        
-          
             <a href="_sources/detrending.rst.txt" rel="nofollow"> View page source</a>
-          
-        
       </li>
-    
   </ul>
-
-  
   <hr/>
 </div>
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
-            
-  <div class="section" id="detrending">
-<h1>Detrending<a class="headerlink" href="#detrending" title="Permalink to this headline">¶</a></h1>
+             
+  <section id="detrending">
+<h1>Detrending<a class="headerlink" href="#detrending" title="Permalink to this heading">¶</a></h1>
 <p><code class="docutils literal notranslate"><span class="pre">TransitFit</span></code> has the capability to detrend light curves simultaneously with fitting physical parameters, and can handle using both nth-order polynomial and user-specified detrending functions. It is able to fit multiple detrending models for different observations at once, which is particularly useful when combining observations from different telescopes which have known systematic properties.</p>
-<p>We assume that the detrended flux, <span class="math notranslate nohighlight">\(\mathbf{D}(\mathbf{t})\)</span>, is given by</p>
+<p>For nth-order detrending, we assume that the detrending is additive, and that the detrended flux, <span class="math notranslate nohighlight">\(\mathbf{D}(\mathbf{t})\)</span>, is given by</p>
 <div class="math notranslate nohighlight">
 \[\mathbf{D}(\mathbf{t}) = \mathbf{F}(\mathbf{t}) - \mathbf{d}(\mathbf{t})\]</div>
-<p>where <span class="math notranslate nohighlight">\(\mathbf{F}(\mathbf{t})\)</span> is the raw flux and <span class="math notranslate nohighlight">\(\mathbf{d}(\mathbf{t})\)</span> is the detrending function.</p>
+<p>where <span class="math notranslate nohighlight">\(\mathbf{F}(\mathbf{t})\)</span> is the raw flux and <span class="math notranslate nohighlight">\(\mathbf{d}(\mathbf{t})\)</span> is the detrending function. However, if you have a more complicated detrending function which has multiplicative elements, or value which depend on the actual flux, <code class="docutils literal notranslate"><span class="pre">TransitFit</span></code> can use a custom model to do this.</p>
 <p>We will look here at how to get <code class="docutils literal notranslate"><span class="pre">TransitFit</span></code> to use the different types of detrending, and show a simple example of setting up a custom detrending function.</p>
-<div class="section" id="basic-detrending-syntax">
-<h2>Basic detrending syntax<a class="headerlink" href="#basic-detrending-syntax" title="Permalink to this headline">¶</a></h2>
+<section id="basic-detrending-syntax">
+<h2>Basic detrending syntax<a class="headerlink" href="#basic-detrending-syntax" title="Permalink to this heading">¶</a></h2>
 <p>Setting up <code class="docutils literal notranslate"><span class="pre">TransitFit</span></code> to use different detrending models is simple and uses the <code class="docutils literal notranslate"><span class="pre">detrending_list</span></code> kwarg in <a class="reference internal" href="api.html#transitfit._pipeline.run_retrieval" title="transitfit._pipeline.run_retrieval"><code class="xref py py-meth docutils literal notranslate"><span class="pre">run_retrieval()</span></code></a>. This is a list of the different detrending methods to be used, along with any required details. The <a class="reference internal" href="configfiles.html#indexing"><span class="std std-ref">detrending indices</span></a> given in the <a class="reference internal" href="configfiles.html#data-input-file"><span class="std std-ref">data input file</span></a> refer to the index of the methods in this list.</p>
-<div class="section" id="detrending-methods">
-<h3>Detrending methods<a class="headerlink" href="#detrending-methods" title="Permalink to this headline">¶</a></h3>
+<section id="detrending-methods">
+<h3>Detrending methods<a class="headerlink" href="#detrending-methods" title="Permalink to this heading">¶</a></h3>
 <p>The available types of detrending are:</p>
 <dl>
-<dt><em>Nth order</em></dt><dd><p>To use a polynomial of order <code class="docutils literal notranslate"><span class="pre">n</span></code>, the entry to <code class="docutils literal notranslate"><span class="pre">detrending_list</span></code> should be given as <code class="docutils literal notranslate"><span class="pre">['nth</span> <span class="pre">order',</span> <span class="pre">n]</span></code>. The nth order polynomials used by <code class="docutils literal notranslate"><span class="pre">TransitFit</span></code> are designed to be flux-conserving, and are of the form</p>
+<dt><em>Nth order</em></dt><dd><p>To use a polynomial of order <code class="docutils literal notranslate"><span class="pre">n</span></code>, the entry to <code class="docutils literal notranslate"><span class="pre">detrending_list</span></code> should be given as <code class="docutils literal notranslate"><span class="pre">['nth</span> <span class="pre">order',</span> <span class="pre">n]</span></code>. The nth order polynomials used by <code class="docutils literal notranslate"><span class="pre">TransitFit</span></code> are designed to be flux-conserving at the time of conjunction, and are of the form</p>
 <div class="math notranslate nohighlight">
-\[d\left(t_i\right) = \sum^n_{j=1} \left[a_j \left(t_i^j - \overline{\textbf{t}^j}\right)\right]\]</div>
-<p>The full derivation of this can be found in the <a class="reference external" href="DEADLINK">TransitFit paper LINK TO COME</a></p>
+\[d\left(t_i\right) = \sum^n_{j=1} \left[a_j \left(t_i - t_0\right)^j\right]\]</div>
+<p>The full derivation of this can be found in the <a class="reference external" href="https://ui.adsabs.harvard.edu/abs/2021arXiv210312139H">paper</a></p>
 </dd>
-<dt><em>Custom function</em></dt><dd><p>Using a custom function requires a little more information. There are situations where some parameters in a detrending function should not be fitted uniquely for each light curve. We define three cases of this:</p>
+<dt><em>Custom function</em></dt><dd><p>Using a custom function requires a little more information. By default, all parameters are assumed to be global: that is, there is a single value for each parameter which applies to <em>all light curves with this detrending model</em>. There are situations where some parameters in a detrending function should not be fitted globally. We define three cases of this:</p>
 <ul class="simple">
-<li><p><strong>“global” parameters</strong> - ones where a single parameter value applies to <em>all light curves with this detrending model</em>.</p></li>
-<li><p><strong>“wavelength dependent”</strong> parameters - ones where a single parameter value applies to <em>all light curves observed at the same wavelength</em></p></li>
-<li><p><strong>“epoch dependent”</strong> parameters - ones where a single parameter value applies to <em>all light curves observed at the same time</em>.</p></li>
+<li><p><strong>“telescope dependent”</strong> parameters - If a parameter is telescope dependent, then a different value will be fitted for each telescope index;</p></li>
+<li><p><strong>“wavelength dependent”</strong> parameters - If a parameter is filter dependent, then a different value will be fitted for each filter index;</p></li>
+<li><p><strong>“epoch dependent”</strong> parameters - If a parameter is epoch dependent, then a different value will be fitted for each epoch index.</p></li>
 </ul>
-<p>Custom detrending functions must take an array of <code class="docutils literal notranslate"><span class="pre">times</span></code> as their first argument, and each argument after that must be a float. It must return an array of the same length as <code class="docutils literal notranslate"><span class="pre">times</span></code>. Aside from this, there are no major restrictions to the type of detrending you can use.</p>
+<p>Custom detrending functions must take a <code class="xref py py-meth docutils literal notranslate"><span class="pre">LightCurve()</span></code> as their first argument, and each argument after that must be a float. It must return the detrended flux values. Aside from this, there are no major restrictions to the type of detrending you can use.</p>
 <p>Let’s assume that we want to use the following arbitrary detrending function:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">f</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">c</span><span class="p">):</span>
-    <span class="k">return</span> <span class="n">times</span> <span class="o">-</span> <span class="n">a</span> <span class="o">*</span> <span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">b</span> <span class="o">*</span> <span class="n">times</span><span class="p">)</span> <span class="o">+</span> <span class="n">c</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">f</span><span class="p">(</span><span class="n">lightcurve</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">t0</span><span class="p">,</span> <span class="n">P</span><span class="p">):</span>
+    <span class="c1"># t0 is the time of conjuntion and P is the period</span>
+
+    <span class="n">times</span> <span class="o">=</span> <span class="n">lightcurve</span><span class="o">.</span><span class="n">times</span>
+
+    <span class="n">detrending_vals</span> <span class="o">=</span> <span class="n">times</span> <span class="o">-</span> <span class="n">a</span> <span class="o">*</span> <span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">b</span> <span class="o">*</span> <span class="n">times</span><span class="p">)</span> <span class="o">+</span> <span class="n">c</span>
+    <span class="n">detrended_flux</span> <span class="o">=</span> <span class="n">lightcurve</span><span class="o">.</span><span class="n">flux</span> <span class="o">-</span> <span class="n">detrending_vals</span>
+    <span class="k">return</span> <span class="n">detrended_flux</span>
 </pre></div>
 </div>
-<p>and that <code class="docutils literal notranslate"><span class="pre">c</span></code> is some global parameter.</p>
+<p>and that <code class="docutils literal notranslate"><span class="pre">c</span></code> is some wavelength dependent parameter.</p>
 <p>The general syntax to use for a custom detrending function <code class="docutils literal notranslate"><span class="pre">f()</span></code> is:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="s1">&#39;custom&#39;</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="p">[[</span><span class="k">global</span> <span class="n">parameters</span><span class="p">],</span> <span class="p">[</span><span class="n">wavelength</span> <span class="n">dependent</span> <span class="n">parameters</span><span class="p">],</span> <span class="p">[</span><span class="n">epoch</span> <span class="n">dependent</span> <span class="n">parameters</span><span class="p">]]]</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="s1">&#39;custom&#39;</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="p">[</span><span class="n">telescope</span> <span class="n">dependent</span> <span class="n">parameters</span><span class="p">],</span> <span class="p">[</span><span class="n">wavelength</span> <span class="n">dependent</span> <span class="n">parameters</span><span class="p">],</span> <span class="p">[</span><span class="n">epoch</span> <span class="n">dependent</span> <span class="n">parameters</span><span class="p">]]</span>
 </pre></div>
 </div>
-<p>To specify that a parameter is global, wavelength-, or epoch-dependent, add the index of the relevant argument to the appropriate list. In our example, our entry would be:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="s1">&#39;custom&#39;</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="p">[[</span><span class="mi">3</span><span class="p">],</span> <span class="p">[],</span> <span class="p">[]]]</span>
+<p>To specify that a parameter is telescope-, wavelength-, or epoch-dependent, add the index of the relevant argument to the appropriate list. In our example, our entry for <code class="docutils literal notranslate"><span class="pre">c</span></code> being wavelength dependent would be:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="s1">&#39;custom&#39;</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="p">[],</span> <span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="p">[]]</span>
 </pre></div>
 </div>
 </dd>
 <dt><em>No detrending</em></dt><dd><p>To not detrend a light curve, use <code class="docutils literal notranslate"><span class="pre">['off']</span></code> in your <code class="docutils literal notranslate"><span class="pre">detrending_list</span></code></p>
 </dd>
 </dl>
-</div>
-<div class="section" id="setting-limits-on-detrending-coefficients">
-<h3>Setting limits on detrending coefficients<a class="headerlink" href="#setting-limits-on-detrending-coefficients" title="Permalink to this headline">¶</a></h3>
+</section>
+<section id="setting-limits-on-detrending-coefficients">
+<h3>Setting limits on detrending coefficients<a class="headerlink" href="#setting-limits-on-detrending-coefficients" title="Permalink to this heading">¶</a></h3>
 <p>By default, all detrending coefficients are fitted using a uniform prior of <span class="math notranslate nohighlight">\(\pm10\)</span>. Obviously this is not always ideal, so you can specify the range over which these priors should be fitted using the <code class="docutils literal notranslate"><span class="pre">detrending_limits</span></code> argument in <a class="reference internal" href="api.html#transitfit._pipeline.run_retrieval" title="transitfit._pipeline.run_retrieval"><code class="xref py py-meth docutils literal notranslate"><span class="pre">run_retrieval()</span></code></a>. <strong>Note</strong>: all the detrending coefficients in a given model will be bound to the same range.</p>
 <p>To use custom ranges in your detrending models, you use a list where each entry is <code class="docutils literal notranslate"><span class="pre">[lower,</span> <span class="pre">upper]</span></code> for the detrending methods.</p>
-</div>
-<div class="section" id="an-example">
-<h3>An example<a class="headerlink" href="#an-example" title="Permalink to this headline">¶</a></h3>
+</section>
+<section id="an-example">
+<h3>An example<a class="headerlink" href="#an-example" title="Permalink to this heading">¶</a></h3>
 <p>Let’s again consider our <a class="reference internal" href="quickstart.html#some-toy-observations"><span class="std std-ref">toy model</span></a> with three observations. We shall assume that we want to apply a quadratic detrending model to one, the custom detrending model above to another, and that the last one has already been detrended in pre-processing. We will also change the coefficient bounds. We first need to edit our <code class="docutils literal notranslate"><span class="pre">'input_data.csv'</span></code> to:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Path</span><span class="p">,</span>                   <span class="n">Telescope</span><span class="p">,</span>  <span class="n">Filter</span><span class="p">,</span>     <span class="n">Epoch</span><span class="p">,</span>      <span class="n">Detrending</span>
 <span class="o">/</span><span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">observation1</span><span class="p">,</span>  <span class="mi">0</span><span class="p">,</span>          <span class="mi">0</span><span class="p">,</span>          <span class="mi">0</span><span class="p">,</span>          <span class="mi">0</span>
@@ -233,7 +154,7 @@
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">transitfit</span> <span class="kn">import</span> <span class="n">run_retrieval</span>
 
 <span class="c1"># Set up the custom detrending function</span>
-<span class="k">def</span> <span class="nf">f</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">c</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">f</span><span class="p">(</span><span class="n">times</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">t0</span><span class="p">,</span> <span class="n">P</span><span class="p">):</span>
     <span class="k">return</span> <span class="n">times</span> <span class="o">-</span> <span class="n">a</span> <span class="o">*</span> <span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">b</span> <span class="o">*</span> <span class="n">times</span><span class="p">)</span> <span class="o">+</span> <span class="n">c</span>
 
 <span class="c1"># Set up the host info, using arbitrary values.</span>
@@ -245,7 +166,7 @@
 
 <span class="c1"># Set up the detrending models</span>
 <span class="n">detrending_models</span> <span class="o">=</span> <span class="p">[[</span><span class="s1">&#39;nth order&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span>  <span class="c1"># This is detrending index 0</span>
-                     <span class="p">[</span><span class="s1">&#39;custom&#39;</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="p">[[</span><span class="mi">3</span><span class="p">],</span> <span class="p">[],</span> <span class="p">[]]],</span>  <span class="c1"># This is detrending index 1</span>
+                     <span class="p">[</span><span class="s1">&#39;custom&#39;</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="p">[],</span> <span class="p">[]],</span>  <span class="c1"># This is detrending index 1</span>
                      <span class="p">[</span><span class="s1">&#39;off&#39;</span><span class="p">]]</span>  <span class="c1"># This is detrending index 2</span>
 
 <span class="c1"># Set the detrending coefficient bounds</span>
@@ -261,56 +182,43 @@
                         <span class="n">host_T</span><span class="o">=</span><span class="n">host_T</span><span class="p">,</span> <span class="n">host_logg</span><span class="o">=</span><span class="n">host_logg</span><span class="p">,</span> <span class="n">host_z</span><span class="o">=</span><span class="n">host_z</span><span class="p">,</span> <span class="n">host_r</span><span class="o">=</span><span class="n">host_r</span>  <span class="c1"># host params)</span>
 </pre></div>
 </div>
-</div>
-</div>
-</div>
+<dl class="simple">
+<dt>In case of a single detrending model, please ensure that the format is maintained as::</dt><dd><p>detrending_models = [[‘custom’, f, [3], [], []]]</p>
+</dd>
+</dl>
+</section>
+</section>
+</section>
 
 
            </div>
-           
           </div>
-          <footer>
-    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-        <a href="manyparams.html" class="btn btn-neutral float-right" title="Fitting large number of parameters" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="limb_darkening.html" class="btn btn-neutral float-left" title="Limb-darkening" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="manyparams.html" class="btn btn-neutral float-right" title="Fitting large number of parameters" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>
 
   <div role="contentinfo">
-    <p>
-        &#169; Copyright 2021, Joshua Hayes and collaborators.
-
-    </p>
+    <p>&#169; Copyright 2023, Joshua Hayes and collaborators.</p>
   </div>
-    
-    
-    
-    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
-    
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
     <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
-    
-    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
 
 </footer>
         </div>
       </div>
-
     </section>
-
   </div>
-  
-
-  <script type="text/javascript">
+  <script>
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
-
-  
-  
-    
-   
+  </script> 
 
 </body>
 </html>

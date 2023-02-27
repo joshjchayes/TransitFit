@@ -1,90 +1,46 @@
-
-
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8" />
-  
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  
-  <title>Limb-darkening &mdash; TransitFit 2.2.2 documentation</title>
-  
-
-  
-  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
-  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-
-  
-  
-
-  
-  
-
-  
-
-  
+  <title>Limb-darkening &mdash; TransitFit 3.0.3 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-    
-      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-        <script src="_static/jquery.js"></script>
-        <script src="_static/underscore.js"></script>
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
         <script src="_static/doctools.js"></script>
-        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
-    
-    <script type="text/javascript" src="_static/js/theme.js"></script>
-
-    
+        <script src="_static/sphinx_highlight.js"></script>
+        <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="Detrending" href="detrending.html" />
     <link rel="prev" title="Config Files" href="configfiles.html" /> 
 </head>
 
-<body class="wy-body-for-nav">
-
-   
+<body class="wy-body-for-nav"> 
   <div class="wy-grid-for-nav">
-    
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-          
 
           
-            <a href="index.html" class="icon icon-home"> TransitFit
           
-
-          
+          <a href="index.html" class="icon icon-home">
+            TransitFit
           </a>
-
-          
-            
-            
-          
-
-          
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
 </div>
-
-          
-        </div>
-
-        
-        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
-          
-            
-            
-              
-            
-            
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="quickstart.html">Getting Started</a></li>
 <li class="toctree-l1"><a class="reference internal" href="configfiles.html">Config Files</a></li>
@@ -103,77 +59,36 @@
 <li class="toctree-l1"><a class="reference internal" href="api.html">API</a></li>
 </ul>
 
-            
-          
         </div>
-        
       </div>
     </nav>
 
-    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
-
-      
-      <nav class="wy-nav-top" aria-label="top navigation">
-        
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
           <a href="index.html">TransitFit</a>
-        
       </nav>
 
-
       <div class="wy-nav-content">
-        
         <div class="rst-content">
-        
-          
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<div role="navigation" aria-label="breadcrumbs navigation">
-
+          <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-    
-      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
-        
-      <li>Limb-darkening</li>
-    
-    
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Limb-darkening</li>
       <li class="wy-breadcrumbs-aside">
-        
-          
             <a href="_sources/limb_darkening.rst.txt" rel="nofollow"> View page source</a>
-          
-        
       </li>
-    
   </ul>
-
-  
   <hr/>
 </div>
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
-            
-  <div class="section" id="limb-darkening">
-<h1>Limb-darkening<a class="headerlink" href="#limb-darkening" title="Permalink to this headline">¶</a></h1>
+             
+  <section id="limb-darkening">
+<h1>Limb-darkening<a class="headerlink" href="#limb-darkening" title="Permalink to this heading">¶</a></h1>
 <p><code class="docutils literal notranslate"><span class="pre">TransitFit</span></code> was built with two primary motivations. First, to facilitate transmission spectroscopy surveys using observations from heterogeneous telescopes, and second, to allow the user to fit light curves while accounting for the effects that filter profiles and host parameters have on the LDCs, which we refer to as ‘coupling’ the LDCs. We will discuss the latter here.</p>
-<p>The full justification for and impacts of this approach can be found in <a class="reference external" href="DEAD">the paper LINK TO COME</a> but, in short, not including host parameters and filter profiles in likelihood calculations of LDCs can lead to biases in your measurements of <span class="math notranslate nohighlight">\(R_p/R_\star\)</span> of tens of percent. By including this, <code class="docutils literal notranslate"><span class="pre">TransitFit</span></code> has made it easy to conduct robust transmission spectroscopy studies using observations from heterogeneous sources.</p>
-<div class="section" id="calculating-ldc-likelihoods">
-<h2>Calculating LDC likelihoods<a class="headerlink" href="#calculating-ldc-likelihoods" title="Permalink to this headline">¶</a></h2>
+<p>The full justification for and impacts of this approach can be found in the <a class="reference external" href="https://ui.adsabs.harvard.edu/abs/2021arXiv210312139H">accompanying paper</a> but, in short, not including host parameters and filter profiles in likelihood calculations of LDCs can lead to biases in your measurements of <span class="math notranslate nohighlight">\(R_p/R_\star\)</span> of tens of percent. By including this, <code class="docutils literal notranslate"><span class="pre">TransitFit</span></code> has made it easy to conduct robust transmission spectroscopy studies using observations from heterogeneous sources.</p>
+<section id="calculating-ldc-likelihoods">
+<h2>Calculating LDC likelihoods<a class="headerlink" href="#calculating-ldc-likelihoods" title="Permalink to this heading">¶</a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">TransitFit</span></code> uses the <a class="reference external" href="https://github.com/hpparvi/ldtk">Limb Darkening Toolkit (LDTk)</a> to calculate the likelihood values of sets of LDCs given the host characteristics and filter profiles. These values are then included in the likelihood calculations of transit models during retrieval.</p>
 <p>In order to use this feature, the user must provide the following:</p>
 <blockquote>
@@ -185,8 +100,8 @@
 </ul>
 <p>The first three are provided as arguments to <a class="reference internal" href="api.html#transitfit._pipeline.run_retrieval" title="transitfit._pipeline.run_retrieval"><code class="xref py py-meth docutils literal notranslate"><span class="pre">run_retrieval()</span></code></a>, and the filter profiles are specified using the <a class="reference internal" href="configfiles.html#filter-profiles"><span class="std std-ref">filter profiles input file</span></a>.</p>
 </div></blockquote>
-<div class="section" id="available-limb-darkening-models">
-<h3>Available  limb-darkening models<a class="headerlink" href="#available-limb-darkening-models" title="Permalink to this headline">¶</a></h3>
+<section id="available-limb-darkening-models">
+<h3>Available  limb-darkening models<a class="headerlink" href="#available-limb-darkening-models" title="Permalink to this heading">¶</a></h3>
 <p>Typically, stellar intensity profiles are described by analytical functions <span class="math notranslate nohighlight">\(I_\lambda\left(\mu\right)\)</span>, where <span class="math notranslate nohighlight">\(\mu\)</span> is the cosine of the angle between the line of sight and the emergent intensity. <span class="math notranslate nohighlight">\(\mu\)</span> can also be expressed as <span class="math notranslate nohighlight">\(\mu = \sqrt{1-r^2}\)</span> where <span class="math notranslate nohighlight">\(r\)</span> is the unit-normalised radial coordinate on the stellar disk, and as such, all limb-darkening models must be valid for <span class="math notranslate nohighlight">\(0 \le \mu &lt; 1\)</span>.</p>
 <p>There are 5 limb darkening models provided by <code class="docutils literal notranslate"><span class="pre">TransitFit</span></code>, which can be selected using the <code class="docutils literal notranslate"><span class="pre">limb_darkening_model</span></code> argument in <a class="reference internal" href="api.html#transitfit._pipeline.run_retrieval" title="transitfit._pipeline.run_retrieval"><code class="xref py py-meth docutils literal notranslate"><span class="pre">run_retrieval()</span></code></a>. These are:</p>
 <blockquote>
@@ -199,7 +114,7 @@
 </li>
 <li><dl>
 <dt><code class="docutils literal notranslate"><span class="pre">'quadratic'</span></code> - the quadratic law given by</dt><dd><div class="math notranslate nohighlight">
-\[\frac{I\left(\mu\right)}{I\left(1\right)} = 1 - u_{0,q} \left(1 - \mu\right) - u_{0,q} \left(1-\mu\right)^2\]</div>
+\[\frac{I\left(\mu\right)}{I\left(1\right)} = 1 - u_{0,q} \left(1 - \mu\right) - u_{1,q} \left(1-\mu\right)^2\]</div>
 </dd>
 </dl>
 </li>
@@ -227,9 +142,9 @@
 </ul>
 </div></blockquote>
 <p>where each of <span class="math notranslate nohighlight">\(u_0\)</span>, <span class="math notranslate nohighlight">\(u_1\)</span>, <span class="math notranslate nohighlight">\(u_2\)</span>, and <span class="math notranslate nohighlight">\(u_3\)</span> are the limb-darkening coefficients to be fitted. With the exception of the non-linear law, all of these models are constrained to physically-allowed values by the method in <a class="reference external" href="https://arxiv.org/abs/1308.0009">Kipping (2013)</a>, which we have extended to include the power-2 law.</p>
-</div>
-<div class="section" id="ldc-fitting-modes">
-<h3>LDC Fitting modes<a class="headerlink" href="#ldc-fitting-modes" title="Permalink to this headline">¶</a></h3>
+</section>
+<section id="ldc-fitting-modes">
+<h3>LDC Fitting modes<a class="headerlink" href="#ldc-fitting-modes" title="Permalink to this heading">¶</a></h3>
 <p><code class="docutils literal notranslate"><span class="pre">TransitFit</span></code> offers three modes for LDC fitting, which can be selected using the <code class="docutils literal notranslate"><span class="pre">ld_fit_method</span></code> argument in <a class="reference internal" href="api.html#transitfit._pipeline.run_retrieval" title="transitfit._pipeline.run_retrieval"><code class="xref py py-meth docutils literal notranslate"><span class="pre">run_retrieval()</span></code></a>.:</p>
 <ul>
 <li><dl class="simple">
@@ -238,7 +153,7 @@
 </dl>
 </li>
 <li><dl class="simple">
-<dt><code class="docutils literal notranslate"><span class="pre">'coupled'</span></code></dt><dd><p>Using the Kipping parameterisations, each LDC is fitted as a free parameter, with LDTk being used to estimate the likelihood of sets of LDCs, using information on the host star and the observation filters.</p>
+<dt><code class="docutils literal notranslate"><span class="pre">'coupled'</span></code></dt><dd><p>Using the Kipping parameterisations, each LDC is fitted as a free parameter, with LDTk being used to estimate the likelihood of sets of LDCs, using information on the host star and the observation filters. To use the coupled mode, the filter response file should have atleast 4 individual datapoints.</p>
 </dd>
 </dl>
 </li>
@@ -251,56 +166,39 @@
 </dl>
 </li>
 </ul>
-</div>
-</div>
-</div>
+</section>
+</section>
+</section>
 
 
            </div>
-           
           </div>
-          <footer>
-    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-        <a href="detrending.html" class="btn btn-neutral float-right" title="Detrending" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="configfiles.html" class="btn btn-neutral float-left" title="Config Files" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="detrending.html" class="btn btn-neutral float-right" title="Detrending" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>
 
   <div role="contentinfo">
-    <p>
-        &#169; Copyright 2021, Joshua Hayes and collaborators.
-
-    </p>
+    <p>&#169; Copyright 2023, Joshua Hayes and collaborators.</p>
   </div>
-    
-    
-    
-    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
-    
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
     <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
-    
-    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
 
 </footer>
         </div>
       </div>
-
     </section>
-
   </div>
-  
-
-  <script type="text/javascript">
+  <script>
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
-
-  
-  
-    
-   
+  </script> 
 
 </body>
 </html>

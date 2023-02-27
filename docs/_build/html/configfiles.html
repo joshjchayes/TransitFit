@@ -1,89 +1,45 @@
-
-
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8" />
-  
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  
-  <title>Config Files &mdash; TransitFit 2.2.2 documentation</title>
-  
-
-  
-  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
-  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-
-  
-  
-
-  
-  
-
-  
-
-  
+  <title>Config Files &mdash; TransitFit 3.0.3 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-    
-      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-        <script src="_static/jquery.js"></script>
-        <script src="_static/underscore.js"></script>
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
         <script src="_static/doctools.js"></script>
-    
-    <script type="text/javascript" src="_static/js/theme.js"></script>
-
-    
+        <script src="_static/sphinx_highlight.js"></script>
+    <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="Limb-darkening" href="limb_darkening.html" />
     <link rel="prev" title="Getting Started" href="quickstart.html" /> 
 </head>
 
-<body class="wy-body-for-nav">
-
-   
+<body class="wy-body-for-nav"> 
   <div class="wy-grid-for-nav">
-    
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-          
 
           
-            <a href="index.html" class="icon icon-home"> TransitFit
           
-
-          
+          <a href="index.html" class="icon icon-home">
+            TransitFit
           </a>
-
-          
-            
-            
-          
-
-          
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
 </div>
-
-          
-        </div>
-
-        
-        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
-          
-            
-            
-              
-            
-            
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="quickstart.html">Getting Started</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Config Files</a><ul>
@@ -101,73 +57,32 @@
 <li class="toctree-l1"><a class="reference internal" href="api.html">API</a></li>
 </ul>
 
-            
-          
         </div>
-        
       </div>
     </nav>
 
-    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
-
-      
-      <nav class="wy-nav-top" aria-label="top navigation">
-        
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
           <a href="index.html">TransitFit</a>
-        
       </nav>
 
-
       <div class="wy-nav-content">
-        
         <div class="rst-content">
-        
-          
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<div role="navigation" aria-label="breadcrumbs navigation">
-
+          <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-    
-      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
-        
-      <li>Config Files</li>
-    
-    
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Config Files</li>
       <li class="wy-breadcrumbs-aside">
-        
-          
             <a href="_sources/configfiles.rst.txt" rel="nofollow"> View page source</a>
-          
-        
       </li>
-    
   </ul>
-
-  
   <hr/>
 </div>
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
-            
-  <div class="section" id="config-files">
-<h1>Config Files<a class="headerlink" href="#config-files" title="Permalink to this headline">¶</a></h1>
+             
+  <section id="config-files">
+<h1>Config Files<a class="headerlink" href="#config-files" title="Permalink to this heading">¶</a></h1>
 <p>There are three configuration files required by <code class="docutils literal notranslate"><span class="pre">TransitFit</span></code>. These are the <em>data input file</em>, the <em>priors file</em> and the <em>filter info file</em>. These are all fairly prescriptive in their format, and should be provided as .csv files with one header row.</p>
 <p>For the purposes of illustration, we will be using an example where we have observations of 3 transits of a planet with a 6-day period:</p>
 <dl class="simple">
@@ -179,15 +94,15 @@
 </dd>
 </dl>
 <p>We will also assume that we are going to only use one <a class="reference internal" href="detrending.html#detrending"><span class="std std-ref">detrending model</span></a>.</p>
-<div class="section" id="indexing">
-<h2>Indexing<a class="headerlink" href="#indexing" title="Permalink to this headline">¶</a></h2>
+<section id="indexing">
+<h2>Indexing<a class="headerlink" href="#indexing" title="Permalink to this heading">¶</a></h2>
 <p>In order to allow for full flexibility, <code class="docutils literal notranslate"><span class="pre">TransitFit</span></code> operates on a zero-indexed indexing system. Each light curve is identified by three indices: <strong>telescope</strong>, <strong>filter</strong>, and <strong>epoch</strong>. The actual ordering of these indices does not matter, as long as they are consistent across all light curves being fitted, and no values are skipped. A useful practice is to order observation epochs chronologically (0 being the first observation) and filters in either ascending or descending order of wavelength.</p>
 <p>This approach makes it possible to easily fit (for example) two simultaneous observations with the same filter from two different sites, or single wavelength, multi-epoch observations from a single observatory, or any other combination you can think of.</p>
 <p>Since <code class="docutils literal notranslate"><span class="pre">TransitFit</span></code> offers the ability to use multiple different detrending models simultaneously, a <strong>detrending method</strong> index is also required. This is particularly useful in situations where space- and ground-based observations are being combined, since space-based observations often require something more complex than an nth-order approach. This is discussed in more depth <a class="reference internal" href="detrending.html#detrending"><span class="std std-ref">here</span></a>.</p>
 <p>So, to summarise, each transit observation in the dataset that you are fitting is identified by a <strong>telescope</strong>, <strong>filter</strong>, and <strong>epoch</strong> index and the detrending model is controlled by a <strong>detrending method</strong> index.</p>
-</div>
-<div class="section" id="data-input-file">
-<h2>Data input file<a class="headerlink" href="#data-input-file" title="Permalink to this headline">¶</a></h2>
+</section>
+<section id="data-input-file">
+<h2>Data input file<a class="headerlink" href="#data-input-file" title="Permalink to this heading">¶</a></h2>
 <p>This file is used to direct <code class="docutils literal notranslate"><span class="pre">TransitFit</span></code> to the light curve observations that you want to fit. It is also where the <a class="reference internal" href="#indexing"><span class="std std-ref">indexing scheme</span></a> for the light curves is defined. Each transit observation to be fitted should be a separate text (.txt or .csv) file, with three columns: time (in BJD), flux, and uncertainty on flux. Note that the light curves do not have to be normalised or detrended, as this is <a class="reference internal" href="detrending.html#detrending"><span class="std std-ref">something that TransitFit can handle</span></a>. The data input file should have 5 columns:</p>
 <ol class="arabic simple">
 <li><p><strong>Path</strong>: this is the absolute or relative path to the data file for each light curve.</p></li>
@@ -203,9 +118,9 @@
 <span class="o">/</span><span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">observation3</span><span class="p">,</span>  <span class="mi">1</span><span class="p">,</span>          <span class="mi">0</span><span class="p">,</span>          <span class="mi">2</span><span class="p">,</span>          <span class="mi">0</span>
 </pre></div>
 </div>
-</div>
-<div class="section" id="priors">
-<h2>Priors<a class="headerlink" href="#priors" title="Permalink to this headline">¶</a></h2>
+</section>
+<section id="priors">
+<h2>Priors<a class="headerlink" href="#priors" title="Permalink to this heading">¶</a></h2>
 <p>This file determines which physical parameters are to be fitted by <code class="docutils literal notranslate"><span class="pre">TransitFit</span></code>, and the distribution from which samples are to be drawn from for each. It can also be used to manually fix a parameter to a specific value. This file should also have 5 columns:</p>
 <ol class="arabic">
 <li><p><strong>Parameter</strong>: The parameters which can be set using the priors file are</p>
@@ -263,9 +178,9 @@
 </pre></div>
 </div>
 <p>When setting up your priors, we recommend that you use a uniform distribution for <code class="docutils literal notranslate"><span class="pre">rp</span></code> so that you don’t inadvertently bias the values, especially if you’re doing spectroscopy work.</p>
-</div>
-<div class="section" id="filter-profiles">
-<h2>Filter profiles<a class="headerlink" href="#filter-profiles" title="Permalink to this headline">¶</a></h2>
+</section>
+<section id="filter-profiles">
+<h2>Filter profiles<a class="headerlink" href="#filter-profiles" title="Permalink to this heading">¶</a></h2>
 <p>This file is used to specify the filter profiles that observations were made at, and is only required if you are using <code class="docutils literal notranslate"><span class="pre">TransitFit</span></code>’s <a class="reference internal" href="limb_darkening.html#limb-darkening"><span class="std std-ref">ability to couple LDCs across wavelengths</span></a>.</p>
 <p>TransitFit can deal with either uniform box filters (useful for narrow-band spectroscopy), or full filter response functions. It comes pre-packaged with a set of standard filters:</p>
 <ul class="simple">
@@ -302,55 +217,38 @@
 <span class="mi">1</span><span class="p">,</span>              <span class="mi">400</span><span class="p">,</span>      <span class="mi">500</span>
 </pre></div>
 </div>
-</div>
-</div>
+</section>
+</section>
 
 
            </div>
-           
           </div>
-          <footer>
-    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-        <a href="limb_darkening.html" class="btn btn-neutral float-right" title="Limb-darkening" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="quickstart.html" class="btn btn-neutral float-left" title="Getting Started" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="limb_darkening.html" class="btn btn-neutral float-right" title="Limb-darkening" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>
 
   <div role="contentinfo">
-    <p>
-        &#169; Copyright 2021, Joshua Hayes and collaborators.
-
-    </p>
+    <p>&#169; Copyright 2023, Joshua Hayes and collaborators.</p>
   </div>
-    
-    
-    
-    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
-    
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
     <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
-    
-    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
 
 </footer>
         </div>
       </div>
-
     </section>
-
   </div>
-  
-
-  <script type="text/javascript">
+  <script>
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
-
-  
-  
-    
-   
+  </script> 
 
 </body>
 </html>

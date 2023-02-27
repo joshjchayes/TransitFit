@@ -1,90 +1,46 @@
-
-
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8" />
-  
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  
-  <title>Allowing for TTVs &mdash; TransitFit 2.2.2 documentation</title>
-  
-
-  
-  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
-  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-
-  
-  
-
-  
-  
-
-  
-
-  
+  <title>Allowing for TTVs &mdash; TransitFit 3.0.3 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <!--[if lt IE 9]>
     <script src="_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-    
-      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-        <script src="_static/jquery.js"></script>
-        <script src="_static/underscore.js"></script>
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
         <script src="_static/doctools.js"></script>
-        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
-    
-    <script type="text/javascript" src="_static/js/theme.js"></script>
-
-    
+        <script src="_static/sphinx_highlight.js"></script>
+        <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="FAQs" href="faqs.html" />
     <link rel="prev" title="Fitting large number of parameters" href="manyparams.html" /> 
 </head>
 
-<body class="wy-body-for-nav">
-
-   
+<body class="wy-body-for-nav"> 
   <div class="wy-grid-for-nav">
-    
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-          
 
           
-            <a href="index.html" class="icon icon-home"> TransitFit
           
-
-          
+          <a href="index.html" class="icon icon-home">
+            TransitFit
           </a>
-
-          
-            
-            
-          
-
-          
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
 </div>
-
-          
-        </div>
-
-        
-        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
-          
-            
-            
-              
-            
-            
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="quickstart.html">Getting Started</a></li>
 <li class="toctree-l1"><a class="reference internal" href="configfiles.html">Config Files</a></li>
@@ -96,128 +52,70 @@
 <li class="toctree-l1"><a class="reference internal" href="api.html">API</a></li>
 </ul>
 
-            
-          
         </div>
-        
       </div>
     </nav>
 
-    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
-
-      
-      <nav class="wy-nav-top" aria-label="top navigation">
-        
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
           <a href="index.html">TransitFit</a>
-        
       </nav>
 
-
       <div class="wy-nav-content">
-        
         <div class="rst-content">
-        
-          
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<div role="navigation" aria-label="breadcrumbs navigation">
-
+          <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-    
-      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
-        
-      <li>Allowing for TTVs</li>
-    
-    
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Allowing for TTVs</li>
       <li class="wy-breadcrumbs-aside">
-        
-          
             <a href="_sources/ttvs.rst.txt" rel="nofollow"> View page source</a>
-          
-        
       </li>
-    
   </ul>
-
-  
   <hr/>
 </div>
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
-            
-  <div class="section" id="allowing-for-ttvs">
-<h1>Allowing for TTVs<a class="headerlink" href="#allowing-for-ttvs" title="Permalink to this headline">¶</a></h1>
-<p>In its default mode, <code class="docutils literal notranslate"><span class="pre">TransitFit</span></code> assumes that there are no TTVs and fits one value of <span class="math notranslate nohighlight">\(t_0\)</span> to all transits. In the situation where TTVs are present, <code class="docutils literal notranslate"><span class="pre">TransitFit</span></code> can fit <span class="math notranslate nohighlight">\(t_0\)</span> to each individual epoch, allowing then for O-C investigations.</p>
+             
+  <section id="allowing-for-ttvs">
+<h1>Allowing for TTVs<a class="headerlink" href="#allowing-for-ttvs" title="Permalink to this heading">¶</a></h1>
+<p>In its default mode, <code class="docutils literal notranslate"><span class="pre">TransitFit</span></code> assumes that there are no TTVs and fits a single <span class="math notranslate nohighlight">\(t_0\)</span> and :math: <cite>P</cite> that are assumed applicable to all transits. In the situation where TTVs are present, <code class="docutils literal notranslate"><span class="pre">TransitFit</span></code> can fit <span class="math notranslate nohighlight">\(t_0\)</span> to each individual epoch, allowing then for O-C investigations.</p>
 <p>In order to do this, set <code class="docutils literal notranslate"><span class="pre">allow_TTV=True</span></code> in the arguments of <a class="reference internal" href="api.html#transitfit._pipeline.run_retrieval" title="transitfit._pipeline.run_retrieval"><code class="xref py py-meth docutils literal notranslate"><span class="pre">run_retrieval()</span></code></a>. <strong>Note</strong>: <code class="docutils literal notranslate"><span class="pre">TransitFit</span></code> cannot automatically detect if there are TTVs present in the data. You must explicitly enable this mode.</p>
 <p>When <code class="docutils literal notranslate"><span class="pre">allow_TTV=True</span></code>, <code class="docutils literal notranslate"><span class="pre">TransitFit</span></code> cannot fit for the period value, and this must be set as a fixed value in the <a class="reference internal" href="configfiles.html#data-input-file"><span class="std std-ref">data input file</span></a>. In order to be consistent, we recommend that any investigation into TTVs in a system should have 2 stages:</p>
 <ol class="arabic simple">
 <li><p>Run <code class="docutils literal notranslate"><span class="pre">TransitFit</span></code> with <code class="docutils literal notranslate"><span class="pre">allow_TTV=False</span></code>.</p></li>
 <li><p>Run <code class="docutils literal notranslate"><span class="pre">TransitFit</span></code> with <code class="docutils literal notranslate"><span class="pre">allow_TTV=True</span></code>, fixing the period at the best fit value from the first step.</p></li>
 </ol>
-</div>
+</section>
 
 
            </div>
-           
           </div>
-          <footer>
-    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-        <a href="faqs.html" class="btn btn-neutral float-right" title="FAQs" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="manyparams.html" class="btn btn-neutral float-left" title="Fitting large number of parameters" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="faqs.html" class="btn btn-neutral float-right" title="FAQs" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>
 
   <div role="contentinfo">
-    <p>
-        &#169; Copyright 2021, Joshua Hayes and collaborators.
-
-    </p>
+    <p>&#169; Copyright 2023, Joshua Hayes and collaborators.</p>
   </div>
-    
-    
-    
-    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
-    
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
     <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
-    
-    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
 
 </footer>
         </div>
       </div>
-
     </section>
-
   </div>
-  
-
-  <script type="text/javascript">
+  <script>
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
-
-  
-  
-    
-   
+  </script> 
 
 </body>
 </html>

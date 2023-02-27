@@ -2,7 +2,7 @@
 Allowing for TTVs
 =================
 
-In its default mode, ``TransitFit`` assumes that there are no TTVs and fits one value of :math:`t_0` to all transits. In the situation where TTVs are present, ``TransitFit`` can fit :math:`t_0` to each individual epoch, allowing then for O-C investigations.
+In its default mode, ``TransitFit`` assumes that there are no TTVs and fits a single :math:`t_0` and :math: `P` that are assumed applicable to all transits. In the situation where TTVs are present, ``TransitFit`` can fit :math:`t_0` to each individual epoch, allowing then for O-C investigations.
 
 In order to do this, set ``allow_TTV=True`` in the arguments of :meth:`~transitfit._pipeline.run_retrieval`. **Note**: ``TransitFit`` cannot automatically detect if there are TTVs present in the data. You must explicitly enable this mode.
 

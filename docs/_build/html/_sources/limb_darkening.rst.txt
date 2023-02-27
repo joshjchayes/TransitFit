@@ -4,7 +4,7 @@ Limb-darkening
 
 ``TransitFit`` was built with two primary motivations. First, to facilitate transmission spectroscopy surveys using observations from heterogeneous telescopes, and second, to allow the user to fit light curves while accounting for the effects that filter profiles and host parameters have on the LDCs, which we refer to as 'coupling' the LDCs. We will discuss the latter here.
 
-The full justification for and impacts of this approach can be found in `the paper LINK TO COME <DEAD>`_ but, in short, not including host parameters and filter profiles in likelihood calculations of LDCs can lead to biases in your measurements of :math:`R_p/R_\star` of tens of percent. By including this, ``TransitFit`` has made it easy to conduct robust transmission spectroscopy studies using observations from heterogeneous sources.
+The full justification for and impacts of this approach can be found in the `accompanying paper <https://ui.adsabs.harvard.edu/abs/2021arXiv210312139H>`_ but, in short, not including host parameters and filter profiles in likelihood calculations of LDCs can lead to biases in your measurements of :math:`R_p/R_\star` of tens of percent. By including this, ``TransitFit`` has made it easy to conduct robust transmission spectroscopy studies using observations from heterogeneous sources.
 
 Calculating LDC likelihoods
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -34,7 +34,7 @@ There are 5 limb darkening models provided by ``TransitFit``, which can be selec
 
     * ``'quadratic'`` - the quadratic law given by
         .. math::
-            \frac{I\left(\mu\right)}{I\left(1\right)} = 1 - u_{0,q} \left(1 - \mu\right) - u_{0,q} \left(1-\mu\right)^2
+            \frac{I\left(\mu\right)}{I\left(1\right)} = 1 - u_{0,q} \left(1 - \mu\right) - u_{1,q} \left(1-\mu\right)^2
 
     * ``'squareroot'`` - the square-root law given by
         .. math::
@@ -63,7 +63,7 @@ LDC Fitting modes
     This is the traditional approach of fitting LDCs for each filter separately. ``TransitFit`` still uses the `Kipping parameterisations <https://arxiv.org/abs/1308.0009>`_, but LDTk is not used to couple LDCs across filters.
 
 * ``'coupled'``
-    Using the Kipping parameterisations, each LDC is fitted as a free parameter, with LDTk being used to estimate the likelihood of sets of LDCs, using information on the host star and the observation filters.
+    Using the Kipping parameterisations, each LDC is fitted as a free parameter, with LDTk being used to estimate the likelihood of sets of LDCs, using information on the host star and the observation filters. To use the coupled mode, the filter response file should have atleast 4 individual datapoints.
 
 * ``'single'``
     When fitting with multiple wavebands, the number of parameters required to be fitted can increase dramatically. The ``'single'`` LDC fitting mode freely fitting LDC for only one filter, and uses LDTk to extrapolate LDC values for the remaining filters. The :math:`i`-th coefficient of a filter :math:`f`, is calculated as

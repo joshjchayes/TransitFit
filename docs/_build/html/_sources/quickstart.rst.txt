@@ -100,7 +100,7 @@ Output files
 
     * ``summary_output_file`` - this contains the best fit results from a specific stage of retrieval (e.g. if in :ref:`'folded mode' <'Folded' fitting>`, this would be the results for a specific filter (stage 1) or the results for fitting the folded curves (stage 2)). The name of this file can be specified with the ``summary_file`` argument of :meth:`~transitfit._pipeline.run_retrieval` and defaults to ``'summary_output.csv'``.
 
-    # ``full_output_file`` - This contains every output from a given batched run, including indication of which batch the results come from. The name of this file can be specified with the ``full_output_file`` argument of :meth:`~transitfit._pipeline.run_retrieval` and defaults to ``'full_output.csv'``.
+    * ``full_output_file`` - This contains every output from a given batched run, including indication of which batch the results come from. The name of this file can be specified with the ``full_output_file`` argument of :meth:`~transitfit._pipeline.run_retrieval` and defaults to ``'full_output.csv'``.
 
 Fitted light curves
     These are .csv files for each input light curve, containing the normalised and detrended light curves, along with phase values and best-fit models. The columns for these are
@@ -123,4 +123,4 @@ Plots
         These are made using ``corner`` and show the samples for each run of ``dynesty`` within a ``TransitFit`` retrieval.
 
     *Quick-look folded curves*
-        Since running in :ref:`'folded mode' <'Folded' fitting>` can take some time, ``TransitFit`` provides a 'quick-look' plot for each filter after folding. This is there mostly so that you can be satisfied that the folding makes sense, rather than then having to wait until the end to find out something has gone wrong.
+        Since running in :ref:`'folded mode' <'Folded' fitting>` can take some time, ``TransitFit`` provides a 'quick-look' plot for each filter after folding. This is there mostly so that you can be satisfied that the folding makes sense, rather than having to wait until the end to find out something has gone wrong.
