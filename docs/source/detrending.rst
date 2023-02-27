@@ -24,11 +24,10 @@ Detrending methods
 The available types of detrending are:
 
 *Nth order*
-    To use a polynomial of order ``n``, the entry to ``detrending_list`` should be given as ``['nth order', n]``. The nth order polynomials used by ``TransitFit`` are designed to be flux-conserving, and are of the form
+    To use a polynomial of order ``n``, the entry to ``detrending_list`` should be given as ``['nth order', n]``. The nth order polynomials used by ``TransitFit`` are designed to be flux-conserving at the time of conjunction, and are of the form
 
     .. math::
-        d\left(t_i\right) = \sum^n_{j=1} \left[a_j \left(t_i^j - \overline{\textbf{t}^j}\right)\right]
-
+        d\left(t_i\right) = \sum^n_{j=1} \left[a_j \left(t_i - t_0\right)^j\right]
 
     The full derivation of this can be found in the `paper <https://ui.adsabs.harvard.edu/abs/2021arXiv210312139H>`_
 
@@ -45,7 +44,8 @@ The available types of detrending are:
 
     Let's assume that we want to use the following arbitrary detrending function::
 
-        def f(lightcurve, a, b, c):
+        def f(lightcurve, a, b, c, t0, P):
+            # t0 is the time of conjuntion and P is the period
 
             times = lightcurve.times
 
@@ -57,11 +57,11 @@ The available types of detrending are:
 
     The general syntax to use for a custom detrending function ``f()`` is::
 
-        ['custom', f, [[telescope dependent parameters], [wavelength dependent parameters], [epoch dependent parameters]]]
+        ['custom', f, [telescope dependent parameters], [wavelength dependent parameters], [epoch dependent parameters]]
 
     To specify that a parameter is telescope-, wavelength-, or epoch-dependent, add the index of the relevant argument to the appropriate list. In our example, our entry for ``c`` being wavelength dependent would be::
 
-        ['custom', f, [[], [3], []]]
+        ['custom', f, [], [3], []]
 
 
 *No detrending*
@@ -91,7 +91,7 @@ and then our full input code, using the coupled LDC fitting, becomes::
     from transitfit import run_retrieval
 
     # Set up the custom detrending function
-    def f(times, a, b, c):
+    def f(times, a, b, c, t0, P):
         return times - a * exp(-b * times) + c
 
     # Set up the host info, using arbitrary values.
@@ -103,7 +103,7 @@ and then our full input code, using the coupled LDC fitting, becomes::
 
     # Set up the detrending models
     detrending_models = [['nth order', 2],  # This is detrending index 0
-                         ['custom', f, [[3], [], []]],  # This is detrending index 1
+                         ['custom', f, [3], [], []],  # This is detrending index 1
                          ['off']]  # This is detrending index 2
 
     # Set the detrending coefficient bounds
@@ -117,3 +117,6 @@ and then our full input code, using the coupled LDC fitting, becomes::
                             detrending_limits=detrending_limits  # Set the detrending limits
                             ld_fit_method='coupled'  # Turn on coupled LDC fitting
                             host_T=host_T, host_logg=host_logg, host_z=host_z, host_r=host_r  # host params)
+
+In case of a single detrending model, please ensure that the format is maintained as::
+    detrending_models = [['custom', f, [3], [], []]] 

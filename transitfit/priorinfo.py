@@ -249,8 +249,8 @@ class PriorInfo:
                         if limits is None:
                             # Limits are not provided.
                             # We hard-code a default of ±10
-                            low_lim = -10
-                            high_lim = 10
+                            low_lim = -10.
+                            high_lim = 10.
 
                         elif isinstance(limits[method_idx][0], Iterable):
                             # The limits for each parameter have been set
@@ -418,7 +418,7 @@ class PriorInfo:
                                             self.limb_dark,
                                             n_samples, do_mc, cache_path)
 
-    def fit_normalisation(self, lightcurves):
+    def fit_normalisation(self, lightcurves,normalise_limits):
         '''
         When run, the Retriever will fit normalisation of the data as a
         free parameter.
@@ -440,7 +440,7 @@ class PriorInfo:
 
             if lightcurves[i] is not None:
                 # A light curve exists. Set up normalisation
-                best, low, high = lightcurves[i].set_normalisation()
+                best, low, high = lightcurves[i].set_normalisation(normalise_limits)
                 self.add_uniform_fit_param('norm', low, high, telescope_idx, filter_idx, epoch_idx)
 
         self.normalise = True
@@ -539,3 +539,17 @@ class PriorInfo:
             print_str += self.priors[var].__str__()
         print_str += 'Total {} fitting parameters'.format(len(self.fitting_params))
         return print_str
+    
+    def get_latex_friendly_labels(self):
+        """Adds a \ in front of underscored to make the latex displays work"""
+        labels = []
+        for param in self.fitting_params[:,0]:
+            if "_" in param:
+                new_label = ''
+                for s in param.split("_")[:-1]:
+                    new_label += s + "\_"
+                new_label += param.split("_")[-1]
+            else:
+                new_label = param
+            labels.append(new_label)
+        return labels

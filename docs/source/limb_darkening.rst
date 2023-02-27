@@ -34,7 +34,7 @@ There are 5 limb darkening models provided by ``TransitFit``, which can be selec
 
     * ``'quadratic'`` - the quadratic law given by
         .. math::
-            \frac{I\left(\mu\right)}{I\left(1\right)} = 1 - u_{0,q} \left(1 - \mu\right) - u_{0,q} \left(1-\mu\right)^2
+            \frac{I\left(\mu\right)}{I\left(1\right)} = 1 - u_{0,q} \left(1 - \mu\right) - u_{1,q} \left(1-\mu\right)^2
 
     * ``'squareroot'`` - the square-root law given by
         .. math::
@@ -63,7 +63,7 @@ LDC Fitting modes
     This is the traditional approach of fitting LDCs for each filter separately. ``TransitFit`` still uses the `Kipping parameterisations <https://arxiv.org/abs/1308.0009>`_, but LDTk is not used to couple LDCs across filters.
 
 * ``'coupled'``
-    Using the Kipping parameterisations, each LDC is fitted as a free parameter, with LDTk being used to estimate the likelihood of sets of LDCs, using information on the host star and the observation filters.
+    Using the Kipping parameterisations, each LDC is fitted as a free parameter, with LDTk being used to estimate the likelihood of sets of LDCs, using information on the host star and the observation filters. To use the coupled mode, the filter response file should have atleast 4 individual datapoints.
 
 * ``'single'``
     When fitting with multiple wavebands, the number of parameters required to be fitted can increase dramatically. The ``'single'`` LDC fitting mode freely fitting LDC for only one filter, and uses LDTk to extrapolate LDC values for the remaining filters. The :math:`i`-th coefficient of a filter :math:`f`, is calculated as

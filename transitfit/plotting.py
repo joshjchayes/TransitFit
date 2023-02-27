@@ -79,9 +79,12 @@ def plot_individual_lightcurves(lightcurves, priorinfo, results,
                 if best_dict[coeff][i] is not None:
                     if d[i] is None:
                         d[i] = [best_dict[coeff][i]]
+                        d_new=[d[i],best_dict['t0'][i], best_dict['P'][i]]
                     else:
                         d[i].append(best_dict[coeff][i])
+                        d_new=[*d[i],best_dict['t0'][i], best_dict['P'][i]]
 
+                    
 
     # For each light curve, make a plot!
     for i in np.ndindex(lightcurves.shape):
@@ -153,9 +156,9 @@ def plot_individual_lightcurves(lightcurves, priorinfo, results,
 
             # Plot the raw data
             if priorinfo.detrend:
-                plot_fluxes, plot_errors = lightcurves[i].detrend_flux(d[i], norm)
+                plot_fluxes, plot_errors = lightcurves[i].detrend_flux(d_new, norm)
             else:
-                plot_fluxes, plot_errors = lightcurves[i].detrend_flux(None, norm)
+                plot_fluxes, plot_errors = lightcurves[i].detrend_flux([None,best_dict['t0'][i], best_dict['P'][i]], norm)
 
             main_ax.errorbar(x_vals, plot_fluxes,
                         plot_errors, zorder=1,

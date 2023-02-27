@@ -1,6 +1,6 @@
-'''
+"""
 Object which actually handles the retrieval process
-'''
+"""
 
 import numpy as np
 from dynesty import NestedSampler
@@ -10,30 +10,49 @@ import traceback
 import multiprocessing as mp
 import pandas as pd
 
-from transitfit import io
+import io
 
 
 from .plotting import plot_individual_lightcurves, quick_plot
 from .detrending_funcs import NthOrderDetrendingFunction
 from .detrender import DetrendingFunction
-from .io import read_input_file, read_priors_file, parse_priors_list, read_filter_info, parse_filter_list
+from .io import (
+    read_input_file,
+    read_priors_file,
+    parse_priors_list,
+    read_filter_info,
+    parse_filter_list,
+    print_results,
+)
 from ._likelihood import LikelihoodCalculator
-from ._utils import get_normalised_weights, get_covariance_matrix, weighted_avg_and_std
+from ._utils import  weighted_avg_and_std
 
 # Parameters and if they are global, filter-specific or lightcurve-specific
-global_params = ['P', 'ecc', 'a', 'inc', 'w']
+global_params = ["P", "ecc", "a", "inc", "w"]
 
-filter_dependent_params = ['rp', 'q0', 'q1', 'q2', 'q3', 'u0', 'u1', 'u2', 'u3']
+filter_dependent_params = ["rp", "q0", "q1", "q2", "q3", "u0", "u1", "u2", "u3"]
 
-lightcurve_dependent_params = ['norm','d0','d1','d2','d3','d4','d5','d6','d7','d8']
+lightcurve_dependent_params = [
+    "norm",
+    "d0",
+    "d1",
+    "d2",
+    "d3",
+    "d4",
+    "d5",
+    "d6",
+    "d7",
+    "d8",
+]
 
-_default_detrending_limits = (-10,10)
+#_default_detrending_limits = (-10,10)
+_default_detrending_limits = (-0.1,0.1)
 
-from .output_handler import OutputHandler
+from .output_handler import OutputHandler, Results, ResultsException
 
 
 class Retriever:
-    '''
+    """
     Handles the nested sampling retrieval and acts as a high-level interface
 
     Parameters
@@ -93,14 +112,33 @@ class Retriever:
     detrending_limits : list, optional
         The bounds on detrending coefficients, given as (lower, upper) pair for
         each detrending method. If not provided, will default to ±10
-    '''
-    def __init__(self, data_files, priors, n_telescopes, n_filters, n_epochs,
-                 filter_info=None, detrending_list=[['nth order', 1]],
-                 limb_darkening_model='quadratic', host_T=None, host_logg=None,
-                 host_z=None, host_r=None, ldtk_cache=None, n_ld_samples=20000,
-                 do_ld_mc=False, data_skiprows=0, allow_ttv=False,
-                 filter_delimiter=None, detrending_limits=None,
-                 normalise=True):
+    """
+
+    def __init__(
+        self,
+        data_files,
+        priors,
+        n_telescopes,
+        n_filters,
+        n_epochs,
+        filter_info=None,
+        detrending_list=[["nth order", 1]],
+        limb_darkening_model="quadratic",
+        host_T=None,
+        host_logg=None,
+        host_z=None,
+        host_r=None,
+        ldtk_cache=None,
+        n_ld_samples=20000,
+        do_ld_mc=False,
+        data_skiprows=0,
+        allow_ttv=False,
+        filter_delimiter=None,
+        detrending_limits=None,
+        normalise=True,
+        normalise_limits=None,
+        detrend=True,
+    ):
 
         ###################
         # Save input data #
@@ -117,18 +155,20 @@ class Retriever:
 
         self.detrending_info = detrending_list
 
-        #self.detrending_limits = detrending_limits
+        # self.detrending_limits = detrending_limits
         if detrending_limits is None:
-            self.detrending_limits = np.array([_default_detrending_limits for i in range(len(self.detrending_info))])
+            self.detrending_limits = np.array(
+                [_default_detrending_limits for i in range(len(self.detrending_info))]
+            )
 
         else:
-            '''
+            """
             detrending_limits = np.array(detrending_limits)
             if not detrending_limits.ndim == 2:
                 raise ValueError(f'Detrending limits should be provided as a list of length {len(self.detrending_info)} where each entry is the  [lower, upper] limits on each method.')
             if not detrending_limits.shape[1] == 2:
                 raise ValueError(f'Detrending limits should be provided as a list of length {len(self.detrending_info)} where each entry is the  [lower, upper] limits on each method.')
-            '''
+            """
             self.detrending_limits = detrending_limits
 
         # Host info
@@ -155,36 +195,50 @@ class Retriever:
             self.filters = parse_filter_list(self._filter_input, filter_delimiter)
 
         # Load in the full LightCurve data and detrending index array
-        self.all_lightcurves, self.detrending_index_array = read_input_file(data_files, data_skiprows)
+        self.all_lightcurves, self.detrending_index_array = read_input_file(
+            data_files, data_skiprows
+        )
+        
+        if detrend:
+            # intialise detrending in each light curve
+            for i, lc in np.ndenumerate(self.all_lightcurves):
+                if lc is not None:
+                    detrending_idx = self.detrending_index_array[i]
+                    detrending_method = detrending_list[detrending_idx]
 
-        # intialise detrending in each light curve
-        for i, lc in np.ndenumerate(self.all_lightcurves):
-            if lc is not None:
-                detrending_idx = self.detrending_index_array[i]
-                detrending_method = detrending_list[detrending_idx]
-
-                if detrending_method[0] == 'nth order':
-                    lc.set_detrending('nth order', order=detrending_method[1], method_idx=detrending_idx)
-                elif detrending_method[0] == 'custom':
-                    lc.set_detrending('custom', function=detrending_method[1], method_idx=detrending_idx)
-                elif detrending_method[0] == 'off':
-                    lc.set_detrending('off', method_idx=detrending_idx)
-                else:
-                    raise ValueError(f'Unrecognised detrending method {detrending_method[0]}')
-
+                    if detrending_method[0] == "nth order":
+                        lc.set_detrending(
+                            "nth order",
+                            order=detrending_method[1],
+                            method_idx=detrending_idx,
+                        )
+                    elif detrending_method[0] == "custom":
+                        lc.set_detrending(
+                            "custom",
+                            function=detrending_method[1],
+                            method_idx=detrending_idx,
+                        )
+                    elif detrending_method[0] == "off":
+                        lc.set_detrending("off", method_idx=detrending_idx)
+                    else:
+                        raise ValueError(
+                            f"Unrecognised detrending method {detrending_method[0]}"
+                        )
+        self.normalise_limits=normalise_limits
         # Initialse normalisation in each light curve
         if normalise:
             for i, lc in np.ndenumerate(self.all_lightcurves):
                 if lc is not None:
-                    lc.set_normalisation()
+                    lc.set_normalisation(self.normalise_limits)
 
-        self.n_total_lightcurves = np.sum(self.all_lightcurves!=None)
-
+        self.n_total_lightcurves = np.sum(self.all_lightcurves != None)
 
         # Get the FULL prior.
         # Assume independent ld method - it doesn't actually matter
         # since this never gets used.
-        self._full_prior, _ = self._get_priors_and_curves(self.all_lightcurves, 'independent', suppress_warnings=True)
+        self._full_prior, _ = self._get_priors_and_curves(
+            self.all_lightcurves, "independent", detrend=detrend, suppress_warnings=True, normalise=normalise
+        )
 
         # From the full prior, get a bunch of info on numbers of parameters
         # Get the number of parameters in the limb darkening
@@ -193,37 +247,52 @@ class Retriever:
 
         # Get the number of globally fitted parameters
         # Work out the possible global parameters based on allow_ttv
-        global_params = ['P', 'ecc', 'a', 'inc', 'w']
+        global_params = ["P", "ecc", "a", "inc", "w"]
         if not self.allow_ttv:
-            global_params.append('t0')
+            global_params.append("t0")
         self.n_global_params = 0
         for param in global_params:
-            if param in np.array(self._full_prior.fitting_params)[:,0]:
+            if param in np.array(self._full_prior.fitting_params)[:, 0]:
                 self.n_global_params += 1
-
-        # Calculate the detrending models - used in calculating the number of
-        # parameters used in a fitting batch
-        self.detrending_models = []
-        for mode in self.detrending_info:
-            if mode[0] == 'nth order':
-                function = NthOrderDetrendingFunction(mode[1])
-                self.detrending_models.append(DetrendingFunction(function))
-            elif mode[0] == 'custom':
-                function = mode[1]
-                self.detrending_models.append(DetrendingFunction(function))
-            elif mode[0] == 'off':
-                self.detrending_models.append(None)
+        
+        if detrend:
+            # Calculate the detrending models - used in calculating the number of
+            # parameters used in a fitting batch
+            self.detrending_models = []
+            for mode in self.detrending_info:
+                if mode[0] == "nth order":
+                    function = NthOrderDetrendingFunction(mode[1])
+                    self.detrending_models.append(DetrendingFunction(function))
+                elif mode[0] == "custom":
+                    function = mode[1]
+                    self.detrending_models.append(DetrendingFunction(function,mode[0]))
+                elif mode[0] == "off":
+                    self.detrending_models.append(None)
 
         # Initialise the OutputWriter
-        self.output_handler = OutputHandler(self.all_lightcurves, self._full_prior, self.host_r)
+        self.output_handler = OutputHandler(
+            self.all_lightcurves, self._full_prior, self.host_r
+        )
+
 
     ##########################################################
     #               RETRIEVAL RUNNING METHODS                #
     ##########################################################
-    def _run_dynesty(self, lightcurves, priors, maxiter=None, maxcall=None,
-                     sample='auto', nlive=300, dlogz=None, bound='multi',
-                     plot_folder='./plots', walks=100, slices=10):
-        '''
+    def _run_dynesty(
+        self,
+        lightcurves,
+        priors,
+        maxiter=None,
+        maxcall=None,
+        sample="auto",
+        nlive=300,
+        dlogz=None,
+        bound="multi",
+        plot_folder="./plots",
+        walks=100,
+        slices=10,
+    ):
+        """
         Runs dynesty on the given lightcurves with the given priors. Returns
         the result.
 
@@ -231,7 +300,7 @@ class Retriever:
         -------
         results
         ndof
-        '''
+        """
         # Get number of dimensions and degrees of freedom
         n_dims = len(priors.fitting_params)
 
@@ -255,45 +324,60 @@ class Retriever:
         def lnlike(cube):
             params = priors._interpret_param_array(cube)
 
-            ln_likelihood = likelihood_calc.find_likelihood(params)
+            ln_likelihood= likelihood_calc.find_likelihood(params)
 
-            if priors.fit_ld and not priors.ld_fit_method == 'independent':
+            if priors.fit_ld and not priors.ld_fit_method == "independent":
                 # Pull out the q values and convert them
                 u = []
                 for fi in range(priors.n_filters):
-                    q = [params[qX][0,fi,0] for qX in priors.limb_dark_coeffs]
+                    q = [params[qX][0, fi, 0] for qX in priors.limb_dark_coeffs]
                     u.append(priors.ld_handler.convert_qtou(*q))
-                return ln_likelihood + priors.ld_handler.ldtk_lnlike(u, priors.limb_dark)
+                return ln_likelihood + priors.ld_handler.ldtk_lnlike(
+                    u, priors.limb_dark
+                )
             else:
                 return ln_likelihood
+
         #######################################################################
         #######################################################################
 
         # Now we can set up and run the sampler!
-        sampler = NestedSampler(lnlike, prior_transform, n_dims, bound=bound,
-                                sample=sample, #update_interval=float(n_dims),
-                                nlive=nlive, walks=walks, slices=slices)
+        sampler = NestedSampler(
+            lnlike,
+            prior_transform,
+            n_dims,
+            bound=bound,
+            sample=sample,  # update_interval=float(n_dims),
+            nlive=nlive,
+            walks=walks,
+            slices=slices,
+        )
 
         try:
             sampler.run_nested(maxiter=maxiter, maxcall=maxcall, dlogz=dlogz)
         except BaseException as e:
             # Added for testing
-            print(f'Exception ({type(e)}) encountered:')
+            print(f"Exception ({type(e)}) encountered:")
             print(e)
             if type(e) == RuntimeError:
-                print('If this is an error from sampling getting stuck, check your priors and the samples. This is often seen when the true value is at the edge of/outside your priors!')
+                print(
+                    "If this is an error from sampling getting stuck, check your priors and the samples. This is often seen when the true value is at the edge of/outside your priors!"
+                )
 
-            print('Plotting samples at time of exception')
+            print("Plotting samples at time of exception")
             # Plot the samples
-            results = sampler.results
-            results.best = results.samples[np.argmax(results.logl)]
+            #results = sampler.results
+            #results.best = results.samples[np.argmax(results.logl)]
+            results = ResultsException(sampler)
             output_handler = OutputHandler(lightcurves, self._full_prior, self.host_r)
-            output_handler._plot_samples(results, priors, 'Exception_posteriors.png', plot_folder)
+            output_handler._plot_samples(
+                results, priors, "Exception_posteriors.png", plot_folder
+            )
             raise
-
-
+        #self.all_t0= likelihood_calc.all_t0
         # Pull out the results and calculate a few additional bits of info
-        results = sampler.results
+        results = Results(sampler)
+        """results = sampler.results
 
         # Normalise weights
         results.weights = get_normalised_weights(results)
@@ -320,68 +404,118 @@ class Retriever:
 
         # Save the best fit results for easy access
         results.best = results.samples[np.argmax(results.logl)]
-        #results.best = median
+        # results.best = median"""
 
         return results, n_dof
 
-    def _run_full_retrieval(self, ld_fit_method, detrend, normalise, maxiter,
-                            maxcall, sample, nlive, dlogz,
-                            output_folder='./output_parameters',
-                            summary_file='summary_output.csv',
-                            full_output_file='full_output.csv',
-                            lightcurve_folder='./fitted_lightcurves',
-                            plot=True, plot_folder='./plots',
-                            marker_color='dimgrey', line_color='black',
-                            bound='multi', walks=100, slices=10):
-        '''
+    def _run_full_retrieval(
+        self,
+        ld_fit_method,
+        detrend,
+        normalise,
+        maxiter,
+        maxcall,
+        sample,
+        nlive,
+        dlogz,
+        output_folder="./output_parameters",
+        summary_file="summary_output.csv",
+        full_output_file="full_output.csv",
+        lightcurve_folder="./fitted_lightcurves",
+        plot=True,
+        plot_folder="./plots",
+        marker_color="dimgrey",
+        line_color="black",
+        bound="multi",
+        walks=100,
+        slices=10,
+    ):
+        """
         Runs full retrieval with no folding/batching etc. Just a straight
         forward dynesty run.
-        '''
-        priors, lightcurves = self._get_priors_and_curves(self.all_lightcurves, ld_fit_method,
-                                                          detrend=detrend,
-                                                          normalise=normalise, suppress_warnings=True)
+        """
+        priors, lightcurves = self._get_priors_and_curves(
+            self.all_lightcurves,
+            ld_fit_method,
+            detrend=detrend,
+            normalise=normalise,
+            suppress_warnings=True,
+        )
 
         # Set up output handler
         output_handler = OutputHandler(self.all_lightcurves, priors, self.host_r)
 
-        #print(priors)
-        results, ndof = self._run_dynesty(lightcurves, priors,
-                                          maxiter, maxcall, sample, nlive,
-                                          dlogz, bound, plot_folder, walks, slices)
+        # print(priors)
+        results, ndof = self._run_dynesty(
+            lightcurves,
+            priors,
+            maxiter,
+            maxcall,
+            sample,
+            nlive,
+            dlogz,
+            bound,
+            plot_folder,
+            walks,
+            slices,
+        )
         return_results = deepcopy(results)
         # Print results to terminal
         try:
-            io.print_results(results, priors, ndof)
+            print_results(results, priors, ndof)
         except Exception as e:
             print(e)
 
         # Save outputs parameters, plots, lightcurves!
         try:
-            output_handler.save_results([results], [priors], [lightcurves],
-                                             output_folder, summary_file,
-                                             full_output_file, plot_folder)
+            output_handler.save_results(
+                [results],
+                [priors],
+                [lightcurves],
+                output_folder,
+                summary_file,
+                full_output_file,
+                plot_folder,
+            )
 
         except Exception as e:
-            print('Exception raised whilst saving results:')
+            print("Exception raised whilst saving results:")
             print(e)
             traceback.print_tb(e.__traceback__)
-            print('Unable to save results')
+            print("Unable to save results")
         return return_results
 
-    def _run_batched_retrieval(self, lightcurves, batches, ld_fit_method, detrend,
-                               normalise, maxiter, maxcall, sample, nlive,
-                               dlogz, full_return=False,
-                               folded=False,
-                               folded_P=None, folded_t0=None,
-                               output_folder='./output_parameters',
-                               summary_file='summary_output.csv',
-                               full_output_file='full_output.csv',
-                               lightcurve_folder='./fitted_lightcurves',
-                               plot=True, plot_folder='./plots',
-                               marker_color='dimgrey', line_color='black',
-                               bound='multi', filter_idx=None, walks=100,
-                               slices=10, n_procs=1):
-        '''
+    def _run_batched_retrieval(
+        self,
+        lightcurves,
+        batches,
+        ld_fit_method,
+        detrend,
+        normalise,
+        maxiter,
+        maxcall,
+        sample,
+        nlive,
+        dlogz,
+        full_return=False,
+        folded=False,
+        folded_P=None,
+        folded_t0=None,
+        output_folder="./output_parameters",
+        summary_file="summary_output.csv",
+        full_output_file="full_output.csv",
+        lightcurve_folder="./fitted_lightcurves",
+        plot=True,
+        plot_folder="./plots",
+        marker_color="dimgrey",
+        line_color="black",
+        bound="multi",
+        filter_idx=None,
+        walks=100,
+        slices=10,
+        n_procs=1,
+    ):
+        """
         Runs a retrieval using the given batches
 
         lightcurves : array_like, shape (n_telescopes, n_filters, n_epochs)
@@ -389,154 +523,281 @@ class Retriever:
         full_return : bool, optional
             If True will return all_results, all_priors, all_lightcurves.
             If False, will just return all_results. Default is False
-        '''
+        """
         # Get the full prior to make the output handler
-        full_prior, full_lcs = self._get_priors_and_curves(lightcurves, ld_fit_method, None,
-                                                          detrend, normalise, folded,
-                                                          folded_P, folded_t0,
-                                                          suppress_warnings=True)
+        full_prior, full_lcs = self._get_priors_and_curves(
+            lightcurves,
+            ld_fit_method,
+            None,
+            detrend,
+            normalise,
+            folded,
+            folded_P,
+            folded_t0,
+            suppress_warnings=True,
+        )
         output_handler = OutputHandler(full_lcs, full_prior, self.host_r)
 
         n_batches = len(batches)
 
-        mp_input = [[self, batch, bi, n_batches, lightcurves, output_handler, ld_fit_method,
-                     detrend, normalise, folded, folded_P, folded_t0,
-                     maxiter, maxcall, sample, nlive, dlogz, bound,  plot_folder,
-                     walks, slices, output_folder, filter_idx] for bi, batch in enumerate(batches)]
+        mp_input = [
+            [
+                self,
+                batch,
+                bi,
+                n_batches,
+                lightcurves,
+                output_handler,
+                ld_fit_method,
+                detrend,
+                normalise,
+                folded,
+                folded_P,
+                folded_t0,
+                maxiter,
+                maxcall,
+                sample,
+                nlive,
+                dlogz,
+                bound,
+                plot_folder,
+                walks,
+                slices,
+                output_folder,
+                filter_idx,
+            ]
+            for bi, batch in enumerate(batches)
+        ]
 
-        #with mp.Pool(processes=n_procs) as pool:
+        # with mp.Pool(processes=n_procs) as pool:
+        # Cap n_procs so as not to exceed the number of cpus needed or the max number available, whichever is smaller
+        n_procs = np.amin([n_procs,len(batches),mp.cpu_count()])
         if n_procs > 1:
-            print('Since you are using more than 1 process, the output to terminal might be a bit of a mess!')
+            print('TransitFit is spawning n_procs = {:d} processes. Dynesty output might look scrambled!'.format(n_procs))
+
         pool = mp.Pool(n_procs)
         # Run the pool!
-        #batch_run_results = [pool.map_async(_run_batch, i) for i in mp_input]
+        # batch_run_results = [pool.map_async(_run_batch, i) for i in mp_input]
         batch_run_results = pool.map(_run_batch, mp_input)
         pool.close()
         pool.join()
 
         all_results = np.array([r[0] for r in batch_run_results])
         all_priors = np.array([r[1] for r in batch_run_results])
-        all_lightcurves = np.array([r[2] for r in batch_run_results])
+        all_lightcurves = [r[2] for r in batch_run_results]
 
         # Make outputs etc
-        if 'filter' in os.path.basename(plot_folder):
-            #plot_folder = os.path.dirname(plot_folder)
-            plot_folder = os.path.join(os.path.dirname(plot_folder), 'posteriors', os.path.basename(plot_folder))
+        if "filter" in os.path.basename(plot_folder):
+            # plot_folder = os.path.dirname(plot_folder)
+            plot_folder = os.path.join(
+                os.path.dirname(plot_folder),
+                "posteriors",
+                os.path.basename(plot_folder),
+            )
         else:
-            plot_folder = os.path.join(plot_folder, 'posteriors')
+            plot_folder = os.path.join(plot_folder, "posteriors")
 
-        output_handler.save_results(all_results, all_priors,
-                                    all_lightcurves, output_folder,
-                                    summary_file, full_output_file,
-                                    plot_folder, folded)
-
+        output_handler.save_results(
+            all_results,
+            all_priors,
+            all_lightcurves,
+            output_folder,
+            summary_file,
+            full_output_file,
+            plot_folder,
+            folded,
+        )
 
         if full_return:
             return all_results, all_priors, all_lightcurves
 
         return all_results
 
-    def _run_folded_retrieval(self, ld_fit_method, detrend, normalise, maxiter,
-                              maxcall, sample, nlive, dlogz,
-                              output_folder='./output_parameters',
-                              summary_file='summary_output.csv',
-                              full_output_file='full_output.csv',
-                              lightcurve_folder='./fitted_lightcurves',
-                              plot=True, plot_folder='./plots',
-                              marker_color='dimgrey', line_color='black',
-                              max_parameters=25, overlap=2, bound='multi',
-                              walks=100, slices=10, n_procs=1):
-        '''
+    def _run_folded_retrieval(
+        self,
+        ld_fit_method,
+        detrend,
+        normalise,
+        maxiter,
+        maxcall,
+        sample,
+        nlive,
+        dlogz,
+        output_folder="./output_parameters",
+        summary_file="summary_output.csv",
+        full_output_file="full_output.csv",
+        lightcurve_folder="./fitted_lightcurves",
+        plot=True,
+        plot_folder="./plots",
+        marker_color="dimgrey",
+        line_color="black",
+        max_parameters=25,
+        overlap=2,
+        bound="multi",
+        walks=100,
+        slices=10,
+        n_procs=1,
+    ):
+        """
         For each filter, runs retrieval, then produces a phase-folded
         lightcurve. Then runs retrieval across wavelengths on the folded
         curves.
-        '''
+        """
 
-        prefolded_batches = self._get_folding_batches(max_parameters, detrend, normalise, overlap)
+        prefolded_batches = self._get_folding_batches(
+            max_parameters, detrend, normalise, overlap
+        )
 
         # Blank lists to fill with results etc
         results_list = []
         priors_list = []
         lightcurve_list = []
 
-        print('Running pre-folding retrievals:')
+        print("Running pre-folding retrievals:")
         # Now run the batches for each filter
         for fi, filter_batches in enumerate(prefolded_batches):
-            print('Filter {} of {}'.format(fi + 1, self.n_filters))
+            print("Filter {} of {}".format(fi + 1, self.n_filters))
 
             # Make a bunch of paths etc for saving the partial results
-            filter_output_folder = os.path.join(output_folder, 'filter_{}_parameters'.format(fi))
-            filter_summary = 'filter_{}_summary.csv'.format(fi)
-            filter_full_output = 'filter_{}_full_output.csv'.format(fi)
-            filter_lightcurve_folder = os.path.join(lightcurve_folder, 'filter_{}_curves'.format(fi))
-            filter_plots_folder = os.path.join(plot_folder, 'filter_{}_plots'.format(fi))
+            filter_output_folder = os.path.join(
+                output_folder, "filter_{}_parameters".format(fi)
+            )
+            filter_summary = "filter_{}_summary.csv".format(fi)
+            filter_full_output = "filter_{}_full_output.csv".format(fi)
+            filter_lightcurve_folder = os.path.join(
+                lightcurve_folder, "filter_{}_curves".format(fi)
+            )
+            filter_plots_folder = os.path.join(
+                plot_folder, "filter_{}_plots".format(fi)
+            )
 
-            results, priors, lightcurves = self._run_batched_retrieval(self.all_lightcurves,
-                                            filter_batches,
-                                            ld_fit_method,
-                                            detrend, normalise,
-                                            maxiter, maxcall,
-                                            sample, nlive, dlogz,
-                                            full_return=True,
-                                            output_folder=filter_output_folder,
-                                            summary_file=filter_summary,
-                                            full_output_file=filter_full_output,
-                                            lightcurve_folder=filter_lightcurve_folder,
-                                            plot=plot, plot_folder=filter_plots_folder,
-                                            marker_color=marker_color, line_color=line_color,
-                                            bound=bound, filter_idx=fi, walks=walks, slices=slices, n_procs=n_procs)
+            results, priors, lightcurves = self._run_batched_retrieval(
+                self.all_lightcurves,
+                filter_batches,
+                ld_fit_method,
+                detrend,
+                normalise,
+                maxiter,
+                maxcall,
+                sample,
+                nlive,
+                dlogz,
+                full_return=True,
+                output_folder=filter_output_folder,
+                summary_file=filter_summary,
+                full_output_file=filter_full_output,
+                lightcurve_folder=filter_lightcurve_folder,
+                plot=plot,
+                plot_folder=filter_plots_folder,
+                marker_color=marker_color,
+                line_color=line_color,
+                bound=bound,
+                filter_idx=fi,
+                walks=walks,
+                slices=slices,
+                n_procs=n_procs,
+            )
 
             results_list.append(results)
             priors_list.append(priors)
             lightcurve_list.append(lightcurves)
 
         # Now fold the lightcurves
-        print('Folding lightcurves...')
-        folded_curves, folded_P, folded_t0 = self._fold_lightcurves(results_list, priors_list, lightcurve_list)
+        print("Folding lightcurves...")
+        folded_curves, folded_P, folded_t0 = self._fold_lightcurves(
+            results_list, priors_list, lightcurve_list
+        )
 
         # Plot the folded lightcurves so we can check them
         for lci, lc in np.ndenumerate(folded_curves):
-            quick_fname = 'quick_plot-folded_curve_filter_{}.png'.format(lci[1])
-            quick_folder = os.path.join(plot_folder, 'folded_curves/quicklook')
+            quick_fname = "quick_plot-folded_curve_filter_{}.png".format(lci[1])
+            quick_folder = os.path.join(plot_folder, "folded_curves/quicklook")
             quick_plot(lc, quick_fname, quick_folder, folded_t0, folded_P)
 
-            print(f'Saving filter {lci[1]} quicklooks...')
-            print(f'Phase plot saved to {os.path.join(quick_folder, quick_fname)}')
+            print(f"Saving filter {lci[1]} quicklooks...")
+            print(f"Phase plot saved to {os.path.join(quick_folder, quick_fname)}")
 
-            # output the folded curves to file
-            quicksave_path = os.path.join(lightcurve_folder, 'quicklook', f'quick_plot-folded_curve_filter_{lci[1]}.csv')
+            # output the folded curves to file
+            quicksave_path = os.path.join(
+                lightcurve_folder,
+                "quicklook",
+                f"quick_plot-folded_curve_filter_{lci[1]}.csv",
+            )
             lc.save(quicksave_path)
-            print(f'Data file saved to {quicksave_path}')
-
-
+            print(f"Data file saved to {quicksave_path}")
 
         # Get the batches, and remember that now we are not detrending or
         # normalising since that was done in the first stage
-        folded_batches = self._get_non_folding_batches(folded_curves, max_parameters, ld_fit_method,
-                                     detrend=False, normalise=False, overlap=overlap)
+        folded_batches = self._get_non_folding_batches(
+            folded_curves,
+            max_parameters,
+            ld_fit_method,
+            detrend=False,
+            normalise=False,
+            overlap=overlap,
+        )
 
-        print('Running folded retrievals...')
+        print("Running folded retrievals...")
 
-        folded_results = self._run_batched_retrieval(folded_curves, folded_batches, ld_fit_method, False,
-                        False, maxiter, maxcall, sample, nlive, dlogz,
-                        False, True, folded_P, folded_t0, output_folder=output_folder,
-                        summary_file=summary_file, full_output_file=full_output_file,
-                        lightcurve_folder=lightcurve_folder, plot=plot, plot_folder=plot_folder,
-                        marker_color=marker_color, line_color=line_color, bound=bound, walks=walks, slices=slices, n_procs=n_procs)
+        folded_results = self._run_batched_retrieval(
+            folded_curves,
+            folded_batches,
+            ld_fit_method,
+            False,
+            False,
+            maxiter,
+            maxcall,
+            sample,
+            nlive,
+            dlogz,
+            False,
+            True,
+            folded_P,
+            folded_t0,
+            output_folder=output_folder,
+            summary_file=summary_file,
+            full_output_file=full_output_file,
+            lightcurve_folder=lightcurve_folder,
+            plot=plot,
+            plot_folder=plot_folder,
+            marker_color=marker_color,
+            line_color=line_color,
+            bound=bound,
+            walks=walks,
+            slices=slices,
+            n_procs=n_procs,
+        )
 
-    def run_retrieval(self, ld_fit_method='independent', fitting_mode='auto',
-                      max_parameters=25, maxiter=None, maxcall=None,
-                      sample='auto', nlive=300, dlogz=None, plot=True,
-                      output_folder='./output_parameters',
-                      lightcurve_folder='./fitted_lightcurves',
-                      summary_file='summary_output.csv',
-                      full_output_file='full_output.csv',
-                      plot_folder='./plots', marker_color='dimgray',
-                      line_color='black', bound='multi',
-                      normalise=True, detrend=True, overlap=2,
-                      bin_data=True, cadence=2, binned_color='red', walks=100,
-                      slices=10, n_procs=1):
-        '''
+    def run_retrieval(
+        self,
+        ld_fit_method="independent",
+        fitting_mode="auto",
+        max_parameters=25,
+        maxiter=None,
+        maxcall=None,
+        sample="auto",
+        nlive=300,
+        dlogz=None,
+        plot=True,
+        output_folder="./output_parameters",
+        lightcurve_folder="./fitted_lightcurves",
+        summary_file="summary_output.csv",
+        full_output_file="full_output.csv",
+        plot_folder="./plots",
+        marker_color="dimgray",
+        line_color="black",
+        bound="multi",
+        normalise=True,
+        detrend=True,
+        overlap=2,
+        bin_data=True,
+        cadence=2,
+        binned_color="red",
+        walks=100,
+        slices=10,
+        n_procs=1,
+    ):
+        """
         Runs dynesty on the data. Different modes exist and can be specified
         using the kwargs.
 
@@ -606,81 +867,175 @@ class Retriever:
             `ln(z + z_est) - ln(z) < dlogz`, where z is the current evidence
             from all saved samples and z_est is the estimated contribution from
             the remaining volume. The default is `1e-3 * (nlive - 1) + 0.01`.
-        '''
+        """
+        
         # Auto mode detect
-        if fitting_mode.lower() == 'auto':
+        if fitting_mode.lower() == "auto":
             # Generate the basic PriorInfo, needed to calculate how many
             # parameters would be fitted
-            n_params_for_complete = self._calculate_n_params(self.all_lightcurves,
-                                                             None, ld_fit_method,
-                                                             normalise,
-                                                             detrend)
+            n_params_for_complete = self._calculate_n_params(
+                self.all_lightcurves, None, ld_fit_method, normalise, detrend
+            )
 
-            if n_params_for_complete > max_parameters and not self.n_total_lightcurves == 1:
+            if (
+                n_params_for_complete > max_parameters
+                and not self.n_total_lightcurves == 1
+            ):
                 # We have more than one lightcurve to fit - we can batch
                 # If one filter has >= 3 epochs, we can do folded mode
-                n_epochs_in_filter = np.sum(self.all_lightcurves!=None, axis=(2,0))
+                n_epochs_in_filter = np.sum(self.all_lightcurves != None, axis=(2, 0))
 
                 if np.any(n_epochs_in_filter >= 3):
                     print("Auto mode detect has set 'folded' mode")
-                    fitting_mode = 'folded'
+                    fitting_mode = "folded"
                 else:
                     print("Auto mode detect has set 'batched' mode")
-                    fitting_mode = 'batched'
+                    fitting_mode = "batched"
             else:
                 print("Auto mode detect has set 'all' mode")
-                fitting_mode = 'all'
+                fitting_mode = "all"
 
-        if fitting_mode.lower() == 'all':
+        if fitting_mode.lower() == "all":
             # In this mode, we are just running everything through a single
             # dynesty retrieval, not batching or anything.
-            results = self._run_full_retrieval(ld_fit_method, detrend, normalise,
-                    maxiter, maxcall, sample, nlive, dlogz, output_folder,
-                    summary_file, full_output_file, lightcurve_folder, plot,
-                    plot_folder, marker_color, line_color, bound, walks, slices)
+            results = self._run_full_retrieval(
+                ld_fit_method,
+                detrend,
+                normalise,
+                maxiter,
+                maxcall,
+                sample,
+                nlive,
+                dlogz,
+                output_folder,
+                summary_file,
+                full_output_file,
+                lightcurve_folder,
+                plot,
+                plot_folder,
+                marker_color,
+                line_color,
+                bound,
+                walks,
+                slices,
+            )
 
-        elif fitting_mode.lower() == 'batched':
+        elif fitting_mode.lower() == "batched":
             # In this mode, we are generating batches which contain all
             # lightcurves for a filter. Batches may contain more than one
             # filter, but filters will not be split across multiple batches
 
             # Calculate the batches
-            batches = self._get_non_folding_batches(self.all_lightcurves, max_parameters, detrend, normalise, overlap)
+            batches = self._get_non_folding_batches(
+                self.all_lightcurves, max_parameters, detrend, normalise, overlap
+            )
 
-            results =  self._run_batched_retrieval(self.all_lightcurves, batches, ld_fit_method,detrend,
-                    normalise, maxiter, maxcall, sample, nlive, dlogz, False,
-                    False, None, None, output_folder, summary_file,
-                    full_output_file, lightcurve_folder, plot, plot_folder,
-                    marker_color, line_color, bound, None, walks, slices, n_procs)
+            results = self._run_batched_retrieval(
+                self.all_lightcurves,
+                batches,
+                ld_fit_method,
+                detrend,
+                normalise,
+                maxiter,
+                maxcall,
+                sample,
+                nlive,
+                dlogz,
+                False,
+                False,
+                None,
+                None,
+                output_folder,
+                summary_file,
+                full_output_file,
+                lightcurve_folder,
+                plot,
+                plot_folder,
+                marker_color,
+                line_color,
+                bound,
+                None,
+                walks,
+                slices,
+                n_procs,
+            )
 
-
-        elif fitting_mode.lower() == 'folded':
+        elif fitting_mode.lower() == "folded":
             # In this mode, we are running multi-epoch retrieval on each
             # filter separately, and then producing phase folded lightcurves
             # to run a multi-filter retrieval on.
-            results = self._run_folded_retrieval(ld_fit_method, detrend, normalise,
-                    maxiter, maxcall, sample, nlive, dlogz, output_folder,
-                    summary_file, full_output_file, lightcurve_folder, plot,
-                    plot_folder, marker_color, line_color, max_parameters, overlap, bound, walks, slices, n_procs)
+            results = self._run_folded_retrieval(
+                ld_fit_method,
+                detrend,
+                normalise,
+                maxiter,
+                maxcall,
+                sample,
+                nlive,
+                dlogz,
+                output_folder,
+                summary_file,
+                full_output_file,
+                lightcurve_folder,
+                plot,
+                plot_folder,
+                marker_color,
+                line_color,
+                max_parameters,
+                overlap,
+                bound,
+                walks,
+                slices,
+                n_procs,
+            )
 
-        full_prior, _ = self._get_priors_and_curves(self.all_lightcurves, ld_fit_method, None, detrend, normalise, suppress_warnings=True)
+        full_prior, _ = self._get_priors_and_curves(
+            self.all_lightcurves,
+            ld_fit_method,
+            None,
+            detrend,
+            normalise,
+            suppress_warnings=True,
+        )
 
         output_handler = OutputHandler(self.all_lightcurves, full_prior, self.host_r)
 
-        output_handler.save_complete_results(fitting_mode, full_prior, output_folder, summary_file)
+        output_handler.save_complete_results(
+            fitting_mode, full_prior, output_folder, summary_file
+        )
 
-        output_handler.save_final_light_curves(self.all_lightcurves, full_prior, lightcurve_folder)
+        output_handler.save_final_light_curves(
+            self.all_lightcurves, full_prior, lightcurve_folder
+        )
 
-        output_handler.plot_final_light_curves(self.all_lightcurves, full_prior, plot_folder, marker_color=marker_color, line_color=line_color, bin_data=bin_data, cadence=2, binned_color=binned_color)
+        output_handler.plot_final_light_curves(
+            self.all_lightcurves,
+            full_prior,
+            plot_folder,
+            marker_color=marker_color,
+            line_color=line_color,
+            bin_data=bin_data,
+            cadence=2,
+            binned_color=binned_color,
+            
+        )
 
     ##########################################################
     #            PRIOR MANIPULATION                          #
     ##########################################################
-    def _get_priors_and_curves(self, lightcurves, ld_fit_method, indices=None,
-                               detrend=True, normalise=True, folded=False,
-                               folded_P=None, folded_t0=None,
-                               suppress_warnings=False):
-        '''
+    def _get_priors_and_curves(
+        self,
+        lightcurves,
+        ld_fit_method,
+        indices=None,
+        detrend=True,
+        normalise=True,
+        folded=False,
+        folded_P=None,
+        folded_t0=None,
+        suppress_warnings=False,
+    ):
+        """
         Generates a prior info for a particular run:
 
         Parameters
@@ -719,11 +1074,11 @@ class Retriever:
             The LightCurves in the correct format, with detrending and
             normalisation initialised
 
-        '''
+        """
         # Sort out indices and number of filters etc here.
         if indices is None:
             indices = tuple(np.array(list(np.ndindex(lightcurves.shape))).T)
-        #indices = self._format_indices(indices)
+        # indices = self._format_indices(indices)
 
         unique_indices = self._get_unique_indices(indices)
 
@@ -732,7 +1087,7 @@ class Retriever:
 
         if folded:
             if filter_indices is None:
-                raise ValueError('filter_indices must be provided for folded PriorInfo')
+                raise ValueError("filter_indices must be provided for folded PriorInfo")
 
             lightcurve_subset = self._get_lightcurve_subset(lightcurves, indices)
 
@@ -745,7 +1100,9 @@ class Retriever:
         else:
             # get the lightcurve and detrending index array into the right shapes
             # and extract the relevant info.
-            lightcurve_subset = self._get_lightcurve_subset(self.all_lightcurves, indices)
+            lightcurve_subset = self._get_lightcurve_subset(
+                self.all_lightcurves, indices
+            )
             detrending_indices = self._get_detrending_subset(indices)
 
             # Get unique indices and work out number of filters etc
@@ -753,61 +1110,86 @@ class Retriever:
             n_filters = len(unique_indices[1])
             n_epochs = len(unique_indices[2])
 
-
         if self.host_r is not None:
             host_r = self.host_r[0]
         else:
-            host_r=None
+            host_r = None
 
         # Set up the basic PriorInfo
         if type(self._prior_input) == str:
             # read in priors from a file
-            priors = read_priors_file(self._prior_input,
-                                      n_telescopes,
-                                      n_filters,
-                                      n_epochs,
-                                      self.limb_darkening_model,
-                                      filter_indices,
-                                      folded, folded_P, folded_t0, host_r,
-                                      self.allow_ttv, lightcurve_subset,
-                                      suppress_warnings)
+            priors = read_priors_file(
+                self._prior_input,
+                n_telescopes,
+                n_filters,
+                n_epochs,
+                self.limb_darkening_model,
+                filter_indices,
+                folded,
+                folded_P,
+                folded_t0,
+                host_r,
+                self.allow_ttv,
+                lightcurve_subset,
+                suppress_warnings,
+            )
         else:
             # Reading in from a list
-            priors = parse_priors_list(self._prior_input,
-                                       n_telescopes,
-                                       n_filters,
-                                       n_epochs,
-                                       self.limb_darkening_model,
-                                       filter_indices,
-                                       folded, folded_P, folded_t0,
-                                       host_r, self.allow_ttv, lightcurve_subset,
-                                       suppress_warnings)
+            priors = parse_priors_list(
+                self._prior_input,
+                n_telescopes,
+                n_filters,
+                n_epochs,
+                self.limb_darkening_model,
+                filter_indices,
+                folded,
+                folded_P,
+                folded_t0,
+                host_r,
+                self.allow_ttv,
+                lightcurve_subset,
+                suppress_warnings,
+            )
 
         # Set up limb darkening
-        if not ld_fit_method.lower() == 'off':
-            if ld_fit_method.lower() == 'independent':
+        if not ld_fit_method.lower() == "off":
+            if ld_fit_method.lower() == "independent":
                 priors.fit_limb_darkening(ld_fit_method)
-            elif ld_fit_method.lower() in ['coupled', 'single']:
+            elif ld_fit_method.lower() in ["coupled", "single"]:
                 if self._filter_input is None:
-                    raise ValueError('filter_info must be provided for coupled and single ld_fit_methods')
+                    raise ValueError(
+                        "filter_info must be provided for coupled and single ld_fit_methods"
+                    )
                 if self.host_T is None or self.host_z is None or self.host_logg is None:
-                    raise ValueError('Filter info was provided but I am missing information on the host!')
-                priors.fit_limb_darkening(ld_fit_method, self.host_T,
-                                          self.host_logg, self.host_z,
-                                          self.filters[filter_indices],
-                                          self.n_ld_samples, self.do_ld_mc,
-                                          self.ldtk_cache,)
+                    raise ValueError(
+                        "Filter info was provided but I am missing information on the host!"
+                    )
+                priors.fit_limb_darkening(
+                    ld_fit_method,
+                    self.host_T,
+                    self.host_logg,
+                    self.host_z,
+                    self.filters[filter_indices],
+                    self.n_ld_samples,
+                    self.do_ld_mc,
+                    self.ldtk_cache,
+                )
             else:
-                raise ValueError("Unrecognised ld_fit_method '{}'".format(ld_fit_method))
+                raise ValueError(
+                    "Unrecognised ld_fit_method '{}'".format(ld_fit_method)
+                )
 
         if detrend:
-            priors.fit_detrending(lightcurve_subset,
-                                  self.detrending_info, detrending_indices,
-                                  self.detrending_limits)
+            priors.fit_detrending(
+                lightcurve_subset,
+                self.detrending_info,
+                detrending_indices,
+                self.detrending_limits,
+            )
 
         # Set up normalisation
         if normalise:
-            priors.fit_normalisation(lightcurve_subset)
+            priors.fit_normalisation(lightcurve_subset,self.normalise_limits)
 
         return priors, lightcurve_subset
 
@@ -815,7 +1197,7 @@ class Retriever:
     #          LIGHTCURVE MANIPULATION                       #
     ##########################################################
     def _fold_lightcurves(self, results, priors, lightcurves):
-        '''
+        """
         Produces a set of folded lightcurves which can then be fitted across
         filters
 
@@ -837,7 +1219,7 @@ class Retriever:
             The period that the lightcurves are folded with
         folded_t0 : float
             The t0 that all lightcurves are centred on.
-        '''
+        """
         # For each filter, go through the results and extract the best fit
         # values and uncertainties. For global values, we take the weighted
         # average and then use the detrending, normalisation, P and t0 values
@@ -849,13 +1231,17 @@ class Retriever:
         ###############################################################
         ###                  GET P AND t0 VALUES                    ###
         ###############################################################
-        result_handler = OutputHandler(self.all_lightcurves, self._full_prior, self.host_r)
+        result_handler = OutputHandler(
+            self.all_lightcurves, self._full_prior, self.host_r
+        )
 
         results_dicts = []
         for fi in range(n_filters):
             n_batches = len(results[fi])
             for bi in range(n_batches):
-                result_dict = result_handler.get_results_dict(results[fi][bi], priors[fi][bi], lightcurves[fi][bi])
+                result_dict = result_handler.get_results_dict(
+                    results[fi][bi], priors[fi][bi], lightcurves[fi][bi]
+                )
                 results_dicts.append(result_dict)
 
         combined_results = result_handler.combine_results_dicts(results_dicts)
@@ -863,23 +1249,37 @@ class Retriever:
         # Get best P value
         if self.allow_ttv:
             # P is fixed
-            best_P, best_P_err = combined_results['P'][None,None,None][0,0], 0
+            best_P, best_P_err = combined_results["P"][None, None, None][0, 0], 0
         else:
-            best_P, best_P_err = weighted_avg_and_std(combined_results['P'][None,None,None][:,0], combined_results['P'][None,None,None][:,-1], single_val=True)
+            best_P, best_P_err = weighted_avg_and_std(
+                combined_results["P"][None, None, None][:, 0],
+                combined_results["P"][None, None, None][:, -1],
+                single_val=True,
+            )
 
-        # Get bast t0 values, allowing for ttv mode
-        best_t0, best_t0_err = np.full(self.n_epochs, None), np.full(self.n_epochs, None)
+        # Get best t0 values, allowing for ttv mode
+        best_t0, best_t0_err = np.full(self.n_epochs, None), np.full(
+            self.n_epochs, None
+        )
 
         for ei in range(self.n_epochs):
-            best_t0[ei], best_t0_err[ei] = weighted_avg_and_std(combined_results['t0'][None,None,ei][:,0], combined_results['t0'][None,None,ei][:,-1], single_val=True)
+            best_t0[ei], best_t0_err[ei] = weighted_avg_and_std(
+                combined_results["t0"][None, None, ei][:, 0],
+                combined_results["t0"][None, None, ei][:, -1],
+                single_val=True,
+            )
 
-        print('Folding light curves with these parameters:')
-        print('P = {} ± {}'.format(round(best_P, 8),  round(best_P_err, 8)))
+        print("Folding light curves with these parameters:")
+        print("P = {} ± {}".format(round(best_P, 8), round(best_P_err, 8)))
         if self.allow_ttv:
             for i, t0i in enumerate(best_t0):
-                print('t0 = {} ± {} (epoch {})'.format(round(t0i, 6),  round(best_t0_err[i], 6), i))
+                print(
+                    "t0 = {} ± {} (epoch {})".format(
+                        round(t0i, 6), round(best_t0_err[i], 6), i
+                    )
+                )
         else:
-            print('t0 = {} ± {}'.format(round(best_t0[0],6),  round(best_t0_err[0],6)))
+            print("t0 = {} ± {}".format(round(best_t0[0], 6), round(best_t0_err[0], 6)))
 
         ###############################################################
         ###            NORMALISATION/DETRENDING/FOLDING             ###
@@ -899,17 +1299,39 @@ class Retriever:
                     # Now get the weighted best values for them!
                     best_d = []
                     for d in detrending_coeffs:
-                        best_d.append(weighted_avg_and_std(combined_results[d][li][:,0],combined_results[d][li][:,-1], single_val=True)[0])
+                        best_d.append(
+                            weighted_avg_and_std(
+                                combined_results[d][li][:, 0],
+                                combined_results[d][li][:, -1],
+                                single_val=True,
+                            )[0]
+                        )
+                    #best_d_new=best_d.append(best_t0[li[2]])
+                    #best_d_new=[*best_d,*best_t0[li[2]]]
+
+                    #print(best_d,'A',best_d_new)
                 else:
                     best_d = None
+                    #best_d_new=[best_d,*best_t0[li[2]]]
+                    #print(best_d,'B',best_d_new)
+                
+                try:    
+                    best_d_new=[*best_d,best_t0[li[2]],best_P]
+                except TypeError:
+                    best_d_new=[best_d,best_t0[li[2]],best_P]
 
                 if self._full_prior.normalise:
-                    norm = weighted_avg_and_std(combined_results['norm'][li][:,0],combined_results['norm'][li][:,-1], single_val=True)[0]
+                    norm = weighted_avg_and_std(
+                        combined_results["norm"][li][:, 0],
+                        combined_results["norm"][li][:, -1],
+                        single_val=True,
+                    )[0]
                 else:
                     norm = 1
 
                 # Make the detrended light curve and fold to the final t0
-                detrended_curve = lc.create_detrended_LightCurve(best_d, norm)
+                #detrended_curve = lc.create_detrended_LightCurve(best_d, norm)
+                detrended_curve = lc.create_detrended_LightCurve(best_d_new, norm)
 
                 # Fold the curve using the best t0 for the epoch and P
                 # We are folding each curve to be centred on best_t0[0]
@@ -925,16 +1347,19 @@ class Retriever:
                 # No need to combine
                 final_lightcurves.append(filter_curves[0])
             else:
-                combined_curve = filter_curves[0].combine(filter_curves[1:], filter_idx=fi)
+                combined_curve = filter_curves[0].combine(
+                    filter_curves[1:], filter_idx=fi
+                )
                 # Need to loop and combine
                 final_lightcurves.append(combined_curve)
 
-        return np.array(final_lightcurves).reshape(1, self.n_filters, 1), best_P, best_t0[0]
+        return (
+            np.array(final_lightcurves).reshape(1, self.n_filters, 1),
+            best_P,
+            best_t0[0],
+        )
 
-
-
-
-        '''
+        """
         # Now we do the detrending stuff and fold the lightcurves
         # Remember that each batch will only contain one filter
 
@@ -989,12 +1414,12 @@ class Retriever:
                 final_lightcurves.append(combined_curve)
 
         return np.array(final_lightcurves).reshape(1, self.n_filters, 1), best_P, best_t0[0]
-        '''
+        """
 
     def _get_lightcurve_subset(self, lightcurves, indices):
-        '''
+        """
         Pulls out the subset of lightcurves given by the indices.
-        '''
+        """
         # Get the unique indices
         unique_indices = self._get_unique_indices(indices)
         # Make some empty arrays for us to populate
@@ -1010,12 +1435,12 @@ class Retriever:
         return lightcurves_subset
 
     def _get_detrending_subset(self, indices):
-        '''
+        """
         Pulls out the detrending indices for the given
         telescope, filter and epoch indices (given as tuple), assuming that we
         are working on all input lightcurves, not a folded version (though that
         shouldn't be using this function)
-        '''
+        """
         # Get the unique indices
         unique_indices = self._get_unique_indices(indices)
 
@@ -1026,16 +1451,25 @@ class Retriever:
         # attributes (e.g. from detrending twice)
         for index in np.array(indices).T:
             subset_index = self._full_to_subset_index(indices, index)
-            detrending_indices[subset_index] = deepcopy(self.detrending_index_array[tuple(index)])
+            detrending_indices[subset_index] = deepcopy(
+                self.detrending_index_array[tuple(index)]
+            )
 
         return detrending_indices
 
     ##########################################################
     #        FUNCTIONS FOR BATCHING ETC                      #
     ##########################################################
-    def _get_folding_batches(self, max_parameters, ld_fit_method,
-                             detrend, normalise, overlap=2, random_order=True):
-        '''
+    def _get_folding_batches(
+        self,
+        max_parameters,
+        ld_fit_method,
+        detrend,
+        normalise,
+        overlap=2,
+        random_order=True,
+    ):
+        """
         Splits all_lightcurves into single-filter, multi-epoch batches
         to be fitted, which will allow us to produce folded lightcurves. This
         includes the option to have batches overlapping so that they share some
@@ -1062,8 +1496,8 @@ class Retriever:
         -------
         batches : array_like, shape (n_filters,)
             Each entry in the array is a list of batches for the given filter.
-        '''
-        # All of the batches. Each entry will be the batches for a filter
+        """
+        # All of the batches. Each entry will be the batches for a filter
         all_batches = []
 
         # Loop through each filter
@@ -1072,7 +1506,7 @@ class Retriever:
             filter_batches = []
 
             # Find the indices of the lightcurves within the filter
-            indices = np.where(self.all_lightcurves[:,fi,:] != None)
+            indices = np.where(self.all_lightcurves[:, fi, :] != None)
             n_curves = len(indices[0])
             # Randomise the order to minimise correlations
             if random_order:
@@ -1101,8 +1535,13 @@ class Retriever:
                     # current single_batch
                     test_batch = tuple((single_batch[j] + [idx[j]] for j in range(3)))
                     # Get the number of parameters for the test_batch
-                    n_params = self._calculate_n_params(self.all_lightcurves, test_batch, ld_fit_method,
-                                                        normalise, detrend)
+                    n_params = self._calculate_n_params(
+                        self.all_lightcurves,
+                        test_batch,
+                        ld_fit_method,
+                        normalise,
+                        detrend,
+                    )
 
                     if n_params <= max_parameters:
                         # Add the lightcurve to the single batch and carry on
@@ -1132,7 +1571,14 @@ class Retriever:
                                 start_idx = i - overlap
 
                             else:
-                                print('Unable to ensure overlap of {} between batch {} and {} for filter {}'.format(overlap, len(filter_batches), len(filter_batches) + 1, fi))
+                                print(
+                                    "Unable to ensure overlap of {} between batch {} and {} for filter {}".format(
+                                        overlap,
+                                        len(filter_batches),
+                                        len(filter_batches) + 1,
+                                        fi,
+                                    )
+                                )
 
                                 if len(single_batch[0]) > 1:
                                     # We can at least try for an overlap of 1
@@ -1153,9 +1599,10 @@ class Retriever:
             all_batches.append(filter_batches)
         return all_batches
 
-    def _get_non_folding_batches(self, lightcurves, max_parameters,
-                                 ld_fit_method, detrend, normalise, overlap=2):
-        '''
+    def _get_non_folding_batches(
+        self, lightcurves, max_parameters, ld_fit_method, detrend, normalise, overlap=2
+    ):
+        """
         Splits lightcurves into batches by filter, attempting to ensure that
         batches do not require more than max_parameters to fit. Each batch will
         contain every light curve in the filter, which trumps max_parameters.
@@ -1187,7 +1634,7 @@ class Retriever:
             (telescope indices, filter indices, epoch indices) using the
             indices of lightcurves. Each of these batches can then be passed to
             _get_priors_and_curves.
-        '''
+        """
         # Get some info out of the lightcurves
         n_telescopes, n_filters, n_epochs = lightcurves.shape
 
@@ -1214,18 +1661,23 @@ class Retriever:
                 # this filter were added to the batch.
 
                 # First, get the indices of lightcurves in the filter:
-                indices = np.where(lightcurves[:,fi,:] != None)
+                indices = np.where(lightcurves[:, fi, :] != None)
                 n_curves = len(indices[0])
 
                 # Put the fi index back into indices tuple, converting to list
-                indices = (list(indices[0]), list(np.full(n_curves, fi)), list(indices[1]))
+                indices = (
+                    list(indices[0]),
+                    list(np.full(n_curves, fi)),
+                    list(indices[1]),
+                )
 
                 # Make the test batch
                 test_batch = tuple((single_batch[j] + indices[j] for j in range(3)))
 
                 # Get the number of params for the test batch
-                n_params = self._calculate_n_params(lightcurves, test_batch, ld_fit_method,
-                                                    normalise, detrend)
+                n_params = self._calculate_n_params(
+                    lightcurves, test_batch, ld_fit_method, normalise, detrend
+                )
 
                 if n_params <= max_parameters:
                     # Add the filter to the batch
@@ -1258,14 +1710,18 @@ class Retriever:
                             start_idx = fi - overlap
 
                         else:
-                            print('Unable to ensure overlap of {} between batch {} and batch {}'.format(overlap, len(all_batches), len(all_batches) + 1))
+                            print(
+                                "Unable to ensure overlap of {} between batch {} and batch {}".format(
+                                    overlap, len(all_batches), len(all_batches) + 1
+                                )
+                            )
 
                             # Can we at least try to get an overlap of 1?
                             if filters_in_batch > 1:
-                                print('Attempting overlap of 1')
+                                print("Attempting overlap of 1")
                                 start_idx = fi - 1
                             else:
-                                print('Overlap cannot be made')
+                                print("Overlap cannot be made")
                                 # We just can't overlap. Ah well
                                 start_idx = fi
 
@@ -1282,8 +1738,10 @@ class Retriever:
     ##########################################################
     #             UTILITY FUNCTIONS                          #
     ##########################################################
-    def _calculate_n_params(self, lightcurves, indices, ld_fit_method, normalise, detrend):
-        '''
+    def _calculate_n_params(
+        self, lightcurves, indices, ld_fit_method, normalise, detrend
+    ):
+        """
         Calculates the number of parameters which would be fitted for a
         given set of filter and epoch indices
 
@@ -1296,7 +1754,7 @@ class Retriever:
             The tuple of indices to consider. Must be given as
             (telescope_indices, filter_indices, epoch_indices)
 
-        '''
+        """
         indices = self._format_indices(indices)
 
         lightcurve_subset = self._get_lightcurve_subset(lightcurves, indices)
@@ -1317,9 +1775,9 @@ class Retriever:
             n_params += n_epochs
 
         # Account for filter-specific parameters - rp and LD coeffs
-        if ld_fit_method in ['independent', 'coupled']:
+        if ld_fit_method in ["independent", "coupled"]:
             n_params += n_filters * (1 + self.n_ld_params)
-        else: # single fitting mode being used
+        else:  # single fitting mode being used
             n_params += n_filters + self.n_ld_params
 
         # Account for normalisation
@@ -1334,34 +1792,38 @@ class Retriever:
                     detrending_index = detrending_indices[subset_i][0]
                     detrending_info = self.detrending_info[detrending_index]
                     detrending_model = self.detrending_models[detrending_index]
-                    if detrending_info[0] in ['nth order', 'custom']:
+                    if detrending_info[0] in ["nth order", "custom"]:
                         n_params += detrending_model.n_params
-                    elif detrending_info[0] == 'off':
+                    elif detrending_info[0] == "off":
                         pass
                     else:
-                        raise ValueError('Unrecognised detrending model {}'.format(detrending_info[0]))
+                        raise ValueError(
+                            "Unrecognised detrending model {}".format(
+                                detrending_info[0]
+                            )
+                        )
 
         return n_params
 
     def _format_indices(self, indices):
-        '''
+        """
         If passed a set of indices, checks they are usable.
         If indices is None, sets them to cover all of the possible values
-        '''
+        """
         if indices is None:
             return tuple(np.array(list(np.ndindex(self.all_lightcurves.shape))).T)
 
         return indices
 
     def _get_unique_indices(self, indices):
-        '''
+        """
         When given a tuple of indices of all light curves to consider,
         gets all the unique values
-        '''
+        """
         return [np.unique(i) for i in indices]
 
     def _full_to_subset_index(self, subset_indices, full_index):
-        '''
+        """
         Converts an index which uses the notation of full parameter space to
         a subset. USeful for converting between overall indexing and indexing
         within a batch
@@ -1372,13 +1834,16 @@ class Retriever:
             The indices which define the full subset of light curves
         full_index : array_like, shape (3, )
             The full-notation index to be converted
-        '''
+        """
         unique_indices = self._get_unique_indices(subset_indices)
 
-        return tuple((np.where(unique_indices[i] == full_index[i])[0]) for i in range(len(full_index)))
+        return tuple(
+            (np.where(unique_indices[i] == full_index[i])[0])
+            for i in range(len(full_index))
+        )
 
     def _subset_to_full_index(self, subset_indices, subset_index):
-        '''
+        """
         Converts an index from notation within a batch to the full indexing.
         Inverse of _full_to_subset_index
 
@@ -1388,7 +1853,7 @@ class Retriever:
             The indices which define the full subset of light curves
         subset_index : array_like, shape (3, )
             The subset-notation index to be converted
-        '''
+        """
         unique_indices = self._get_unique_indices(subset_indices)
 
         return unique_indices[subset_index]
@@ -1397,20 +1862,66 @@ class Retriever:
 # External definition of running retrieval on a batch. Exists for
 # parallelisation purposes.
 def _run_batch(x):
-    '''
+    """
     Subprocess to run a batch
-    '''
-    retriever, batch, bi, n_batches, lightcurves, output_handler, ld_fit_method, detrend, normalise, folded, folded_P, folded_t0, maxiter, maxcall, sample, nlive, dlogz, bound, plot_folder, walks, slices, output_folder, filter_idx = x
+    """
+    (
+        retriever,
+        batch,
+        bi,
+        n_batches,
+        lightcurves,
+        output_handler,
+        ld_fit_method,
+        detrend,
+        normalise,
+        folded,
+        folded_P,
+        folded_t0,
+        maxiter,
+        maxcall,
+        sample,
+        nlive,
+        dlogz,
+        bound,
+        plot_folder,
+        walks,
+        slices,
+        output_folder,
+        filter_idx,
+    ) = x
 
-    print('Running batch {} of {}'.format(bi+1, n_batches))
+    print("Running batch {} of {}".format(bi + 1, n_batches))
     # Now we want to get the lightcurves and priors for each batch
-    batch_prior, batch_lightcurves = retriever._get_priors_and_curves(lightcurves, ld_fit_method, batch, detrend, normalise, folded, folded_P, folded_t0, suppress_warnings=True)
+    batch_prior, batch_lightcurves = retriever._get_priors_and_curves(
+        lightcurves,
+        ld_fit_method,
+        batch,
+        detrend,
+        normalise,
+        folded,
+        folded_P,
+        folded_t0,
+        suppress_warnings=True,
+    )
 
     # Run the retrieval!
-    results, ndof = retriever._run_dynesty(batch_lightcurves, batch_prior, maxiter,
-                                      maxcall, sample, nlive,
-                                      dlogz, bound, plot_folder, walks, slices)
+    results, ndof = retriever._run_dynesty(
+        batch_lightcurves,
+        batch_prior,
+        maxiter,
+        maxcall,
+        sample,
+        nlive,
+        dlogz,
+        bound,
+        plot_folder,
+        walks,
+        slices,
+    )
 
-    output_handler._quicksave_result(results, batch_prior, batch_lightcurves, output_folder, filter_idx, bi)
-
+    output_handler._quicksave_result(
+        results, batch_prior, batch_lightcurves, output_folder, filter_idx, bi
+    )
+    #print('The shapes are:',np.shape(results),np.shape(batch_prior),np.shape(batch_lightcurves))
     return results, batch_prior, batch_lightcurves

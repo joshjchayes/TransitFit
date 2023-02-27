@@ -5,9 +5,11 @@ priors!
 
 from .io import read_priors_file, read_input_file, read_filter_info, parse_data_path_list, read_data_path_array, parse_priors_list, parse_filter_list
 from .retriever import Retriever
+from ._utils import check_batches
 
 import numpy as np
 import os
+
 
 def run_retrieval(data_files, priors, filter_info=None,
                   detrending_list=[['nth order', 1]],
@@ -26,8 +28,8 @@ def run_retrieval(data_files, priors, filter_info=None,
                   marker_color='dimgrey', line_color='black', ldtk_cache=None,
                   ldtk_samples=20000, do_ld_mc=False, data_skiprows=0,
                   allow_ttv=False, filter_delimiter=None,
-                  detrending_limits=None, bin_data=False, cadence=2,
-                  binned_color='red', walks=100, slices=10, n_procs=1):
+                  detrending_limits=None, normalise_limits=None, bin_data=False, cadence=2,
+                  binned_color='red', walks=100, slices=10, n_procs=1, check_batchsizes=False,):
     '''
     Runs a full retrieval of posteriors using nested sampling on a transit
     light curve or a set of transit light curves. For more guidance on the use
@@ -303,6 +305,11 @@ def run_retrieval(data_files, priors, filter_info=None,
     results : dict
         The results returned by ``Retriever.run_dynesty()``
     '''
+    print('Starting transitfit')
+
+    # If required to check for uneven batch sizes
+    if check_batchsizes:
+        data_files = check_batches(allow_ttv, data_files)
     # Load in the data and work out number of telescopes, filters, and epochs
     lightcurves, detrending_index_array = read_input_file(data_files)
 
@@ -314,8 +321,8 @@ def run_retrieval(data_files, priors, filter_info=None,
     retriever = Retriever(data_files, priors, n_telescopes, n_filters, n_epochs,
                           filter_info, detrending_list, limb_darkening_model,
                           host_T, host_logg, host_z, host_r, ldtk_cache,
-                           ldtk_samples, do_ld_mc, data_skiprows, allow_ttv,
-                          filter_delimiter, detrending_limits, normalise)
+                          ldtk_samples, do_ld_mc, data_skiprows, allow_ttv,
+                          filter_delimiter, detrending_limits, normalise, normalise_limits,detrend)
 
     # Run the retrieval!
     results = retriever.run_retrieval(ld_fit_method, fitting_mode,

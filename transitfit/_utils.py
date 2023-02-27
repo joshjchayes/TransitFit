@@ -1,6 +1,8 @@
 '''
 This is a series of utility functions for TransitFit, including input validation
 '''
+import pandas as pd
+import random
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -134,7 +136,7 @@ def weighted_avg_and_std(values, weights, axis=-1, single_val=False):
         except:
             flat_vals = values
             flat_weights = weights
-        average = np.average(flat_vals, weights=flat_weights)
+        average = np.average(flat_vals, weights=1/(flat_weights**2))
         uncertainty = 1 / np.sqrt(np.sum(1/(flat_weights**2)))
 
         return average, uncertainty
@@ -144,7 +146,7 @@ def weighted_avg_and_std(values, weights, axis=-1, single_val=False):
     uncertainty = []
 
     for i in range(len(values)):
-        average.append(np.average(np.array(values[i]), weights=np.array(weights[i])))
+        average.append(np.average(np.array(values[i]), weights=1/(np.array(weights[i])**2)))
         uncertainty.append(1 / np.sqrt(np.sum(1/(np.array(weights[i])**2))))
 
     return np.array(average), np.array(uncertainty)
@@ -249,3 +251,64 @@ def split_lightcurve_file(path, t0, P,t14=20, cutoff=0.25, window=5,
         paths.append(os.path.join(dirname, fname))
 
     return paths
+
+
+def check_batches(allow_ttv, data_files):
+    """Taken from firefly/_utils.py, with minor modifications.
+    This was needed to prevent uneven batchsizes.
+    Now it is not required in most of the cases, but has been kept as a failsafe.
+
+    Args:
+        allow_ttv (bool): To allow for TTV or not.
+        data_files (str): The path to the data input .csv file, which contains the paths to the
+        light curve data.
+
+    Returns:
+        str:  The path to modified data input .csv file, which contains the paths to the
+        light curve data. It removed some lightcurves randomly to take care of batching issue in uneven batches.
+    """
+
+    print('Checking if batches can be made of equal size.')
+    from natsort import natsorted
+    df = pd.read_csv(data_files)
+    light_curve_paths = df['Path'].to_list()
+
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+    # Enforce batches be the same size
+    curves = len(light_curve_paths)
+    if int(curves) > 5:
+        print('Still checking...')
+        if allow_ttv == True:
+            equal_batches = [5 + 3 * n for n in range(0, 500)]
+        else:
+            equal_batches = [6 + 4 * n for n in range(0, 500)]
+
+        if int(curves) not in equal_batches:
+            import bisect
+
+            index = bisect.bisect(equal_batches, int(curves))
+            new_curves = equal_batches[index - 1]
+            print(
+                f"\nEnforcing lightcurves to be in equal batch sizes. Discarded {curves-new_curves}."
+            )
+            curves = new_curves
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+    # Sort the files into ascending order and take random sample
+    if len(light_curve_paths) == int(curves):
+        return data_files
+
+    light_curve_paths = random.sample(light_curve_paths, k=int(curves))
+    light_curve_paths = natsorted(light_curve_paths)
+    print(
+        f"\nA total of {len(light_curve_paths)}",
+        "lightcurves" if len(light_curve_paths) > 1 else "lightcurve",
+        "will be used.",
+    )
+
+    path_temp = os.path.dirname(os.path.abspath(data_files))
+    data_path = f"{path_temp}/data_paths_modified.csv"
+    df = df.loc[df['Path'].isin(light_curve_paths)]
+    df.to_csv(data_path, index=False, header=True)
+    print(f"New data path is {data_path}")
+
+    return data_path

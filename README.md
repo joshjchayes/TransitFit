@@ -30,18 +30,18 @@ If you have used TransitFit in your work, please cite the [accompanying paper](h
 
 ```
 @ARTICLE{2021arXiv210312139H,
-       author = {{Hayes}, J.~J.~C. and {Kerins}, E. and {Morgan}, J.~S. and {Humpage}, A. and {Awiphan}, S. and {Charles-Mindoza}, S. and {McDonald}, I. and {Inyanya}, T. and {Padjaroen}, T. and {Munsaket}, P. and {Chuanraksasat}, P. and {Komonjinda}, S. and {Kittara}, P. and {Dhillon}, V.~S. and {Marsh}, T.~R. and {Reichart}, D.~E. and {Poshyachinda}, S.},
-        title = "{TransitFit: an exoplanet transit fitting package for multi-telescope datasets and its application to WASP-127~b, WASP-91~b, and WASP-126~b}",
+        author = {{Hayes}, J.~J.~C. and {Priyadarshi}, A. and {Kerins}, E. and {Awiphan}, S. and {McDonald}, I. and {A-thano}, N. and {Morgan}, J.~S. and {Humpage}, A. and  {Charles-Mindoza}, S. and {Wright}, M. and {Joshi}, Y. and {Jiang}, I.~G. and {Inyanya}, T. and {Padjaroen}, T. and {Munsaket}, P. and {Chuanraksasat}, P. and {Komonjinda}, S. and {Kittara}, P. and {Dhillon}, V.~S. and {Marsh}, T.~R. and {Reichart}, D.~E. and {Poshyachinda}, S.},
+        title = "{TransitFit: combined multi-instrument exoplanet transit fitting for JWST, HST and ground-based transmission spectroscopy studies}",
       journal = {arXiv e-prints},
-     keywords = {Astrophysics - Earth and Planetary Astrophysics, Astrophysics - Instrumentation and Methods for Astrophysics},
-         year = 2021,
-        month = mar,
+      keywords = {Astrophysics - Earth and Planetary Astrophysics, Astrophysics - Instrumentation and Methods for Astrophysics},
+          year = 2023,
+        month = feb,
           eid = {arXiv:2103.12139},
         pages = {arXiv:2103.12139},
 archivePrefix = {arXiv},
-       eprint = {2103.12139},
- primaryClass = {astro-ph.EP},
-       adsurl = {https://ui.adsabs.harvard.edu/abs/2021arXiv210312139H},
+        eprint = {2103.12139},
+  primaryClass = {astro-ph.EP},
+        adsurl = {https://ui.adsabs.harvard.edu/abs/2021arXiv210312139H},
       adsnote = {Provided by the SAO/NASA Astrophysics Data System}
 }
 ```
