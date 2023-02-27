@@ -11,3 +11,4 @@ corner
 pandas
 semantic_version
 transitfit
+Jinja2<3.1
