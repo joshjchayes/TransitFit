@@ -1,3 +1,4 @@
+# This repository is no longer maintained. The updated version of TransitFit can be accessed from [SPEARNET's](https://github.com/SPEARNET/TransitFit) repository.
 
 # TransitFit
 
