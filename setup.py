@@ -46,3 +46,5 @@ setuptools.setup(
     zip_safe=False,
     package_data={'transitfit' : ['../filters/*.csv']}
 )
+
+print("This version is no longer maintained. Please use the updated version of TransitFit from SPEARNET's GitHub repository [link in ReadMe].")
